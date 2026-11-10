@@ -219,6 +219,18 @@ function onConnection(socket) {
     });
 }
 
+// A person ended these sessions ("Log out" on the list of devices): close their live connections at once instead of waiting for the
+// minute check below. The device gets 'auth:expired', tries to refresh, is refused (the session is gone) and signs itself out.
+async function endSessions(sids) {
+    if (!io || !sids || !sids.length) return 0;
+    const set = new Set(sids.map(String));
+    let closed = 0;
+    for (const s of io.sockets.sockets.values()) {
+        if (s.data && s.data.sid && set.has(s.data.sid)) { s.emit('auth:expired'); s.disconnect(true); closed += 1; }
+    }
+    return closed;
+}
+
 const RECHECK_MS = 60 * 1000;
 // Closes the sockets of people who may no longer be here: blocked, signed out (session gone), role changed, or an owner whose panel the superadmin blocked.
 // The app reconnects by itself and then gets the right rooms (or is refused). Returns how many sockets were closed.
@@ -314,4 +326,4 @@ const connectionCount = () => (io ? io.engine.clientsCount : 0);
 const isUserOnline = (tenantId, userId) => online.users.has(`${tenantId}:${userId}`);
 const isOwnerOnline = (tenantId) => online.owners.has(String(tenantId));
 
-module.exports = { recheckSockets, init, connectionCount, toUser, toOwner, toShop, toKitchen, toWaiter, toOrder, toOrderMap, toAdmin, leaveOrder, isUserOnline, isOwnerOnline };
+module.exports = { endSessions, recheckSockets, init, connectionCount, toUser, toOwner, toShop, toKitchen, toWaiter, toOrder, toOrderMap, toAdmin, leaveOrder, isUserOnline, isOwnerOnline };

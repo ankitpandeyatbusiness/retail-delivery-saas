@@ -221,6 +221,7 @@ export function ShopMenu({ onGo }) {
             { icon: 'language', title: 'Language', subtitle: LANGS.find((l) => l.code === lang)?.native, group: 'Your app', words: 'language hindi tamil telugu marathi translate', act: () => setLangOpen(true) },
             { icon: 'eye', title: 'See the customer app', subtitle: tr('Look at your shop the way customers do. You cannot order from your own number.'), group: 'Your app', words: 'customer view preview app', act: customerView },
             { icon: 'information-circle', title: 'About Us', subtitle: tr('About the platform, terms and privacy'), group: 'Your app', words: 'about us platform company vivyaan terms privacy', act: () => go('AboutUs') },
+            { icon: 'phone-portrait', title: "Where you're logged in", subtitle: tr('Phones and browsers signed in as you'), group: 'Your app', words: 'logged in devices sessions security browser website sign out all', act: () => go('Sessions') },
             { icon: 'log-out', title: 'Log out', subtitle: tr('Sign out of this phone'), group: 'Your app', words: 'logout log out sign out exit', color: error, act: out },
         ]],
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -9,6 +9,7 @@ const sms = require('../services/adapters/sms');
 const wallet = require('../services/smsWalletService');
 const { hashPhone } = require('../utils/phoneHash');
 const liveFeed = require('../services/liveFeed');
+const { describeClient } = require('../services/clientInfo');
 
 /* ------------------------------- config ------------------------------- */
 if (!process.env.OTP_PEPPER) {
@@ -137,6 +138,7 @@ const findOrCreateUser = async (tenantId, phone) => {
 
 const issueSession = async (user, tenant, req, ip, { viewOnly, homeTenantId } = {}) => {
     const sessionId = new mongoose.Types.ObjectId();
+    const client = describeClient(req, ip);   // web or app, device name, city (never the IP itself)
     const { accessToken, refreshToken } = tokenService.generateTokens({
         userId: user._id,
         tenantId: tenant._id,
@@ -152,11 +154,15 @@ const issueSession = async (user, tenant, req, ip, { viewOnly, homeTenantId } = 
         deviceId: String(req.headers['x-device-id'] || 'unknown').substring(0, 64),
         userAgent: String(req.headers['user-agent'] || '').substring(0, 200),
         ipHash: sha256(ip),
+        ...client,
         expiresAt: new Date(Date.now() + tokenService.REFRESH_TTL_MS),
     });
 
-    // Cap devices: keep newest N, delete older sessions
-    const stale = await Session.find({ userId: user._id })
+    // Cap devices: keep newest N, delete older sessions.
+    // A rider is on ONE phone and may also have ONE website session beside it: the limit is counted per kind, so opening
+    // the website never signs the phone out (and the other way round).
+    const sameKind = user.role === 'rider' ? { platform: client.platform === 'web' ? 'web' : { $ne: 'web' } } : {};
+    const stale = await Session.find({ userId: user._id, ...sameKind })
         .sort({ createdAt: -1 })
         .skip(user.role === 'rider' ? MAX_SESSIONS_PER_RIDER : MAX_SESSIONS_PER_USER)
         .select('_id')

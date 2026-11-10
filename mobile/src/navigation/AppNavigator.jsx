@@ -61,6 +61,7 @@ import OwnerTabs from './OwnerNavigator';
 import ShopHubScreen from '../screens/owners/ShopHubScreen';
 import SoundboxScreen from '../screens/owners/SoundboxScreen';
 import AlertSettingsScreen from '../screens/common/AlertSettingsScreen';
+import SessionsScreen from '../screens/common/SessionsScreen';
 import { OwnerMoneyPage } from '../screens/owners/OwnerMoneyScreen';
 import AlertSliderHost from '../components/common/AlertSliderHost';
 import { OwnerStubPage } from '../screens/owners/OwnerStubScreens';
@@ -393,6 +394,7 @@ export default function AppNavigator() {
                     <Stack.Screen name="ShopHub" component={ShopHubScreen} />
                     <Stack.Screen name="Soundbox" component={SoundboxScreen} />
                     <Stack.Screen name="AlertSettings" component={AlertSettingsScreen} />
+                    <Stack.Screen name="Sessions" component={SessionsScreen} />
                     <Stack.Screen name="OwnerMoney" component={OwnerMoneyPage} />
                     <Stack.Screen name="OwnerStub" component={OwnerStubPage} />
                     <Stack.Screen name="OwnerOrder" component={OwnerOrderScreen} />

@@ -17,6 +17,11 @@ const sessionSchema = new mongoose.Schema({
     deviceId: { type: String },
     userAgent: { type: String },
     ipHash: { type: String },
+    // for the "Where you're logged in" list (services/clientInfo.js). The IP address itself is never kept.
+    platform: { type: String, enum: ['android', 'ios', 'web'] },
+    deviceLabel: { type: String },                  // "Chrome on Windows", "Android app"
+    city: { type: String }, region: { type: String }, country: { type: String },
+    place: { type: String },                        // "Local network" when the address is not on the internet
     lastUsedAt: { type: Date, default: Date.now },
 
     expiresAt: { type: Date, required: true },

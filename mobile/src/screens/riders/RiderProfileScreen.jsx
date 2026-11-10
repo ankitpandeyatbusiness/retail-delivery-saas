@@ -77,6 +77,7 @@ export default function RiderProfileScreen() {
                     <Row icon="alert-circle-outline" title={T.sos} color={error} onPress={() => setSosOpen(true)} />
                     <Row icon="battery-charging-outline" title={T.keepRunning} subtitle={T.keepRunningTitle} onPress={() => setGuideOpen(true)} />
                     <Row icon="information-circle-outline" title={tr('About Us')} subtitle={tr('About the platform, terms and privacy')} onPress={() => nav.navigate('AboutUs')} />
+                    <Row icon="phone-portrait-outline" title={tr("Where you're logged in")} subtitle={tr('Phones and browsers signed in as you')} onPress={() => nav.navigate('Sessions')} />
                     <Row
                         icon="log-out-outline" title={T.logout} color={error} last
                         onPress={() => themedAlert(`${T.logout}?`, T.logoutText, [

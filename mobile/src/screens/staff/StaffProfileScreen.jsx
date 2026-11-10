@@ -102,6 +102,7 @@ export default function StaffProfileScreen() {
                 <Card>
                     <AppearanceSwitch />
                     <Row icon="language-outline" title={tr('Language')} subtitle={LANGS.find((l) => l.code === lang)?.native} onPress={() => setLangOpen(true)} />
+                    <Row icon="phone-portrait-outline" title={tr("Where you're logged in")} subtitle={tr('Phones and browsers signed in as you')} onPress={() => nav.navigate('Sessions')} />
                     <Row icon="information-circle-outline" title={tr('About Us')} subtitle={tr('About the platform, terms and privacy')} onPress={() => nav.navigate('AboutUs')} last />
                 </Card>
 

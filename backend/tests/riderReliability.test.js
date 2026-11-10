@@ -121,7 +121,8 @@ describe('on duty and off duty', () => {
 describe('one phone per rider', () => {
     const login = async (phone) => {
         await f.plantOtp(w.tenant, phone, '654321');
-        const r = await request(app).post('/api/auth/verify-otp').set('x-tenant-slug', w.tenant.slug).send({ phone, otp: '654321' });
+        // these are PHONE logins (a browser login is counted separately for a rider: see sessions.test.js)
+        const r = await request(app).post('/api/auth/verify-otp').set('x-tenant-slug', w.tenant.slug).set('x-app-platform', 'android').send({ phone, otp: '654321' });
         assert.equal(r.status, 200, JSON.stringify(r.body));
         return r.body;
     };
