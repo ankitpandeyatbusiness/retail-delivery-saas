@@ -31,8 +31,11 @@ async function closureSweep(now) { await require('./shopClosure').sweep(now); }
 // plan ending, ended, grace, pause; Partner wallet low and empty (services/planLifecycle.js)
 async function planSweep(now) { await require('./planLifecycle').sweep(now); }
 
+// a refund the server left half-done is finished or undone (services/emergencyRefund.js)
+async function refundSweep(now) { await require('./emergencyRefund').recoverPending(now); }
+
 async function runAlerts(now = new Date()) {
-    for (const step of [closureSweep, planSweep, smsBalances]) {
+    for (const step of [closureSweep, planSweep, smsBalances, refundSweep]) {
         try { await step(now); } catch (e) { console.error(`Platform job (${step.name}) error:`, e.message); }
     }
 }

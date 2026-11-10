@@ -23,7 +23,7 @@ function words(status, orderNo, amountPaise, respondBy) {
 }
 
 async function onDisputeEvent({ account, name, entity }) {
-    if (account === 'platform') return { ignored: 'platform' };
+    if (account === 'platform') return require('./platformDisputes').onEvent({ name, entity });   // a shop's own payment to the platform: plan, wallet, SMS
     if (!entity?.id) return { ignored: 'no_dispute' };
     const status = String(name).split('.').pop();
     if (![...OPEN, ...FINAL].includes(status)) return { ignored: name };

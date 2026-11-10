@@ -62,6 +62,8 @@ async function overview(tenant, now = new Date()) {
         const base = Math.max(0, Math.min(balance, room));   // the balance that came from real top-ups
         out[kind] = { balancePaise: balance, refundableBasePaise: base, estimatedCashPaise: room ? Math.round((cashRoom * base) / room) : 0 };
     }
+    out.disputes = (await require('../models/PlatformDispute').find({ tenantId: tenant._id }).sort({ createdAt: -1 }).limit(10).lean())
+        .map((d) => ({ id: String(d._id), kind: d.kind, status: d.status, amountPaise: d.amountPaise, respondBy: d.respondBy || null, at: d.createdAt, clawedBack: !!d.clawedBack }));
     out.history = (await PlatformRefund.find({ tenantId: tenant._id }).sort({ createdAt: -1 }).limit(30).lean())
         .map((r) => ({ id: String(r._id), kind: r.kind, cashPaise: r.cashPaise, status: r.status, reason: r.reason, by: r.by, at: r.createdAt, endedPlan: r.endedPlan, error: r.error || null, creditNoteNo: r.creditNote?.invoiceNo || null }));
     return out;
@@ -115,6 +117,7 @@ async function refundPlanImpl({ tenant, sourceId, amountPaise, endPlan = true, r
     const p = /^[0-9a-f]{24}$/.test(String(sourceId)) ? await PlanPayment.findOne({ _id: sourceId, tenantId: tenant._id, status: { $in: ['paid', 'held'] } }).lean() : null;
     if (!p) throw httpError(404, 'Payment not found');
     if (!p.paymentId) throw httpError(409, 'This payment has no online money to send back');
+    if (await require('./platformDisputes').hasOpen('plan', p._id)) throw httpError(409, 'This payment is in a dispute with the bank. Refunding it as well would pay the same money twice. Wait for the dispute to end.');
     const done = (await refundedOf('plan', [p._id]))[String(p._id)]?.cash || 0;
     const left = p.payablePaise - done;
     if (!Number.isInteger(amountPaise) || amountPaise < MIN) throw httpError(400, 'The refund must be at least Rs 1');
@@ -167,6 +170,7 @@ async function refundWalletImpl({ tenant, kind, amountPaise, reason, requestId, 
         need -= base;
     }
     if (need > 0) throw httpError(400, 'That is more than the wallet money that was paid for online');
+    for (const x of parts) if (await require('./platformDisputes').hasOpen(kind, x.t._id)) throw httpError(409, 'This payment is in a dispute with the bank. Refunding it as well would pay the same money twice. Wait for the dispute to end.');
     if (parts.some((x) => x.cash < MIN)) throw httpError(400, 'One part of this refund is under Rs 1. Choose a larger amount.');
     // 1. the wallet gives the money up first (never below zero), the whole request or nothing
     const w = kind === 'wallet' ? await partnerWallet.getWallet(tenant._id) : await smsWallet.getWallet(tenant._id);
@@ -203,7 +207,49 @@ async function refundWalletImpl({ tenant, kind, amountPaise, reason, requestId, 
     return out;
 }
 
+// A refund the server left half-done (the wallet money was taken, the answer from the payment partner never came back): after 5 minutes it is finished or undone.
+// First ask the partner whether the refund exists (by its receipt); if not, send it again; if the partner refuses, put the wallet money back.
+async function recoverPending(now = new Date()) {
+    const rows = await PlatformRefund.find({ status: 'pending', createdAt: { $lt: new Date(now.getTime() - 5 * 60000) } }).sort({ createdAt: 1 }).limit(50).lean();
+    const out = { checked: rows.length, sent: 0, failed: 0 };
+    for (const r of rows) {
+        try {
+            await withShopLock(r.tenantId, async () => {
+                const cur = await PlatformRefund.findById(r._id).lean();
+                if (!cur || cur.status !== 'pending') return;
+                const receipt = cur.key.slice(0, 40);
+                let found = null;
+                try {
+                    const list = await payments.listRefunds({ paymentId: cur.paymentId });
+                    found = (list || []).find((x) => x.receipt === receipt && x.amountPaise === cur.cashPaise && x.status !== 'failed') || null;
+                } catch (e) { return; }   // cannot tell right now: the next sweep tries again
+                let refundId = found && found.id;
+                if (!found) { try { refundId = (await askPartner(cur.paymentId, cur.cashPaise, cur.key, cur.reason)).refundId; } catch (e) { refundId = null; } }
+                if (refundId) {
+                    await PlatformRefund.updateOne({ _id: cur._id }, { $set: { status: 'processed', refundId } });
+                    await ensureCreditNote(cur._id).catch(() => { });
+                    if (cur.endedPlan) { const t = await Tenant.findById(cur.tenantId).select('slug').lean(); if (t) await endPlanNow(cur.tenantId, t.slug); }
+                    out.sent += 1;
+                    return;
+                }
+                await PlatformRefund.updateOne({ _id: cur._id }, { $set: { status: 'failed', error: 'The payment partner did not take it. The wallet money was put back.' } });
+                if (cur.walletPaise > 0 && (cur.kind === 'wallet' || cur.kind === 'sms')) {
+                    const Wallet = cur.kind === 'wallet' ? PartnerWallet : SmsWallet; const Txn = cur.kind === 'wallet' ? PartnerTransaction : SmsTransaction;
+                    const w = cur.kind === 'wallet' ? await partnerWallet.getWallet(cur.tenantId) : await smsWallet.getWallet(cur.tenantId);
+                    await withTransaction(async (session) => {
+                        const after = await Wallet.findOneAndUpdate({ _id: w._id }, { $inc: { balancePaise: cur.walletPaise } }, { returnDocument: 'after', session });
+                        const txn = { tenantId: cur.tenantId, type: 'adjust', amountPaise: cur.walletPaise, balanceAfter: after.balancePaise, note: 'Refund did not go through: balance put back', actor: { type: 'system', label: 'refund sweep' } };
+                        await Txn.create([cur.kind === 'sms' ? { ...txn, walletTenantId: w.tenantId } : txn], { session });
+                    });
+                }
+                out.failed += 1;
+            });
+        } catch (e) { /* another refund for this shop is running: the next sweep */ }
+    }
+    return out;
+}
+
 const refundPlan = (a) => withShopLock(a.tenant._id, () => refundPlanImpl(a));
 const refundWallet = (a) => withShopLock(a.tenant._id, () => refundWalletImpl(a));
 
-module.exports = { overview, refundPlan, refundWallet, endPlanNow, ensureCreditNote };
+module.exports = { overview, refundPlan, refundWallet, endPlanNow, ensureCreditNote, recoverPending };

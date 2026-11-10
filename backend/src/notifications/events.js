@@ -185,6 +185,9 @@ const EVENTS = {
     admin_plan_paused: { to: 'superadmin', channels: ALL, critical: true },
     admin_wallet_low: { to: 'superadmin', channels: INAPP_PUSH },
     admin_wallet_empty: { to: 'superadmin', channels: ALL },
+    admin_platform_dispute: { to: 'superadmin', channels: ALL, critical: true },   // a bank dispute on a plan payment or a wallet / SMS top-up (services/platformDisputes.js)
+    admin_orders_dropped: { to: 'superadmin', channels: INAPP_PUSH },            // a Partner shop's orders fell by half: maybe orders are going outside the app (services/feeWatch.js)
+    admin_orders_unfinished: { to: 'superadmin', channels: INAPP_PUSH },         // a Partner shop's orders are often not completed, so no fee is taken (services/feeWatch.js)
     admin_sms_low: { to: 'superadmin', channels: ALL },
     admin_sms_zero: { to: 'superadmin', channels: ALL },
     admin_sms_topup_done: { to: 'superadmin', channels: ALL },

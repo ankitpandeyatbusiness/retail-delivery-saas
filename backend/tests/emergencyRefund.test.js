@@ -227,3 +227,60 @@ describe('safety of the refund itself', () => {
         assert.equal(t.plan.id, 'pro');   // the free Pro days are untouched
     });
 });
+
+describe('a refund the server left half-done', () => {
+    const refunds = require('../src/services/emergencyRefund');
+    // the state a crash leaves: the wallet money is gone and the refund row is still waiting
+    const crashed = async (minutesAgo = 10) => {
+        await topup();
+        await PartnerWallet.updateOne({ tenantId: w.tenant._id }, { $inc: { balancePaise: -30000 } });
+        const row = await PlatformRefund.create({ tenantId: w.tenant._id, kind: 'wallet', salesKind: 'wallet', sourceId: 'x1', paymentId: 'pay_top1', cashPaise: 35400, basePaise: 30000, gstPaise: 5400, walletPaise: 30000, counted: true, status: 'pending', reason: 'shop closing for good', by: 'test', key: 'crash-request-1:0' });
+        await PlatformRefund.collection.updateOne({ _id: row._id }, { $set: { createdAt: new Date(Date.now() - minutesAgo * 60000) } });
+        return row;
+    };
+
+    test('the partner never got it: it is sent again and finished', async () => {
+        const row = await crashed();
+        mock.method(payments, 'listRefunds', async () => []);
+        const r = await refunds.recoverPending();
+        assert.equal(r.sent, 1);
+        assert.equal(asked.length, 1);
+        assert.equal(asked[0].amountPaise, 35400);
+        assert.equal((await PlatformRefund.findById(row._id).lean()).status, 'processed');
+        assert.equal(await balance(), 20000);   // the wallet stays debited
+    });
+
+    test('the partner already sent it: it is only marked done, never sent twice', async () => {
+        const row = await crashed();
+        mock.method(payments, 'listRefunds', async () => [{ id: 'rfnd_real', paymentId: 'pay_top1', amountPaise: 35400, status: 'processed', receipt: 'crash-request-1:0' }]);
+        const r = await refunds.recoverPending();
+        assert.equal(r.sent, 1);
+        assert.equal(asked.length, 0);
+        const d = await PlatformRefund.findById(row._id).lean();
+        assert.equal(d.status, 'processed');
+        assert.equal(d.refundId, 'rfnd_real');
+    });
+
+    test('the partner refuses: the wallet money is put back', async () => {
+        const row = await crashed();
+        mock.method(payments, 'listRefunds', async () => []);
+        mock.restoreAll();
+        mock.method(payments, 'listRefunds', async () => []);
+        mock.method(payments, 'refund', async () => { throw new Error('refused'); });
+        const r = await refunds.recoverPending();
+        assert.equal(r.failed, 1);
+        assert.equal((await PlatformRefund.findById(row._id).lean()).status, 'failed');
+        assert.equal(await balance(), 50000);
+    });
+
+    test('a young waiting refund is left alone, and so is one when the partner cannot be asked', async () => {
+        await crashed(1);
+        assert.equal((await refunds.recoverPending()).checked, 0);
+        await PlatformRefund.collection.updateMany({}, { $set: { createdAt: new Date(Date.now() - 10 * 60000) } });
+        mock.method(payments, 'listRefunds', async () => { throw new Error('network'); });
+        const r = await refunds.recoverPending();
+        assert.equal(r.sent + r.failed, 0);
+        assert.equal(asked.length, 0);
+        assert.equal(await balance(), 20000);
+    });
+});
