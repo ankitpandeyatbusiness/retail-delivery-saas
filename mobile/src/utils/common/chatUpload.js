@@ -9,7 +9,7 @@ const fail = (m) => Object.assign(new Error(m), { safe: true });
 
 async function uploadFile({ role, kind, uri, contentType, maxBytes, tooBig }) {
     const api = role === 'admin' ? ownerApi : customerApi;
-    const size = fileSize(uri);
+    const size = await fileSize(uri);
     if (!size) throw fail('Could not read that file');
     if (size > maxBytes) throw fail(tooBig);
     let signed;

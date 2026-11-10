@@ -11,7 +11,7 @@ const ALLOWED = ['image/jpeg', 'image/png', 'image/webp'];
 const fail = (m) => Object.assign(new Error(m), { safe: true });
 
 async function putFile({ uri, mimeType }, sign) {
-    const size = fileSize(uri);
+    const size = await fileSize(uri);
     if (!size) throw fail('Could not read that photo');
     if (size > MAX_BYTES) throw fail('That photo is too large (max 5 MB). Try again.');
     const contentType = ALLOWED.includes(mimeType) ? mimeType : 'image/jpeg';

@@ -1,10 +1,14 @@
 // Sending a picked picture to storage straight from the file, without turning it into a Blob first
 // (a Blob copies the whole picture through the native side, which is slow and warns).
+import { Platform } from 'react-native';
 import { File, UploadType } from 'expo-file-system';
 import * as Legacy from 'expo-file-system/legacy';
 
-// size of the picked file in bytes (0 when it cannot be read)
+// size of the picked file in bytes (0 when it cannot be read).
+// On the phone the answer is immediate; on the WEBSITE a browser can only measure a picked file by reading it, so it is a Promise there.
+// Callers write `await fileSize(uri)`, which is the same on both.
 export function fileSize(uri) {
+    if (Platform.OS === 'web') return fetch(uri).then((r) => r.blob()).then((b) => b.size || 0).catch(() => 0);
     try { return new File(uri).size || 0; } catch (e) { return 0; }
 }
 

@@ -31,7 +31,7 @@ export async function pickPhoto(source, { square = false } = {}) {
 
 // kind 'complaint' needs refId (the order id). kind 'customer' (profile picture) needs none.
 async function upload({ kind, refId, uri, mimeType, onProgress, handle }) {
-    const size = fileSize(uri);
+    const size = await fileSize(uri);
     if (!size) throw fail('Could not read that photo');
     if (size > MAX_BYTES) throw fail('That photo is too large (max 5 MB). Try another one.');
 

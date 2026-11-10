@@ -35,7 +35,7 @@ export async function uploadImage({ kind, uri, mimeType, refId, via, onProgress,
     // via 'support': the picture of a help request (its own route, which stays open while the shop is paused)
     const sign = via === 'support' ? signSupportPhoto : signUpload;
     const confirm = via === 'support' ? confirmSupportPhoto : confirmUpload;
-    const size = fileSize(uri);
+    const size = await fileSize(uri);
     if (!size) throw fail('Could not read that picture');
     if (size > MAX_BYTES) throw fail('That picture is larger than 5 MB. Choose a smaller one.');
     const contentType = ALLOWED.includes(mimeType) ? mimeType : 'image/jpeg';
