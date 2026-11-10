@@ -7,6 +7,7 @@ import {
     View, Text, Pressable, FlatList, ScrollView, Animated, Easing, StatusBar, StyleSheet, useWindowDimensions, InteractionManager,
 } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
+import { useCustomerDesktop, DESKTOP_PAGE_MAX, DESKTOP_PANEL } from '../../utils/common/layout';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -238,7 +239,9 @@ const StuckPanel = forwardRef(function StuckPanel({ top, grouped, onHeight }, re
 
 /* ---------------- banners ---------------- */
 function Banners({ list, onOrder }) {
-    const { width } = useWindowDimensions();
+    const { width: winWidth } = useWindowDimensions();
+    const deskBanner = useCustomerDesktop();
+    const width = deskBanner ? Math.min(winWidth, DESKTOP_PAGE_MAX) - DESKTOP_PANEL : winWidth;   // the desktop column, not the whole window
     const { primary, primaryLight, primaryDark, border } = useBrand();
     const w = width - 32;
     const snap = w + 12;
@@ -574,6 +577,9 @@ export default function HomeScreen() {
     const dineMode = modeNow === 'dine_in' && modesOf(full).includes('dine_in');   // the table offers, waiting time and "your usual" show only while he is dining in
     const offers = useMemo(() => (dineMode ? allOffers : allOffers.filter((o) => !o.dineInOnly)), [allOffers, dineMode]);   // a dine-in-only coupon is shown only while dining in
     const waiting = !loaded && !errorStatus;   // the menu has not arrived: show shapes instead of nothing
+    // the desktop website shows 2 dishes across (the column beside the cart panel)
+    const deskCustomer = useCustomerDesktop();
+    const deskCols = deskCustomer ? 2 : 1;
     const rows = useMemo(() => {
         const R = [{ t: 'header' }, { t: 'branch' }, { t: 'where' }];   // 'branch': "Savera · Delhi" with Change (only for a branch of a brand)   // 'where': the shop's address and its Directions button (when switched on)
         const B = config.blocks;
@@ -586,7 +592,9 @@ export default function HomeScreen() {
         const keep = (list) => (vegOnly ? list.filter((p) => p.isVeg) : list);
 
         const pushItems = (list, cat) => {
-            if (config.cardStyle === 'grid') {
+            if (deskCols > 1) {   // the desktop website: several dishes side by side
+                for (let i = 0; i < list.length; i += deskCols) R.push({ t: 'grid', list: list.slice(i, i + deskCols), cat });
+            } else if (config.cardStyle === 'grid') {
                 for (let i = 0; i < list.length; i += 2) R.push({ t: 'pair', a: list[i], b: list[i + 1], cat });
             } else list.forEach((item) => R.push({ t: 'item', item, cat }));
         };
@@ -622,7 +630,7 @@ export default function HomeScreen() {
             }
         }
         return R;
-    }, [config, full, banners, chips, offers, recommended, festival, combo, all, filtered, grouped, menuCats, loaded, errorStatus, waiting, showStrips, applied.categories, applied.active, dineMode]);
+    }, [config, full, banners, chips, offers, recommended, festival, combo, all, filtered, grouped, menuCats, loaded, errorStatus, waiting, showStrips, applied.categories, applied.active, dineMode, deskCols]);
 
     const searchIdx = rows.findIndex((r) => r.t === 'search');
     const catsIdx = rows.findIndex((r) => r.t === 'cats');
@@ -708,6 +716,11 @@ export default function HomeScreen() {
             case 'strip': return <Strip r={r} />;
             case 'sec': return <SecHead title={r.title} sub={r.sub} />;
             case 'item': return <ItemCard item={r.item} variant={config.cardStyle} />;
+            case 'grid': return (
+                <View style={s.pair}>
+                    {Array.from({ length: deskCols }).map((_, i) => <View key={i} style={{ flex: 1 }}>{r.list[i] ? <ItemCard item={r.list[i]} variant="grid" /> : null}</View>)}
+                </View>
+            );
             case 'pair': return (
                 <View style={s.pair}>
                     <View style={{ flex: 1 }}><ItemCard item={r.a} variant="grid" /></View>
@@ -733,7 +746,7 @@ export default function HomeScreen() {
     };
 
     // everything under the category row takes part in the fade, so no height change is ever seen
-    const FADE_ROWS = ['offers', 'strip', 'sec', 'item', 'pair', 'empty', 'loading', 'error'];
+    const FADE_ROWS = ['offers', 'strip', 'sec', 'item', 'pair', 'grid', 'empty', 'loading', 'error'];
     const renderRow = (info) => {
         const node = renderBase(info);
         if (!FADE_ROWS.includes(info.item.t)) return node;

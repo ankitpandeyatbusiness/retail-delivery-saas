@@ -40,6 +40,8 @@ import TableBillScreen from '../screens/customers/TableBillScreen';
 import TableBillStrip from '../components/customers/TableBillStrip';
 import BookingStrip from '../components/customers/BookingStrip';
 import BottomDock from '../components/customers/BottomDock';
+import DesktopFrame from '../components/customers/DesktopFrame';
+import { useCustomerDesktop } from '../utils/common/layout';
 import TableLinkHost from '../components/customers/TableLinkHost';
 import OwedReminder from '../components/customers/OwedReminder';
 import TableFeedbackHost from '../components/customers/TableFeedbackHost';
@@ -176,6 +178,7 @@ function MainTabs() {
     const tabsCfg = useHomeStore((s) => s.full.tabs);
     const count = useCartStore((s) => s.lines.reduce((a, l) => a + l.quantity, 0));
     const floating = useThemeStore((s) => s.theme.tabBarStyle) === 'floating';
+    const deskCustomer = useCustomerDesktop();   // the desktop website has a top bar instead of the bottom tabs
     const tabMotion = useMotion();
     const closedStyle = useClosedStyle();   // the shop is closed: the tabs turn grey with the screens
     const defsByRoute = Object.fromEntries(Object.values(TAB_DEFS).map((d) => [d.name, d]));
@@ -197,7 +200,7 @@ function MainTabs() {
                     if (gate.busy) { e.preventDefault(); gate.pending = route.name; }
                 },
             })}
-            tabBar={floating ? (props) => <FloatingTabBar {...props} defs={defsByRoute} /> : undefined}
+            tabBar={deskCustomer ? () => null : floating ? (props) => <FloatingTabBar {...props} defs={defsByRoute} /> : undefined}
             screenOptions={{
                 headerShown: false,
                 sceneStyle: { backgroundColor: background },
@@ -317,6 +320,7 @@ export default function AppNavigator() {
     const slide = motion === 'off' ? 'none' : 'slide_from_right';
     const user = useAuthStore((s) => s.user);
     const hadUser = useRef(false);
+    const deskMain = useCustomerDesktop();   // the desktop website shows its cart in a side panel, so the floating cart bar is not drawn
     const [routeName, setRouteName] = useState(null);   // the screen in front (the live-delivery bar hides on some)
 
     // "My orders" on the frozen screen: back to the tabs (no reload) and open Orders
@@ -346,6 +350,7 @@ export default function AppNavigator() {
         <MaintenanceFrame background={background}>
             <NavigationContainer ref={navigationRef} onReady={() => { navigationReady(); setRouteName(navigationRef.getCurrentRoute()?.name); }} onStateChange={() => setRouteName(navigationRef.getCurrentRoute()?.name)} theme={navTheme}
                 documentTitle={{ formatter: () => useThemeStore.getState().theme?.name || 'Shop' }}>   {/* the website's tab title is the shop name on every screen (the phone app ignores this) */}
+                <DesktopFrame navRef={navigationRef} routeName={routeName}>
                 <Stack.Navigator
                     screenOptions={{ headerShown: false, contentStyle: { backgroundColor: background }, animation: slide, animationDuration: 220, gestureEnabled: true }}
                     screenListeners={{ transitionStart: holdGate, transitionEnd: releaseGate }}
@@ -475,6 +480,7 @@ export default function AppNavigator() {
                     <Stack.Screen name="OwnerInboxHub" component={OwnerInboxHub} />
                     <Stack.Screen name="OwnerCollection" component={OwnerCollectionScreen} />
                 </Stack.Navigator>
+                </DesktopFrame>
             </NavigationContainer>
             <OwnerViewPill onBack={() => { if (navigationRef.isReady() && (navigationRef.getRootState()?.routes?.length || 0) > 1) navigationRef.dispatch(StackActions.popToTop()); }} />
             <LiveOrderHost routeName={routeName} onOpenOrder={(id, isBulk) => { if (navigationRef.isReady()) navigationRef.navigate(isBulk ? 'BulkOrderDetail' : 'OrderDetail', { id }); }} />
@@ -482,7 +488,7 @@ export default function AppNavigator() {
             <TableLinkHost onDone={() => { if (navigationRef.isReady()) navigationRef.navigate('MainTabs'); }} />
             <TableBillStrip routeName={routeName} onOpen={() => { if (navigationRef.isReady()) navigationRef.navigate('TableBill'); }} onOpenCart={() => { if (navigationRef.isReady()) navigationRef.navigate('Cart'); }} />
             <BookingStrip routeName={routeName} onOpen={() => { if (navigationRef.isReady()) navigationRef.navigate('MyBookings'); }} />
-            <BottomDock navRef={navigationRef} />
+            {deskMain ? null : <BottomDock navRef={navigationRef} />}
             <ReviewPrompts />
             <OwedReminder />
             <PickupCollectHost />
