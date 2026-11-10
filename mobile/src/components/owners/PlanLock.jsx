@@ -21,6 +21,7 @@ export function PlanTag({ need }) {
 
 // what each locked feature does and who it is for, in a few plain words (shown before the owner decides to upgrade)
 const INFO = {
+    dineIn: () => tr('Guests scan a QR code at the table and order from their own phone, and the bill is kept per table. Use it if you serve people at tables and want fewer staff taking orders.'),
     customPush: () => tr('Sends reminders and offers to your customers by itself, for example to those who have not ordered for a while. Use it to bring customers back without messaging anyone by hand.'),
     loyalty: () => tr('Customers earn points on every order and spend them on their next one. Use it to make regular customers come back more often.'),
     costsProfit: () => tr('Add what you spend, such as ingredients, salaries and rent, and see what the shop really kept after costs. Use it to know whether you are making money, not just sales.'),

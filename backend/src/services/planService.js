@@ -119,8 +119,10 @@ function viewOf(tenant, now = new Date()) {
 
 // Switch a shop's plan (supreme admin, instant). `extras` = feature keys outside the plan to keep (default: keep the old extras only if they still lie outside the new plan).
 // freeDays > 0 starts a free period (no invoice). Partner has no end date (wallet based).
+const PREPAID_WAITING = 'This shop has a plan the owner already paid for, waiting to start. Refund it first with Send money back, then change the plan.';
 async function setPlan(tenantDoc, { to, freeDays, keepExtras = true, by = 'supreme' }) {
-    await require('./brandPlan').guardBranch(tenantDoc);   // a branch follows its brand's main shop
+    await require('./brandPlan').guardBranch(tenantDoc);
+    if (tenantDoc.plan?.scheduled?.prepaid) throw Object.assign(new Error(PREPAID_WAITING), { status: 409 });   // a branch follows its brand's main shop
     if (!plans.isPlan(to)) throw Object.assign(new Error('Plan must be partner, growth or pro'), { status: 400 });
     const now = new Date();
     const def = await getDefaults();
@@ -206,6 +208,7 @@ async function removePlan(tenantDoc, { by = 'supreme' } = {}) {
     await require('./brandPlan').guardBranch(tenantDoc);
     const from = tenantDoc.plan?.id || null;
     if (!from) throw Object.assign(new Error('This shop has no plan'), { status: 409 });
+    if (tenantDoc.plan?.scheduled?.prepaid) throw Object.assign(new Error(PREPAID_WAITING), { status: 409 });
     const now = new Date();
     const p = { ...(tenantDoc.plan || {}) };
     const history = [...(p.history || []).slice(-49), { at: now, by, from, to: null, note: 'plan removed' }];

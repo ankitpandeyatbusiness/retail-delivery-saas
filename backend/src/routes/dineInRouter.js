@@ -37,7 +37,7 @@ router.use(tenantRecognizer);
 router.post('/scan', wrap(async (req, res) => {
     const table = String(req.body?.table || '');
     const d = { ...require('../services/tenantConfigService').DEFAULTS.orders.dineIn, ...(req.tenant.settings?.orders?.dineIn || {}) };
-    if (!d.enabled) throw httpError(400, 'This shop is not taking dine in orders right now');
+    if (!d.enabled || !require('../services/featureGate').hasFeature(req.tenant, 'dineIn')) throw httpError(400, 'This shop is not taking dine in orders right now');
     if (!/^\d{1,3}$/.test(table) || Number(table) < 1 || Number(table) > d.tableCount || !tableQr.check(req.tenant._id, 'table:' + table, req.body?.k)) throw httpError(400, 'This QR code is not valid');
     tableBill.recordScan({ tenantId: req.tenant._id, table, key: req.ip, source: 'app' });
     res.json({ ok: true, table });

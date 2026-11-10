@@ -6,6 +6,7 @@ const PLAN_IDS = ['partner', 'growth', 'pro'];
 
 // feature key -> the plans that include it
 const FEATURES = {
+    dineIn: { label: 'Dine-in ordering with QR tables', plans: ['growth', 'pro'] },
     riderLiveMap: { label: 'Rider live map for customers', plans: ['growth', 'pro'] },
     soundboxVoice: { label: 'Soundbox voice (app only)', plans: ['growth', 'pro'] },
     services: { label: 'Services and inquiries', plans: ['growth', 'pro'] },
@@ -57,9 +58,11 @@ const OWNER_MENU = [
     { route: 'OwnerReportsHub', title: 'Business report', feature: 'analytics' },
     { route: 'OwnerCooks', title: 'Kitchen staff', feature: 'staffLogins' },
     { route: 'OwnerWaiters', title: 'Waiters', feature: 'staffLogins' },
-    { route: 'OwnerServices', title: 'Services', feature: 'services', hiddenWhenOff: true },
-    { route: 'OwnerInquiries', title: 'Inquiries', feature: 'services', hiddenWhenOff: true },
-    { route: 'OwnerBulk', title: 'Bulk orders', feature: 'bulkOrders', hiddenWhenOff: true },
+    { route: 'OwnerServices', title: 'Services', feature: 'services' },
+    { route: 'OwnerInquiries', title: 'Inquiries', feature: 'services' },
+    { route: 'OwnerBulk', title: 'Bulk orders', feature: 'bulkOrders' },
+    { route: 'OwnerDineIn', title: 'Dine in', feature: 'dineIn' },
+    { route: 'OwnerAllBranches', title: 'Branches', feature: 'multiBranch' },
 ];
 
 const isPlan = (id) => PLAN_IDS.includes(id);

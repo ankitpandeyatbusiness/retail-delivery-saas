@@ -24,6 +24,7 @@ export const _serverQuoteTexts = () => [
     // the feature names of the plan catalog (config/plans.js)
     tr('Rider live map for customers'), tr('Soundbox voice (app only)'), tr('Services and inquiries'), tr('Loyalty and rewards'), tr('Auto-accept orders'), tr('Costs and profit view'), tr('Kitchen and waiter logins'), tr('Bulk orders'), tr('Full exports (customers, orders, items, reports)'), tr('Business analytics and PDF reports'), tr('Custom and daily automatic push'), tr('Multi-branch'), tr('Custom domain'),
     tr('Coupon {v1} {v2}% off'),
+    tr('Dine-in ordering with QR tables'),
     tr('Your {v1} months discount is already better than this coupon, so it is not used.'),
     tr('One more shop can be created. It runs until {v1} with your plan, and is part of your next renewal.'),
     tr('Extra shop: Rs {v1} a month x {v2} of 30 days (the days left of your plan)'),
@@ -37,11 +38,12 @@ const openInvoice = async (id) => {
 // plan's list is: for Partner the basics plus its features; for Growth and Pro what is NEW on top of the plan below. It can never promise more than is enforced.
 const BASICS = [
     'Your own online shop, on a website and in the customer app', 'Your own shopname.vivyaan.co.in link to share', 'Customers follow their order step by step and can call the rider',
-    'Dine-in QR tables, waitlist and table booking', 'Coupons and offers to bring customers back', 'Online payments and refunds in one place',
+    'Table booking, with a waitlist when a slot is full', 'Coupons and offers to bring customers back', 'Online payments and refunds in one place',
     'Daily sales summary and your Money tab', 'Tax invoices for every order', 'App in Hindi, Marathi, Gujarati, Bengali and more',
 ];
 // feature -> its line(s), in the order they are shown
 const FEATURE_LINES = [
+    ['dineIn', ['Guests order from the table by QR, with table bills and waiter calls']],
     ['riderLiveMap', ['Customers watch the rider live on a map']], ['soundboxVoice', ['Soundbox voice announces every new order']], ['services', ['Sell services and take inquiries']],
     ['loyalty', ['Loyalty and rewards to keep customers coming back']], ['autoAccept', ['Auto-accept orders, no waiting']], ['costsProfit', ['Costs and profit view, see what you really earn']],
     ['multiBranch', ['Run up to {shops} shops from one account, and add more whenever you grow']], ['customDomain', ['Your own website name (custom domain)']],

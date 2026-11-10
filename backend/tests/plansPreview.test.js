@@ -34,7 +34,8 @@ describe('preview of each plan', () => {
         assert.equal(row(pv, 'OwnerWallet').state, 'on');
         assert.deepEqual([row(pv, 'OwnerCosts').state, row(pv, 'OwnerCosts').needs], ['locked', 'Growth']);
         assert.deepEqual([row(pv, 'OwnerAutopilot').state, row(pv, 'OwnerAutopilot').needs], ['locked', 'Pro']);
-        assert.equal(row(pv, 'OwnerBulk').state, 'hidden');
+        assert.equal(row(pv, 'OwnerBulk').state, 'locked');
+        assert.deepEqual([row(pv, 'OwnerDineIn').state, row(pv, 'OwnerDineIn').needs], ['locked', 'Growth']);
         assert.equal(pv.other.exports, 'money columns only');
         assert.equal(pv.other.soundboxVoice, false);
     });

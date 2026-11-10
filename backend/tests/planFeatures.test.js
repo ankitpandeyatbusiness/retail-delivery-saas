@@ -138,3 +138,13 @@ describe('starting a free period', () => {
         assert.equal(await PlanPayment.countDocuments({ tenantId: w.tenant._id }), 0);
     });
 });
+
+describe('a plan paid in advance is never lost by a hand change', () => {
+    test('switching the plan or removing it is refused until the prepaid plan is refunded', async () => {
+        const end = new Date(Date.now() + 10 * 86400000);
+        await setPlan({ id: 'pro', startedAt: new Date(), endsAt: end, freeUntil: end, scheduled: { to: 'growth', at: new Date(end.getTime() + 1), by: 'owner payment', prepaid: { startsAt: new Date(end.getTime() + 1), endsAt: new Date(end.getTime() + 31 * 86400000), months: 1, paymentId: 'x' } } });
+        assert.equal((await call(supreme, 'put', `/tenants/${w.tenant._id}/plan`, { to: 'growth' })).status, 409);
+        assert.equal((await call(supreme, 'delete', `/tenants/${w.tenant._id}/plan`)).status, 409);
+        assert.equal((await shopNow()).plan.id, 'pro');
+    });
+});

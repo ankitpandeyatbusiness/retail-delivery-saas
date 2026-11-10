@@ -665,6 +665,8 @@ function resolveConfig(tenant, now = new Date()) {
     if (!offers.couponsEnabled) tabs = tabs.filter((t) => t !== 'offers');
 
     const orders = merge(DEFAULTS.orders, clean.orders);
+    // dine-in is a plan feature (Growth, Pro): a shop without it takes delivery and pickup only, whatever its saved setting says. The setting is kept and works again on a plan that has it.
+    if (!require('./featureGate').hasFeature(tenant, 'dineIn')) orders.dineIn = { ...(orders.dineIn || {}), enabled: false };
     if (clean.orders?.minOrder === undefined && tenant.delivery?.minOrder) orders.minOrder = tenant.delivery.minOrder;
     if (tenant.ownerBlocked) orders.acceptingOrders = false;
     // A timed pause: while it lasts nobody can order; when it is over this simply stops applying, so the shop reopens by

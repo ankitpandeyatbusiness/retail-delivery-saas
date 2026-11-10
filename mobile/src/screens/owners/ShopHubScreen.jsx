@@ -80,7 +80,7 @@ const planLineOf = (p) => {
 export const _menuHeadings = () => [tr('Your app'), tr('Branches'), tr('Run several shops from one account')];
 
 // menu row -> the plan feature it needs (config/plans.js on the server)
-const LOCKS = { OwnerAutopilot: 'customPush', OwnerRewards: 'loyalty', OwnerCosts: 'costsProfit', OwnerReportsHub: 'analytics', OwnerCooks: 'staffLogins', OwnerWaiters: 'staffLogins', OwnerServices: 'services', OwnerInquiries: 'services', OwnerBulk: 'bulkOrders', OwnerAllBranches: 'multiBranch' };
+const LOCKS = { OwnerAutopilot: 'customPush', OwnerRewards: 'loyalty', OwnerCosts: 'costsProfit', OwnerReportsHub: 'analytics', OwnerCooks: 'staffLogins', OwnerWaiters: 'staffLogins', OwnerServices: 'services', OwnerInquiries: 'services', OwnerBulk: 'bulkOrders', OwnerAllBranches: 'multiBranch', OwnerDineIn: 'dineIn' };
 
 const EASY = new Set(['@busy', 'OwnerAutomations', 'OwnerRiders', 'OwnerBookings', 'OwnerServices', 'OwnerBulk', 'OwnerInquiries', 'OwnerClosing', 'OwnerDineIn', 'OwnerCooks', 'OwnerWaiters', 'OwnerCustomers', 'OwnerExport', 'OwnerCosts', 'OwnerComplaints', 'OwnerMessages', 'OwnerCategories', 'OwnerCoupons', 'OwnerMoney', 'OwnerMoneyHub', 'OwnerReportsHub', 'OwnerHours', 'OwnerShopSettings', 'AlertSettings', 'Soundbox', 'OwnerAppLock']);
 const EASY_APP = new Set(['My profile', 'Appearance', 'Language', 'See the customer app', 'Log out']);

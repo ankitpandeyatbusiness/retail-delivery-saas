@@ -116,6 +116,7 @@ const tenantSchema = new mongoose.Schema({
 
     // Plan (Partner / Growth / Pro), see config/plans.js and docs/plans-and-pricing.md. No plan id = an old shop not moved yet (phase 9): nothing is gated.
     // Written only by the supreme admin routes (services/planService.js).
+    refundLockAt: Date,   // set while an emergency refund runs for this shop, so two cannot run together (services/emergencyRefund.js)
     plan: {
         id: { type: String, enum: ['partner', 'growth', 'pro'] },
         startedAt: Date,

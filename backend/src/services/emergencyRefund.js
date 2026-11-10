@@ -99,8 +99,16 @@ const askPartner = async (paymentId, amountPaise, key, reason) => {
     return r;
 };
 
+// One refund at a time per shop: two admins (or two taps with different request ids) cannot both refund the same money. The lock frees itself after 2 minutes if a server dies.
+async function withShopLock(tenantId, fn) {
+    const now = new Date();
+    const got = await Tenant.findOneAndUpdate({ _id: tenantId, $or: [{ refundLockAt: { $exists: false } }, { refundLockAt: null }, { refundLockAt: { $lt: new Date(now.getTime() - 120000) } }] }, { $set: { refundLockAt: now } }, { new: true }).select('_id').lean();
+    if (!got) throw httpError(409, 'Another refund for this shop is running. Try again in a moment.');
+    try { return await fn(); } finally { await Tenant.updateOne({ _id: tenantId }, { $unset: { refundLockAt: 1 } }); }
+}
+
 // --- a plan payment ---
-async function refundPlan({ tenant, sourceId, amountPaise, endPlan = true, reason, requestId, by }) {
+async function refundPlanImpl({ tenant, sourceId, amountPaise, endPlan = true, reason, requestId, by }) {
     const key = `${requestId}:0`;
     const dup = await PlatformRefund.findOne({ key }).lean();
     if (dup) return { ok: true, duplicate: true, status: dup.status, cashPaise: dup.cashPaise };
@@ -125,6 +133,10 @@ async function refundPlan({ tenant, sourceId, amountPaise, endPlan = true, reaso
     await PlatformRefund.updateOne({ _id: row._id }, { $set: { status: 'processed', refundId: r.refundId } });
     await ensureCreditNote(row._id).catch((e) => console.error('Credit note error:', e.message));
     if (endPlan && p.kind !== 'branch') await endPlanNow(tenant._id, tenant.slug);
+    if (tenant.plan?.scheduled?.prepaid?.paymentId === String(p._id) && amountPaise + done >= p.payablePaise) {   // the plan paid in advance is refunded in full: it must not start later
+        await Tenant.updateOne({ _id: tenant._id }, { $unset: { 'plan.scheduled': 1 } });
+        invalidateTenant(tenant.slug);
+    }
     return { ok: true, status: 'processed', cashPaise: amountPaise, refundId: r.refundId, endedPlan: !!endPlan && p.kind !== 'branch' };
 }
 
@@ -138,7 +150,7 @@ async function endPlanNow(tenantId, slug, now = new Date()) {
 
 // --- a wallet (Partner or SMS) ---
 // amountPaise = the wallet money to give back (what the owner would otherwise keep); the cash that goes back is that plus its GST share, split over the top-ups newest first
-async function refundWallet({ tenant, kind, amountPaise, reason, requestId, by }) {
+async function refundWalletImpl({ tenant, kind, amountPaise, reason, requestId, by }) {
     const Topup = kind === 'wallet' ? PartnerTopup : SmsTopup;
     const first = await PlatformRefund.findOne({ key: `${requestId}:0` }).lean();
     if (first) return { ok: true, duplicate: true, status: first.status };
@@ -190,5 +202,8 @@ async function refundWallet({ tenant, kind, amountPaise, reason, requestId, by }
     }
     return out;
 }
+
+const refundPlan = (a) => withShopLock(a.tenant._id, () => refundPlanImpl(a));
+const refundWallet = (a) => withShopLock(a.tenant._id, () => refundWalletImpl(a));
 
 module.exports = { overview, refundPlan, refundWallet, endPlanNow, ensureCreditNote };

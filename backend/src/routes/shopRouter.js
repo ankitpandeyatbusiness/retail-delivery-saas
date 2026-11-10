@@ -628,6 +628,7 @@ router.put('/settings', wrap(async (req, res) => {
         }
         const v = validateSettings({ orders: body.orders });
         if (!v.ok) return res.status(400).json({ error: 'Invalid order settings', errors: v.errors });
+        if (v.clean.orders?.dineIn?.enabled === true && !require('../services/featureGate').hasFeature(req.tenant, 'dineIn')) throw httpError(403, 'Dine-in ordering is not in your plan. See Plan to upgrade.');
         for (const [k, val] of Object.entries(v.clean.orders || {})) {
             if (val && typeof val === 'object' && !Array.isArray(val)) {
                 for (const [k2, val2] of Object.entries(val)) updates[`settings.orders.${k}.${k2}`] = val2;

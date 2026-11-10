@@ -203,3 +203,27 @@ describe('the credit note', () => {
         assert.equal((await request(app).get(`/api/shop/plan/refunds/${id}/credit-note`).set(other.owner.headers)).status, 404);
     });
 });
+
+describe('safety of the refund itself', () => {
+    test('two admins refunding the same payment at the same moment can never send more than was paid', async () => {
+        const p = await paidPro();
+        const mk = (i) => call(supreme, 'post', url(), { kind: 'plan', sourceId: String(p._id), amountPaise: 300000, endPlan: false, requestId: `race-request-${i}-zzzz`, reason: 'both pressed send' });
+        const [a, b] = await Promise.all([mk(1), mk(2)]);
+        assert.ok([a.status, b.status].includes(201));
+        assert.ok(asked.reduce((n, x) => n + x.amountPaise, 0) <= 300000);
+        assert.equal(asked.length, 1);
+        assert.equal((await Tenant.findById(w.tenant._id).lean()).refundLockAt, undefined);   // the lock is released
+    });
+
+    test('refunding the plan paid in advance in full cancels it, so it does not start later', async () => {
+        const end = new Date(Date.now() + 10 * DAY);
+        await Tenant.updateOne({ _id: w.tenant._id }, { $set: { plan: { id: 'pro', startedAt: new Date(), endsAt: end, freeUntil: end } } });
+        const p = await PlanPayment.create({ tenantId: w.tenant._id, kind: 'new', from: 'pro', to: 'growth', months: 1, status: 'paid', paymentId: 'pay_adv1', paidAt: new Date(), payablePaise: 299900, quote: { startsAt: new Date(end.getTime() + 1), endsAt: new Date(end.getTime() + 31 * DAY), taxablePaise: 299900, gstPaise: 0, deferred: true } });
+        await Tenant.updateOne({ _id: w.tenant._id }, { $set: { 'plan.scheduled': { to: 'growth', at: new Date(end.getTime() + 1), by: 'owner payment', prepaid: { startsAt: new Date(end.getTime() + 1), endsAt: new Date(end.getTime() + 31 * DAY), months: 1, paymentId: String(p._id) } } } });
+        const r = await post({ kind: 'plan', sourceId: String(p._id), amountPaise: 299900, endPlan: false });
+        assert.equal(r.status, 201);
+        const t = await Tenant.findById(w.tenant._id).lean();
+        assert.equal(t.plan.scheduled, undefined);
+        assert.equal(t.plan.id, 'pro');   // the free Pro days are untouched
+    });
+});
