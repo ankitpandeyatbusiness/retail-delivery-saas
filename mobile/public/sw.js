@@ -61,4 +61,38 @@ self.addEventListener('fetch', (event) => {
     }
 });
 
-// Phase 6 adds web push here (push and notificationclick events).
+// ---- Browser push ("Also notify me on this browser") ----
+// The server sends { title, body, data, tag, icon, silent }. When the website is open and in front, the live alert inside the page already
+// says it, so nothing is shown (and the browser does not add its own "site updated" notice for a visible page). Otherwise a notification appears.
+self.addEventListener('push', (event) => {
+    let d = {};
+    try { d = event.data ? event.data.json() : {}; } catch (e) { d = { title: 'New message', body: event.data ? event.data.text() : '' }; }
+    event.waitUntil((async () => {
+        const open = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+        if (open.some((c) => c.visibilityState === 'visible')) return;
+        const icon = d.icon || '/icons/icon-1024.png';
+        await self.registration.showNotification(d.title || 'New message', {
+            body: d.body || '',
+            icon,
+            badge: icon,
+            tag: d.tag || undefined,
+            renotify: !!d.tag,   // a later push with the same tag replaces the earlier one and alerts again
+            silent: !!d.silent,
+            data: d.data || {},
+        });
+    })());
+});
+
+// A tap: bring the website forward and tell it what was tapped (it opens the same screen the phone app would). If it is closed, open it with the tap in the address.
+self.addEventListener('notificationclick', (event) => {
+    event.notification.close();
+    const data = event.notification.data || {};
+    event.waitUntil((async () => {
+        const open = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+        const win = open.find((c) => 'focus' in c);
+        if (win) { await win.focus(); win.postMessage({ type: 'push-click', data }); return; }
+        let q = '';
+        try { if (Object.keys(data).length) q = encodeURIComponent(JSON.stringify(data)).slice(0, 1800); } catch (e) { q = ''; }
+        if (self.clients.openWindow) await self.clients.openWindow(q ? '/?pushtap=' + q : '/');
+    })());
+});

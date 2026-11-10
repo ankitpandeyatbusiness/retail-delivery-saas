@@ -14,6 +14,8 @@ const userSchema = new mongoose.Schema({
     },
     // the alerts this person switched (notifications/alertGroups.js): { <group>: { n?, p?, s? } }, only what differs from the recommended settings
     alertPrefs: { type: mongoose.Schema.Types.Mixed },
+    // "Also notify me on this browser": the website gets the push as well as the phone app. Off unless the person switches it on (the switch also subscribes the browser)
+    alsoWebPush: { type: Boolean, default: false },
     role: { type: String, enum: ['customer', 'rider', 'admin', 'kitchen', 'waiter'], default: 'customer' },
     isBlocked: { type: Boolean, default: false },
     // why, when and by whom he was blocked, and the order or table bill it was about (kept until he is unblocked)

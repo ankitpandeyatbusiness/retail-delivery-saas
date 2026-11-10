@@ -99,7 +99,7 @@ async function list({ tenantId, tag, q, page = 1, limit = 20, now = new Date() }
     const profiles = await build({ tenantId, now });
     const ids = [...profiles.keys()];
     const users = await User.find({ _id: { $in: ids }, tenantId, role: 'customer' }).select('name phone isBlocked prefs').lean();
-    const have = new Set((await DeviceToken.distinct('userId', { tenantId, userId: { $in: users.map((u) => u._id) } })).map(String));
+    const have = new Set((await DeviceToken.distinct('userId', { tenantId, platform: { $ne: 'web' }, userId: { $in: users.map((u) => u._id) } })).map(String));
     const weekAgo = new Date(now.getTime() - 7 * DAY);
     const recent = await NudgeLog.aggregate([
         { $match: { tenantId: new mongoose.Types.ObjectId(String(tenantId)), createdAt: { $gte: weekAgo } } },
@@ -138,7 +138,7 @@ async function one({ tenantId, userId, now = new Date() }) {
     const p = profiles.get(String(userId));
     const u = await User.findOne({ _id: userId, tenantId, role: 'customer' }).select('name phone isBlocked prefs').lean();
     if (!u) return null;
-    const device = await DeviceToken.exists({ tenantId, userId });
+    const device = await DeviceToken.exists({ tenantId, userId, platform: { $ne: 'web' } });   // "has the app": a browser does not count
     const logs = await NudgeLog.find({ tenantId, userId }).sort({ createdAt: -1 }).limit(10).select('kind by title createdAt').lean();
     const reach = reachability(u, !!device);
     return { ...(p || { userId: String(userId), orders: 0, tag: 'new', favourites: [], favouriteBySlot: {}, vip: false, spent: 0 }), id: String(u._id), name: u.name || '', phone: u.phone || '', reachable: reach.ok, reachNote: reach.note, nudges: logs };

@@ -16,6 +16,7 @@ const User = require('../models/User');
 const i18n = require('../notifications/i18n');
 const DeviceToken = require('../models/DeviceToken');
 const realtime = require('../services/realtime');
+const webPush = require('../services/adapters/webPush');
 
 const { wrap, httpError } = apiErrors;
 const clamp = (n, min, max) => Math.min(Math.max(n, min), max);
@@ -121,6 +122,47 @@ mine.post('/devices/remove', wrap(async (req, res) => {
     if (typeof token !== 'string') throw httpError(400, 'Invalid device token');
     await DeviceToken.deleteOne({ token, tenantId: req.tenant._id, userId: req.auth.userId });
     res.json({ ok: true });
+}));
+
+// ---- BROWSER push (the website; services/adapters/webPush.js). The switch is "Also notify me on this browser", off until the person turns it on. ----
+//   GET  /web-push                { publicKey | null, enabled }   publicKey null = the server has no browser push set up: the website hides the switch
+//   POST /web-push/subscribe      { subscription: { endpoint, keys: { p256dh, auth } } }   turns it on for this browser
+//   POST /web-push/unsubscribe    { endpoint }                                              turns it off for this browser
+// The phone app keeps priority: a person with a phone only gets the browser push while this is on; a person with no phone gets it once subscribed.
+mine.get('/web-push', wrap(async (req, res) => {
+    const me = await User.findOne({ _id: req.auth.userId, tenantId: req.tenant._id }).select('alsoWebPush').lean();
+    res.json({ publicKey: webPush.publicKey(), enabled: !!(me && me.alsoWebPush) });
+}));
+
+mine.post('/web-push/subscribe', wrap(async (req, res) => {
+    if (!webPush.configured()) throw httpError(409, 'Browser notifications are not set up yet');
+    const sub = req.body && req.body.subscription;
+    const endpoint = sub && sub.endpoint;
+    const keys = sub && sub.keys;
+    if (typeof endpoint !== 'string' || !endpoint.toLowerCase().startsWith('https://') || endpoint.length > 2000) throw httpError(400, 'Invalid subscription');
+    if (!keys || typeof keys.p256dh !== 'string' || typeof keys.auth !== 'string' || keys.p256dh.length > 200 || keys.auth.length > 100) throw httpError(400, 'Invalid subscription');
+
+    const who = { tenantId: req.tenant._id, userId: req.auth.userId };
+    await DeviceToken.findOneAndUpdate(
+        { token: endpoint },
+        { $set: { ...who, platform: 'web', webKeys: { p256dh: keys.p256dh, auth: keys.auth }, lastSeenAt: new Date() } },   // a browser moves to whoever uses it now
+        { upsert: true },
+    );
+    await User.updateOne({ _id: req.auth.userId, tenantId: req.tenant._id }, { $set: { alsoWebPush: true } });
+    const extra = await DeviceToken.find(who).sort({ lastSeenAt: -1 }).skip(10).select('_id').lean();
+    if (extra.length) await DeviceToken.deleteMany({ _id: { $in: extra.map((e) => e._id) } });
+    res.status(201).json({ ok: true, enabled: true });
+}));
+
+mine.post('/web-push/unsubscribe', wrap(async (req, res) => {
+    const endpoint = req.body && req.body.endpoint;
+    if (typeof endpoint !== 'string') throw httpError(400, 'Invalid subscription');
+    const who = { tenantId: req.tenant._id, userId: req.auth.userId };
+    await DeviceToken.deleteOne({ token: endpoint, platform: 'web', ...who });
+    // the last browser of this person is gone: the switch is off
+    const left = await DeviceToken.exists({ ...who, platform: 'web' });
+    if (!left) await User.updateOne({ _id: req.auth.userId, tenantId: req.tenant._id }, { $set: { alsoWebPush: false } });
+    res.json({ ok: true, enabled: !!left });
 }));
 
 mine.use(inbox((req) => ({ tenantId: req.tenant._id, userId: req.auth.userId }), { allowClear: true, tell: (req, ev, p) => realtime.toUser(req.tenant._id, req.auth.userId, ev, p) }));

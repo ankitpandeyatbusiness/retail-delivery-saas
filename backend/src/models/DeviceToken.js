@@ -6,6 +6,8 @@ const deviceTokenSchema = new mongoose.Schema({
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     token: { type: String, required: true, unique: true, maxlength: 4096 },
     platform: { type: String, enum: ['android', 'ios', 'web'] },
+    // a BROWSER (platform 'web'): token is the push service's address (endpoint) and these are its keys (services/adapters/webPush.js)
+    webKeys: { p256dh: String, auth: String },
     // The owner's phone says whether Soundbox is on. Off = no loud new-order sound from this phone: its pushes go to the
     // app's normal channel instead of the loud "new_orders" one. Phones that never say are treated as on.
     loudAlerts: { type: Boolean, default: true },

@@ -245,6 +245,14 @@ function handleTapNow(resp, data) {
     if (to) openScreen(to.name, to.params);
 }
 
+// A tap on a BROWSER notification: open the screen it is about. No voice, no sliders (those are app-only).
+export function handleWebTap(data) {
+    const role = useAuthStore.getState().user?.role;
+    if (!role || !data || typeof data !== 'object') return;
+    const to = (role === 'admin' ? ownerRoute({ type: data.type, data }) : null) || notificationTarget(role, { type: data.type, data });
+    if (to) openScreen(to.name, to.params);
+}
+
 /* ------------------------------ the phone's push token ------------------------------ */
 async function getToken() {
     if (Platform.OS !== 'android') return null;
@@ -397,6 +405,21 @@ export function startNotifications() {
     };
     useAuthStore.subscribe((st, prev) => { if (st.user !== prev.user) onUser(st.user); });
     if (useAuthStore.getState().user) onUser(useAuthStore.getState().user);
+
+    // The website: a tap on a browser notification comes back from the service worker (public/sw.js), or arrives in the address when the site was closed.
+    // It opens the same screen the phone app would (no voice: Soundbox is app-only).
+    if (Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.serviceWorker) {
+        navigator.serviceWorker.addEventListener('message', (e) => { if (e.data && e.data.type === 'push-click') handleWebTap(e.data.data); });
+        try {
+            const q = new URLSearchParams(window.location.search).get('pushtap');
+            if (q) {
+                const data = JSON.parse(q);
+                let tries = 0;
+                const t = setInterval(() => { tries += 1; if (useAuthStore.getState().user || tries > 20) { clearInterval(t); if (useAuthStore.getState().user) handleWebTap(data); } }, 500);
+                window.history.replaceState(null, '', window.location.pathname);
+            }
+        } catch (e) { /* a damaged address is ignored */ }
+    }
 
     // another phone or browser of mine read or cleared messages: the bell follows at once. After a break in the connection, or when the app or
     // browser tab comes back to the front, the number is fetched again (an event may have been missed).

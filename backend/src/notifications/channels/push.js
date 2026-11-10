@@ -3,6 +3,9 @@
 const DeviceToken = require('../../models/DeviceToken');
 const User = require('../../models/User');
 const adapter = require('../../services/adapters/push');
+const webAdapter = require('../../services/adapters/webPush');
+const Tenant = require('../../models/Tenant');
+const { brandingIcon } = require('../../services/tenantConfigService');
 const alertGroups = require('../alertGroups');
 const i18n = require('../i18n');
 const brandNotify = require('../../services/brandNotify');
@@ -18,7 +21,7 @@ async function send({ tenantId, userId, title, body, data, channelId, sound, tag
         : (await User.find({ tenantId, role: 'admin' }).select('_id').lean()).map((u) => u._id);
     if (!userIds.length) return { sent: 0, tokens: 0 };
 
-    let rows = await DeviceToken.find({ tenantId, userId: { $in: userIds } }).select('token loudAlerts userId').lean();
+    let rows = await DeviceToken.find({ tenantId, userId: { $in: userIds } }).select('token loudAlerts userId platform webKeys').lean();
     // each person's own choices for this kind of alert (Alerts screen): off = nothing reaches the phone; sound off = a silent push, no voice
     const quiet = new Set();
     if (data?.type) {
@@ -35,7 +38,12 @@ async function send({ tenantId, userId, title, body, data, channelId, sound, tag
     // a BRAND OWNER hears only the branches he chose (services/brandNotify.js), and every alert of his names its branch
     const gate = await brandNotify.gate({ tenantId, userIds, type: data && data.type });
     if (gate.drop.size) rows = rows.filter((r) => !gate.drop.has(String(r.userId)));
-    if (!rows.length) return { sent: 0, tokens: 0 };
+    // BROWSERS are kept apart: a browser's address is not a phone token (the phone sender would throw it away as invalid).
+    // The phone app has priority: a browser is only told when the person switched on "Also notify me on this browser", or has no phone at all.
+    const webAll = rows.filter((r) => r.platform === 'web');
+    rows = rows.filter((r) => r.platform !== 'web');
+    const webRows = await eligibleBrowsers(webAll, rows);
+    if (!rows.length && !webRows.length) return { sent: 0, tokens: 0 };
     const labelOf = new Map(rows.map((r) => [r.token, gate.label.get(String(r.userId)) || '']));
 
     // [tokens, channel, sound]: loud phones get the loud channel, quiet phones get none (the app's default one)
@@ -74,7 +82,44 @@ async function send({ tenantId, userId, title, body, data, channelId, sound, tag
         }
     }
     if (invalid.length) await DeviceToken.deleteMany({ token: { $in: invalid } });
-    return { sent, tokens: rows.length };
+
+    let webCount = 0;
+    if (webRows.length) {
+        const w = await sendToBrowsers({ tenantId, webRows, title, body, data, tag, quiet });
+        sent += w.sent; webCount = webRows.length;
+    }
+    return { sent, tokens: rows.length + webCount };
+}
+
+// the browsers that should hear this: a subscription with keys, whose person switched the browser on, or who has no phone
+async function eligibleBrowsers(webAll, phoneRows) {
+    if (!webAll.length) return [];
+    const hasPhone = new Set(phoneRows.map((r) => String(r.userId)));
+    const people = await User.find({ _id: { $in: [...new Set(webAll.map((r) => String(r.userId)))] } }).select('alsoWebPush language').lean();
+    const info = new Map(people.map((u) => [String(u._id), u]));
+    return webAll.filter((r) => r.webKeys && r.webKeys.p256dh && r.webKeys.auth
+        && (hasPhone.has(String(r.userId)) ? !!(info.get(String(r.userId)) || {}).alsoWebPush : true))
+        .map((r) => ({ ...r, lang: (info.get(String(r.userId)) || {}).language || 'en' }));
+}
+
+async function sendToBrowsers({ tenantId, webRows, title, body, data, tag, quiet }) {
+    const tenant = await Tenant.findById(tenantId).select('slug logo').lean();
+    const icon = (tenant && (brandingIcon(tenant.slug) || tenant.logo)) || undefined;
+    const byLang = new Map();
+    for (const r of webRows) { const k = r.lang + (quiet.has(String(r.userId)) ? '|quiet' : '|loud'); if (!byLang.has(k)) byLang.set(k, []); byLang.get(k).push(r); }
+    let sent = 0;
+    const gone = [];
+    for (const [k, list] of byLang) {
+        const lang = k.split('|')[0];
+        const res = await webAdapter.send({
+            subscriptions: list.map((r) => ({ endpoint: r.token, keys: r.webKeys })),
+            title: i18n.translate(title, lang), body: i18n.translate(body, lang), data, tag, icon, silent: k.endsWith('|quiet'),
+        });
+        sent += res.sent || 0;
+        if (res.invalidEndpoints && res.invalidEndpoints.length) gone.push(...res.invalidEndpoints);
+    }
+    if (gone.length) await DeviceToken.deleteMany({ token: { $in: gone }, platform: 'web' });
+    return { sent };
 }
 
 module.exports = { send };
