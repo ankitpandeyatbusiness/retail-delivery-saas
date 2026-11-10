@@ -23,6 +23,7 @@ const { startCleanupUploadsScheduler } = require('../jobs/cleanupUploads');
 const { startBackupScheduler } = require('../jobs/backupDump');
 const { startNightlyReconcileScheduler } = require('../jobs/nightlyReconcile');
 const { startFeeWatchScheduler } = require('../jobs/feeWatch');
+const { startPlanMoneyReminderScheduler } = require('../jobs/planMoneyReminder');
 const { startPaymentReconcileScheduler } = require('../services/paymentReconcile');
 const { startRiderDutyScheduler } = require('../jobs/riderDuty');
 const { startRiderScheduleTicker } = require('../services/riderSchedule');
@@ -75,6 +76,7 @@ connectDB()
             startBackupScheduler();
             startNightlyReconcileScheduler();
             startFeeWatchScheduler();
+            startPlanMoneyReminderScheduler();
             startOrderTimeoutScheduler();
             startOfferScheduler();
             startBillingAlertsScheduler();

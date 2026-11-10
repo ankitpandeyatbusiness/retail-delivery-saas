@@ -13,7 +13,9 @@ const platformDisputeSchema = new mongoose.Schema({
     reasonCode: String,
     respondBy: Date,
     history: [{ status: String, at: Date, _id: false }],
-    clawedBack: { type: Boolean, default: false },           // a lost dispute: the service was taken back
+    clawedBack: { type: Boolean, default: false },
+    settledBy: String,                                       // the supreme admin who closed it by hand (the bank notice never came)
+    settledNote: String,           // a lost dispute: the service was taken back
 }, { timestamps: true });
 
 platformDisputeSchema.index({ kind: 1, sourceId: 1 });

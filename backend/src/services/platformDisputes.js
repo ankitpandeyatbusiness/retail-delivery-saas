@@ -114,7 +114,21 @@ async function onEvent({ name, entity }) {
     return { dispute: status };
 }
 
+// The bank's final notice never came (or the supreme admin saw the result in Razorpay first): close the dispute by hand as won, lost or closed.
+// "lost" takes the service back exactly as the bank notice would (wallet money, or the plan, plus a credit note). Needs a written reason.
+async function settleByHand({ id, outcome, reason, by }) {
+    if (!['won', 'lost', 'closed'].includes(outcome)) { const e = new Error('Choose won, lost or closed'); e.status = 400; throw e; }
+    if (typeof reason !== 'string' || reason.trim().length < 5) { const e = new Error('Write the reason (at least 5 letters)'); e.status = 400; throw e; }
+    const d = await PlatformDispute.findOneAndUpdate({ _id: id, status: { $in: OPEN } }, { $set: { status: outcome, settledBy: by, settledNote: reason.trim().slice(0, 300) }, $push: { history: { status: outcome, at: new Date() } } }, { returnDocument: 'after' });
+    if (!d) { const e = new Error('No open dispute found'); e.status = 404; throw e; }
+    if (outcome === 'lost') {
+        const src = await sourceOf(d.rzpPaymentId);
+        if (src) await clawBack(src, { id: d.rzpDisputeId, amount: d.amountPaise }, d);
+    }
+    return { ok: true, status: outcome };
+}
+
 // is a dispute open on this payment? (an emergency refund of it must wait)
 const hasOpen = (kind, sourceId) => PlatformDispute.exists({ kind, sourceId: String(sourceId), status: { $in: OPEN } });
 
-module.exports = { onEvent, hasOpen, OPEN, FINAL };
+module.exports = { onEvent, hasOpen, settleByHand, OPEN, FINAL };

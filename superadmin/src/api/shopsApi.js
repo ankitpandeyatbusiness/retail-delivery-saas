@@ -109,6 +109,7 @@ export const recordPlanPayment = (id, body) => data(api.post(`${T(id)}/plan/reco
 export const extendShopPlan = (id, body) => data(api.post(`${T(id)}/plan/extend`, body));
 export const deletePlanCoupon = (id) => data(api.delete(`/admin/plan-coupons/${id}`));
 export const fetchPlanOverview = () => data(api.get('/admin/plan-overview'));
+export const settlePlanDispute = (id, body) => data(api.post(`/admin/plan-money/disputes/${id}/settle`, body));
 export const applyHeldPlanPayment = (id) => data(api.post(`/admin/plan-money/held/${id}/apply`));
 export const fetchShopRefunds = (id) => data(api.get(`/admin/tenants/${id}/refunds`));
 export const sendShopRefund = (id, body) => data(api.post(`/admin/tenants/${id}/refunds`, body));

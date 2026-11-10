@@ -27,6 +27,7 @@ const T = {
     admin_plan_changed: (v) => ({ title: `${v.shop}: plan changed`, body: v.summary || 'The plan was changed.', sms: `Plan changed: ${v.shop}` }),
     admin_plan_paused: (v) => ({ title: `${v.shop}: paused, plan not renewed`, body: 'The grace days are over. New orders have stopped until the plan is paid.', sms: `Paused (plan): ${v.shop}` }),
     admin_platform_dispute: (v) => ({ title: `${v.shop ? v.shop + ': ' : ''}bank dispute`, body: v.summary || 'A bank dispute on a platform payment.', sms: `Bank dispute${v.shop ? ': ' + v.shop : ''}. Open Razorpay.` }),
+    admin_plan_money_waiting: (v) => ({ title: 'Plan money needs a look', body: v.summary || 'A held payment or a bank dispute is waiting for you.', sms: 'Plan money needs a look' }),
     admin_orders_dropped: (v) => ({ title: `${v.shop}: orders dropped`, body: v.summary || 'Orders fell by half. Check that orders are still going through the app.', sms: `Orders dropped: ${v.shop}` }),
     admin_orders_unfinished: (v) => ({ title: `${v.shop}: orders not completed`, body: v.summary || 'Many orders are never completed in the app, so no fee is taken.', sms: `Orders not completed: ${v.shop}` }),
     admin_wallet_low: (v) => ({ title: `${v.shop}: wallet low`, body: v.summary || 'The Partner wallet is running low.', sms: `Wallet low: ${v.shop}` }),

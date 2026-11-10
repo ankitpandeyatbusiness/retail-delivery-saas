@@ -72,6 +72,7 @@
  "POST /orders/:id/undo",
  "POST /plan-coupons",
  "POST /plan-coupons/:id/notify",
+ "POST /plan-money/disputes/:id/settle",
  "POST /plan-money/held/:id/apply",
  "POST /plans/migration/rollback",
  "POST /plans/migration/run",

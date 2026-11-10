@@ -126,3 +126,41 @@ describe('a dispute on a plan payment', () => {
         assert.equal(planService.viewOf(await Tenant.findById(w.tenant._id).lean()).status, 'active');
     });
 });
+
+describe('closing a dispute by hand', () => {
+    const settle = (id, body, who = supreme) => call(who, 'post', `/plan-money/disputes/${id}/settle`, body);
+
+    test('lost by hand takes the money back exactly like the bank notice, once', async () => {
+        await biz();
+        await topup();
+        await event('payment.dispute.created');
+        const d = await PlatformDispute.findOne().lean();
+        const plain = await f.makeSuperAdmin('plain@example.com', { phones: [] });
+        assert.equal((await settle(d._id, { outcome: 'lost', reason: 'seen in Razorpay' }, plain)).status, 403);
+        assert.equal((await settle(d._id, { outcome: 'lost', reason: 'x' })).status, 400);
+        assert.equal((await settle(d._id, { outcome: 'maybe', reason: 'seen in Razorpay' })).status, 400);
+        const r = await settle(d._id, { outcome: 'lost', reason: 'seen in Razorpay' });
+        assert.equal(r.status, 200);
+        assert.equal(await balance(), 0);                                     // the 500 of wallet money came out
+        const row = await PlatformRefund.findOne({ key: `dispute:${d.rzpDisputeId}` }).lean();
+        assert.equal(row.cashPaise, 59000);
+        const after = await PlatformDispute.findById(d._id).lean();
+        assert.equal(after.status, 'lost');
+        assert.equal(after.clawedBack, true);
+        assert.match(after.settledNote, /seen in Razorpay/);
+        assert.equal((await settle(d._id, { outcome: 'lost', reason: 'seen in Razorpay' })).status, 404);   // no longer open
+        assert.equal((await event('payment.dispute.lost')).duplicate, true);                                // the late bank notice does nothing twice
+        assert.equal(await balance(), 0);
+    });
+
+    test('won or closed by hand takes nothing and lets a refund of the payment happen again', async () => {
+        await topup();
+        await event('payment.dispute.created');
+        const d = await PlatformDispute.findOne().lean();
+        assert.equal((await settle(d._id, { outcome: 'closed', reason: 'withdrawn by the bank' })).status, 200);
+        assert.equal(await balance(), 50000);
+        assert.equal(await PlatformRefund.countDocuments(), 0);
+        const r = await call(supreme, 'post', `/tenants/${w.tenant._id}/refunds`, { kind: 'wallet', amountPaise: 20000, requestId: 'req-hand-1', reason: 'owner asked' });
+        assert.equal(r.status, 201);
+    });
+});

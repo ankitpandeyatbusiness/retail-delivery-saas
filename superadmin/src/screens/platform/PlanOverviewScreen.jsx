@@ -6,7 +6,7 @@ import { Screen } from '../../components/layout';
 import { Card, Button, SectionTitle, Badge, KeyValue } from '../../components/ui';
 import { SkeletonList } from '../../components/blocks';
 import { ConfirmSheet, Empty, toast } from '../../components/feedback';
-import { fetchPlanOverview, applyHeldPlanPayment } from '../../api/shopsApi';
+import { fetchPlanOverview, applyHeldPlanPayment, settlePlanDispute } from '../../api/shopsApi';
 import { errMsg } from '../../api/adminClient';
 
 const rs = (paise) => `Rs ${((paise || 0) / 100).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
@@ -19,6 +19,7 @@ export default function PlanOverviewScreen() {
     const nav = useNavigation();
     const [o, setO] = useState(null);
     const [apply, setApply] = useState(null);
+    const [settle, setSettle] = useState(null);   // { d, outcome } waiting for a reason
 
     const load = useCallback(() => { fetchPlanOverview().then(setO).catch((e) => { toast(errMsg(e), 'error'); setO({ counts: null, expiring: [], ended: [], held: [], disputes: [] }); }); }, []);
     useFocusEffect(useCallback(() => { load(); }, [load]));
@@ -73,6 +74,12 @@ export default function PlanOverviewScreen() {
                             </View>
                             <Text style={{ color: t.text }}>{rs(d.amountPaise)} on a {d.kind === 'plan' ? 'plan payment' : d.kind === 'wallet' ? 'wallet top-up' : 'SMS top-up'} · {d.status.replace('_', ' ')}{d.respondBy ? ` · reply by ${day(d.respondBy)}` : ''}</Text>
                             <Text style={{ color: t.muted, fontSize: font.sm, marginTop: spacing.xs }}>Reply to the bank in the Razorpay dashboard. If it is lost, the wallet money or the plan is taken back for you.</Text>
+                            <Text style={{ color: t.muted, fontSize: font.sm, marginTop: spacing.sm }}>If you already know the result and the bank's notice never reached the app, close it here:</Text>
+                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.sm }}>
+                                <Button title="I won" kind="soft" small onPress={() => setSettle({ d, outcome: 'won' })} />
+                                <Button title="I lost (take it back)" kind="dangerSoft" small onPress={() => setSettle({ d, outcome: 'lost' })} />
+                                <Button title="Closed" kind="outline" small onPress={() => setSettle({ d, outcome: 'closed' })} />
+                            </View>
                         </Card>
                     ))}
 
@@ -84,6 +91,18 @@ export default function PlanOverviewScreen() {
                 </>
             )}
 
+            <ConfirmSheet
+                visible={!!settle}
+                onClose={() => setSettle(null)}
+                icon="shield-outline"
+                title={settle ? (settle.outcome === 'won' ? 'Mark this dispute as won?' : settle.outcome === 'lost' ? 'Mark this dispute as lost?' : 'Close this dispute?') : ''}
+                message={settle ? (settle.outcome === 'lost' ? `The bank took ${rs(settle.d.amountPaise)} from you. The wallet money or the plan that payment bought is taken back from ${settle.d.shop} now, and a credit note is made.` : settle.outcome === 'won' ? 'You keep the money and nothing is taken back. A refund of that payment is possible again.' : 'Nothing is taken back and the dispute stops blocking a refund of that payment.') : ''}
+                confirmLabel="Yes, close it"
+                danger={!!settle && settle.outcome === 'lost'}
+                needReason
+                reasonLabel="Reason (kept in the record)"
+                onConfirm={async (reason) => { try { await settlePlanDispute(settle.d.id, { outcome: settle.outcome, reason }); toast('Dispute closed'); load(); } catch (e) { toast(errMsg(e), 'error'); throw e; } finally { setSettle(null); } }}
+            />
             <ConfirmSheet
                 visible={!!apply}
                 onClose={() => setApply(null)}

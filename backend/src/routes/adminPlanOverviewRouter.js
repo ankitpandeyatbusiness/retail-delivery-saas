@@ -51,4 +51,11 @@ router.post('/plan-money/held/:id/apply', requireSupreme, wrap(async (req, res) 
     res.json({ ok: true, ...r });
 }));
 
+// close a bank dispute by hand when the bank's final notice never came: { outcome: 'won' | 'lost' | 'closed', reason }
+router.post('/plan-money/disputes/:id/settle', requireSupreme, wrap(async (req, res) => {
+    if (!mongoose.isValidObjectId(req.params.id)) throw httpError(404, 'No open dispute found');
+    const who = req.admin?.phone || req.admin?.email || 'supreme';
+    res.json(await disputes.settleByHand({ id: req.params.id, outcome: req.body?.outcome, reason: req.body?.reason, by: String(who) }));
+}));
+
 module.exports = router;

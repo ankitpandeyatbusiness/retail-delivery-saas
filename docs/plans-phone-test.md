@@ -237,6 +237,8 @@ Move the same shop through the states with the superadmin app: Partner, then Gro
 | 21.9 | Plan coupons > Edit: change the end day, use limit, note | Saved. A used coupon cannot be deleted; an unused one can |
 | 21.10 | More > Plans overview | Counts per plan and state, plans ending within 7 days, ended or paused shops (tap one to open its Plan screen), held payments and open bank disputes |
 | 21.11 | A held payment: Apply as the owner saw it | The shop's plan changes to what the owner paid for, the payment shows as paid. Or tap Refund it to send the money back |
+| 21.12 | Plans overview > an open bank dispute > "I won", "I lost (take it back)" or "Closed", with a reason | The dispute leaves the list. "I lost" takes the wallet money or the plan back from that shop and makes a credit note. "I won" and "Closed" take nothing, and a refund of that payment is possible again |
+| 21.13 | Leave a held payment or a dispute waiting until 10 AM | One alert: "Plan money needs a look" with how many and how old (and the reply-by date of a dispute). No alert when nothing waits |
 
 ## 22. Your profit by week, month and year (superadmin)
 | # | Do | Expect |
