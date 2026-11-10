@@ -4,7 +4,7 @@
 // The service keeps sending with the screen off or the app swiped away, so the customer's map never freezes. Asking for
 // "Allow all the time" is explained first, in the rider's own words; if he refuses, it still works while the app is open.
 import { useEffect } from 'react';
-import { Alert, Linking } from 'react-native';
+import { Alert, Linking, Platform } from 'react-native';
 import { startRiderTracking, stopRiderTracking, restartRiderTracking, getLocationStatus } from '../../utils/riders/locationTask';
 import { tr } from '../../i18n';
 
@@ -18,7 +18,11 @@ const ask = (title, message, yes) => new Promise((resolve) => {
 });
 
 export function useRiderLocation(enabled, everySec = 10) {
+    // The WEBSITE never shares a live location (a browser cannot keep doing it with the screen off): the rider moves the order step by step
+    // and the customer sees those steps. The app does the live sharing.
+    const web = Platform.OS === 'web';
     useEffect(() => {
+        if (web) return undefined;
         if (!enabled) { stopRiderTracking(); return undefined; }
         let dead = false;
         (async () => {
@@ -53,7 +57,7 @@ export function useRiderLocation(enabled, everySec = 10) {
     // the first registration did not take. startRiderTracking sees "already running" and does nothing, so nobody asks again.
     // So: while he has a delivery, if no position arrived for 40 seconds, register the service again (a few times at most).
     useEffect(() => {
-        if (!enabled) return undefined;
+        if (web || !enabled) return undefined;
         let restarts = 0;
         let since = Date.now();
         const id = setInterval(async () => {

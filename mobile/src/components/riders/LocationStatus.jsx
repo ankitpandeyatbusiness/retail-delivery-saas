@@ -4,7 +4,7 @@
 //   red     no GPS position at all from this phone (indoors, location off, a fake-GPS app not running), or the send failed
 // It reads the state kept by the location service (utils/riders/locationTask.js). Only for him to see.
 import React, { useEffect, useState } from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand } from '../common/kit';
 import { getLocationStatus } from '../../utils/riders/locationTask';
@@ -14,6 +14,14 @@ export default function LocationStatus({ style }) {
     const { ok, error, muted, text } = useBrand();
     const [, tick] = useState(0);
     useEffect(() => { const t = setInterval(() => tick((n) => n + 1), 1000); return () => clearInterval(t); }, []);
+    if (Platform.OS === 'web') {   // the website does not share a live location: say so calmly instead of a red GPS warning
+        return (
+            <View style={[{ flexDirection: 'row', alignItems: 'center' }, style]}>
+                <Ionicons name="phone-portrait-outline" size={16} color={muted} />
+                <Text style={{ color: text, fontWeight: '700', fontSize: 12.5, marginLeft: 6, flex: 1 }} numberOfLines={3}>{tr('Live location is shared from the app. On the website the customer sees your steps: picked up, on the way, delivered.')}</Text>
+            </View>
+        );
+    }
     const s = getLocationStatus();
     const now = Date.now();
     const fixAgo = s.fixAt ? Math.round((now - s.fixAt) / 1000) : null;
