@@ -425,7 +425,8 @@ export default function CartScreen() {
                     </View>
                 ) : null}
 
-                {/* what kind of order this is, so nobody orders the wrong one */}
+                {/* what kind of order this is, so nobody orders the wrong one. With only ONE way to order (just delivery, just pickup or just dine-in) there is nothing to choose or to mix up, so the big card is not shown */}
+                {types.length + (dineOn ? 1 : 0) > 1 ? (
                 <View style={{ marginHorizontal: 16, marginTop: 12, borderRadius: 16, paddingVertical: 14, paddingHorizontal: 16, backgroundColor: tint(primary), borderWidth: 1.5, borderColor: primary }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <Ionicons name={type === 'delivery' ? 'bicycle' : type === 'pickup' ? 'bag-handle' : 'restaurant'} size={32} color={primary} />
@@ -436,6 +437,7 @@ export default function CartScreen() {
                     </View>
                     {type === 'pickup' ? <Text style={{ color: text, fontSize: 12.5, fontWeight: '700', marginTop: 10 }}>{tr('A pickup order cannot be returned or refunded once you have collected it. Please check it at the shop.')}</Text> : null}
                 </View>
+                ) : (type === 'pickup' ? <Text style={{ color: text, fontSize: 12.5, fontWeight: '700', marginHorizontal: 16, marginTop: 12 }}>{tr('A pickup order cannot be returned or refunded once you have collected it. Please check it at the shop.')}</Text> : null)}
 
                 <View style={s.pad}>
                     <Appear style={[s.card, { backgroundColor: surface, borderColor: border, marginTop: 12 }]}>
