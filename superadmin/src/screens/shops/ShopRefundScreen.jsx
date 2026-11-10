@@ -87,7 +87,7 @@ export default function ShopRefundScreen() {
                                 <Text style={{ color: t.text, fontWeight: '800', flex: 1 }}>{rs(h.cashPaise)} · {h.kind === 'plan' ? 'Plan' : h.kind === 'wallet' ? 'Wallet' : 'SMS'}</Text>
                                 <Badge label={h.status === 'processed' ? 'Sent' : h.status === 'failed' ? 'Failed' : 'Waiting'} tone={h.status === 'processed' ? 'success' : h.status === 'failed' ? 'danger' : 'warn'} />
                             </View>
-                            <Text style={{ color: t.muted, fontSize: font.sm, marginTop: spacing.xs }}>{day(h.at)} · {h.by} · {h.reason}{h.endedPlan ? ' · plan ended' : ''}</Text>
+                            <Text style={{ color: t.muted, fontSize: font.sm, marginTop: spacing.xs }}>{day(h.at)} · {h.by} · {h.reason}{h.endedPlan ? ' · plan ended' : ''}{h.creditNoteNo ? ` · credit note ${h.creditNoteNo}` : ''}</Text>
                             {h.error ? <Text style={{ color: t.danger, fontSize: font.sm, marginTop: spacing.xs }}>{h.error}</Text> : null}
                         </Card>
                     ))}

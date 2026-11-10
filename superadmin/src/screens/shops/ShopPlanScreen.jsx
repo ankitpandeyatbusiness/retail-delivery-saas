@@ -146,6 +146,7 @@ export default function ShopPlanScreen() {
                             return (
                                 <View key={key} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.xs }}>
                                     <Text style={{ color: t.text, flex: 1 }}>{f.label}</Text>
+                                    {on && plan.keptUntil && plan.keptUntil[key] ? <Text style={{ color: t.muted, fontSize: font.sm, marginRight: spacing.sm }}>kept until {dateTime(plan.keptUntil[key])}</Text> : null}
                                     {on ? <Badge label="Extra" tone="warn" /> : null}
                                     <Switch value={on} disabled={busy} onValueChange={(v) => setExtra({ key, on: v })} />
                                 </View>

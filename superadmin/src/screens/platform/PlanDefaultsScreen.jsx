@@ -108,7 +108,7 @@ export default function PlanDefaultsScreen() {
                 <>
                     <SectionTitle section="catalog">What each plan includes</SectionTitle>
                     <Card>
-                        <Text style={{ color: t.muted, fontSize: font.sm, marginBottom: spacing.md }}>Tick the plans that get each feature. A change reaches every shop on those plans within seconds: owners see it in their Plan screen, side menu and locks, and the server enforces it. Kitchen and waiter logins and the rider limit stay fixed in the app. Saved with the button at the bottom.</Text>
+                        <Text style={{ color: t.muted, fontSize: font.sm, marginBottom: spacing.md }}>Tick the plans that get each feature. Adding a feature reaches every shop on that plan within seconds. Taking one away from Growth or Pro lets the shops already on it keep it until their current term ends (they see it as an extra with an end date); shops that join later do not get it. Taking one from Partner is at once. Owners see the change in their Plan screen, side menu and locks, and the server enforces it. Kitchen and waiter logins and the rider limit stay fixed in the app. Saved with the button at the bottom.</Text>
                         {Object.entries(feat).map(([k, x], i) => (
                             <View key={k} style={{ paddingVertical: spacing.sm, borderTopWidth: i ? 1 : 0, borderTopColor: t.border }}>
                                 <Text style={{ color: t.text, fontWeight: '700', marginBottom: spacing.xs }}>{x.label}</Text>
