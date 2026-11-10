@@ -2,7 +2,7 @@
 // rider, the cook and the waiter; the groups come from the server for the person's job. "Recommended settings" puts everything back as it was given.
 import { usePlanHas } from '../../utils/owners/menuFlags';
 import React, { useEffect } from 'react';
-import { View, Text, ScrollView, Pressable } from 'react-native';
+import { View, Text, ScrollView, Pressable, Platform } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand } from '../../components/common/kit';
@@ -36,6 +36,7 @@ export default function AlertSettingsScreen() {
     const { groups, loaded, load, change, reset } = useAlertPrefs();
     const language = useSoundboxStore((s) => s.language);
     const planVoice = usePlanHas('soundboxVoice');
+    const web = Platform.OS === 'web';   // the website has no tone and no voice (a browser cannot ring or read out reliably): those switches are not shown there
     const voiceOk = planVoice;   // Soundbox voice is Growth and Pro: on Partner there is the sound, tone and slider only
     useEffect(() => { load(); }, [load]);
 
@@ -61,11 +62,11 @@ export default function AlertSettingsScreen() {
             <PageHeader title={tr('Alerts')} />
             <ScrollView contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
                 <View style={{ paddingHorizontal: 16, paddingTop: 4, paddingBottom: 6 }}>
-                    <Text style={{ color: muted, fontSize: 12.5, lineHeight: 18 }}>{withVoice ? tr('Notification shows on the phone, even when the app is closed. Tone is its sound. Voice reads it out while the app is open. Slider is the box that slides up over the app.') : tr('Notification shows on the phone, even when the app is closed. Tone is its sound.')}</Text>
+                    <Text style={{ color: muted, fontSize: 12.5, lineHeight: 18 }}>{web ? tr('Notification shows on this browser (switch it on below). Slider shows on the screen while the website is open.') : withVoice ? tr('Notification shows on the phone, even when the app is closed. Tone is its sound. Voice reads it out while the app is open. Slider is the box that slides up over the app.') : tr('Notification shows on the phone, even when the app is closed. Tone is its sound.')}</Text>
                     <Button label={changed ? tr('Use recommended settings') : tr('You are on the recommended settings')} icon="sparkles" kind={changed ? 'primary' : 'ghost'} disabled={!changed} onPress={recommended} style={{ marginTop: 10 }} />
                 </View>
                 <BrowserPushCard />   {/* the website only: "Also notify me on this browser" */}
-                {loaded && !voiceOk ? <UpgradeNote feature="soundboxVoice" text={tr('Soundbox voice announces every new order')} /> : null}
+                {loaded && !voiceOk && !web ? <UpgradeNote feature="soundboxVoice" text={tr('Soundbox voice announces every new order')} /> : null}
                 {!loaded ? <ListShimmer count={5} /> : null}
                 {groups.map((g) => (
                     <Card key={g.id} style={{ marginTop: 8, paddingVertical: 12 }}>
@@ -76,8 +77,8 @@ export default function AlertSettingsScreen() {
                         <Text style={{ color: muted, fontSize: 12, marginTop: 2 }} numberOfLines={2}>{tr(g.hint)}</Text>
                         <View style={{ flexDirection: 'row', marginTop: 12 }}>
                             <Col label={tr('Notification')} value={g.pref.n} onChange={(v) => flip(g, 'n', v)} />
-                            {g.can.s ? <Col label={tr('Tone')} value={g.pref.s} onChange={(v) => flip(g, 's', v)} /> : null}
-                            {g.can.v && voiceOk ? <Col label={tr('Voice')} value={g.pref.v} onChange={(v) => flip(g, 'v', v)} /> : null}
+                            {g.can.s && !web ? <Col label={tr('Tone')} value={g.pref.s} onChange={(v) => flip(g, 's', v)} /> : null}
+                            {g.can.v && voiceOk && !web ? <Col label={tr('Voice')} value={g.pref.v} onChange={(v) => flip(g, 'v', v)} /> : null}
                             {g.can.p ? <Col label={tr('Slider')} value={g.pref.p} onChange={(v) => flip(g, 'p', v)} /> : null}
                         </View>
                         {g.can.p && g.pref.p ? (
@@ -86,7 +87,7 @@ export default function AlertSettingsScreen() {
                                 <Chips options={[[0, tr('Until I close it')], [3, tr('3 s')], [5, tr('5 s')], [7, tr('7 s')], [10, tr('10 s')], [15, tr('15 s')]]} value={g.pref.sec} onChange={(v) => flip(g, 'sec', v)} style={{ marginTop: 6, marginBottom: -4 }} />
                             </View>
                         ) : null}
-                        {g.sample ? (
+                        {g.sample && !web ? (
                             <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10, paddingTop: 10, borderTopWidth: 0.5, borderTopColor: border }}>
                                 <Pressable onPress={() => sayExample(g.id, g.sample, g.soft)} hitSlop={8} accessibilityRole="button" style={{ flexDirection: 'row', alignItems: 'center' }}>
                                     <Ionicons name="volume-high" size={18} color={primary} />
