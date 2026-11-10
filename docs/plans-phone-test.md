@@ -237,3 +237,27 @@ Move the same shop through the states with the superadmin app: Partner, then Gro
 | 21.9 | Plan coupons > Edit: change the end day, use limit, note | Saved. A used coupon cannot be deleted; an unused one can |
 | 21.10 | More > Plans overview | Counts per plan and state, plans ending within 7 days, ended or paused shops (tap one to open its Plan screen), held payments and open bank disputes |
 | 21.11 | A held payment: Apply as the owner saw it | The shop's plan changes to what the owner paid for, the payment shows as paid. Or tap Refund it to send the money back |
+
+## 22. Your profit by week, month and year (superadmin)
+| # | Do | Expect |
+|---|---|---|
+| 22.1 | Money tab | A "Your profit" row of three cards: This week, This month, This year, each with a note showing the one before. A negative one reads "Loss this ..." in red |
+| 22.2 | Tap one | Profit and loss opens |
+| 22.3 | Profit and loss: Weekly | Choose 4, 8 or 13 weeks. Weeks run Monday to Sunday, each named by its Monday ("Week of 9 Nov"). Charts and the list show a bar per week |
+| 22.4 | Monthly | Same as before: 3, 6 or 12 months. The numbers match what you saw earlier |
+| 22.5 | Yearly | This year, 2 years or 3 years. A year is the financial year, 1 April to 31 March, named "FY 2026-27" |
+| 22.6 | A plan payment on Sunday night and one on Monday morning | They fall in different weeks. A payment on 31 March and one on 1 April fall in different years |
+| 22.7 | A monthly expense of Rs 3,000 | The weeks share it by days, the month shows all of it, the year counts every month so far (April to now), never months that have not come yet |
+| 22.8 | A wallet top-up | It is money collected, but your income only grows as its per-order fees are used. A refund or lost dispute on a plan lowers income |
+
+## 22. Your profit by week, month and year (superadmin)
+| # | Do | Expect |
+|---|---|---|
+| 22.1 | Money tab | A "Your profit" row of three cards: This week, This month, This year, each with a note showing the one before. A negative one reads "Loss this ..." in red |
+| 22.2 | Tap one | Profit and loss opens |
+| 22.3 | Profit and loss: Weekly | Choose 4, 8 or 13 weeks. Weeks run Monday to Sunday, each named by its Monday ("Week of 9 Nov"). Charts and the list show a bar per week |
+| 22.4 | Monthly | Same as before: 3, 6 or 12 months. The numbers match what you saw earlier |
+| 22.5 | Yearly | This year, 2 years or 3 years. A year is the financial year, 1 April to 31 March, named "FY 2026-27" |
+| 22.6 | A plan payment on Sunday night and one on Monday morning | They fall in different weeks. A payment on 31 March and one on 1 April fall in different years |
+| 22.7 | A monthly expense of Rs 3,000 | The weeks share it by days, the month shows all of it, the year counts every month so far (April to now), never months that have not come yet |
+| 22.8 | A wallet top-up | It is money collected, but your income only grows as its per-order fees are used. A refund or lost dispute on a plan lowers income |

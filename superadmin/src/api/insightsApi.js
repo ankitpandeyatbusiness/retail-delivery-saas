@@ -14,6 +14,8 @@ export const runBackup = () => data(api.post('/admin/ops/backup', {}, { timeout:
 
 /* ---------------- profit and loss, who owes, expenses ---------------- */
 export const fetchProfitLoss = (months) => data(api.get('/admin/finance/summary', { params: { months } }));
+export const fetchProfitLossBy = (period, count) => data(api.get('/admin/finance/summary', { params: { period, count } }));   // week, month or financial year
+export const fetchProfitPeriods = () => data(api.get('/admin/finance/periods'));                                          // this week, month and year with the one before
 export const listExpenses = () => data(api.get('/admin/finance/expenses'));
 export const addExpense = (body) => data(api.post('/admin/finance/expenses', body));              // { date, category, amountPaise, vendor?, note?, repeatMonthly?, endsOn? }
 export const updateExpense = (id, body) => data(api.patch(`/admin/finance/expenses/${id}`, body));

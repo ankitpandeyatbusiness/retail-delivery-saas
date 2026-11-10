@@ -1,5 +1,7 @@
 // Superadmin: profit and loss and your own expenses. Mounted under /api/admin.
 //   GET    /finance/summary?months=6|12   monthly profit and loss + reasons
+//   GET    /finance/summary?period=week|month|year&count=N   the same by week, month or financial year
+//   GET    /finance/periods                this week, this month, this financial year (and the one before each)
 //   GET    /finance/expenses              list (newest first)
 //   POST   /finance/expenses              add
 //   PATCH  /finance/expenses/:id          change
@@ -13,9 +15,13 @@ const { wrap, httpError } = require('../middlewares/apiErrors');
 const router = express.Router();
 
 router.get('/finance/summary', wrap(async (req, res) => {
+    if (['week', 'month', 'year'].includes(req.query.period)) return res.json(await finance.summaryBy({ period: req.query.period, count: Number(req.query.count) }));   // by week, month or financial year
     const months = Number(req.query.months) === 12 ? 12 : Number(req.query.months) === 3 ? 3 : 6;
     res.json(await finance.summary({ months }));
 }));
+
+// this week, this month and this financial year, each with the one before (the Money tab)
+router.get('/finance/periods', wrap(async (req, res) => { res.json(await finance.periods()); }));
 
 // the Money tab's "Needs attention": overdue bills, shops to close, failed refunds and Razorpay events, money that does not add up, low SMS wallets
 router.get('/finance/attention', wrap(async (req, res) => { res.json(await require('../services/moneyAttention').attention()); }));

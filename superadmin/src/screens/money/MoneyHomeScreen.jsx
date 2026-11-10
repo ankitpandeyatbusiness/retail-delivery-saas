@@ -9,7 +9,7 @@ import { SearchBar } from '../../components/inputs';
 import MoneySearch from '../../components/MoneySearch';
 import { ErrorBox } from '../../components/feedback';
 import { fetchPlatform } from '../../api/moneyApi';
-import { fetchMonth, fetchNext30, fetchMoneyAttention } from '../../api/insightsApi';
+import { fetchMonth, fetchNext30, fetchMoneyAttention, fetchProfitPeriods } from '../../api/insightsApi';
 import { errMsg } from '../../api/adminClient';
 import { rupeesFromPaise } from '../../utils/format';
 
@@ -25,8 +25,8 @@ export default function MoneyHomeScreen() {
 
     const load = useCallback(async () => {
         try {
-            const [month, next, att, plat] = await Promise.all([fetchMonth(), fetchNext30(), fetchMoneyAttention(), fetchPlatform()]);
-            setD({ month, next, att, businessSet: !!plat.business?.legalName, gstSet: !!plat.business?.gstin });
+            const [month, next, att, plat, per] = await Promise.all([fetchMonth(), fetchNext30(), fetchMoneyAttention(), fetchPlatform(), fetchProfitPeriods().catch(() => null)]);
+            setD({ month, next, att, per, businessSet: !!plat.business?.legalName, gstSet: !!plat.business?.gstin });
             setError('');
         } catch (e) { setError(errMsg(e)); }
     }, []);
@@ -46,6 +46,17 @@ export default function MoneyHomeScreen() {
                         <Stat label="Expected next 30 days" value={rupeesFromPaise(d.next.nextBillsEstimatePaise)} icon="clock" note="Estimate" onPress={go('MonthClose')} />
                         <Stat label={d.month.current.netPaise < 0 ? 'Loss this month' : 'Net this month'} value={rupeesFromPaise(d.month.current.netPaise)} icon="chart" tone={d.month.current.netPaise < 0 ? 'danger' : 'success'} note={vs(d.month.change.net)} onPress={go('ProfitLoss')} />
                     </View>
+
+                    {d.per ? (
+                        <>
+                            <SectionTitle section="catalog">Your profit</SectionTitle>
+                            <View style={{ flexDirection: 'row', gap: spacing.md }}>
+                                {[['week', 'This week'], ['month', 'This month'], ['year', 'This year']].map(([k, label]) => (
+                                    <Stat key={k} label={d.per[k].netPaise < 0 ? `Loss ${label.toLowerCase()}` : label} value={rupeesFromPaise(d.per[k].netPaise)} icon="chart" tone={d.per[k].netPaise < 0 ? 'danger' : 'success'} compact note={`${d.per[k].prevNetPaise < 0 ? '-' : ''}${rupeesFromPaise(Math.abs(d.per[k].prevNetPaise))} before`} onPress={go('ProfitLoss')} />
+                                ))}
+                            </View>
+                        </>
+                    ) : null}
 
                     {!d.businessSet ? (
                         <Card onPress={go('PlatformBusiness')} style={{ marginTop: spacing.lg }}>

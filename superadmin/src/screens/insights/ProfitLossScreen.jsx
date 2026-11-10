@@ -8,27 +8,36 @@ import { SkeletonDashboard } from '../../components/blocks';
 import { ErrorBox } from '../../components/feedback';
 import BarChart from '../../components/charts';
 import Icon from '../../components/Icon';
-import { fetchProfitLoss } from '../../api/insightsApi';
+import { fetchProfitLossBy } from '../../api/insightsApi';
 import { errMsg } from '../../api/adminClient';
 import { rupeesFromPaise, titleCase } from '../../utils/format';
 
-const RANGES = [{ value: 3, label: '3 months' }, { value: 6, label: '6 months' }, { value: 12, label: '12 months' }];
-const monthLabel = (k) => new Date(`${k}-15T00:00:00Z`).toLocaleString('en-IN', { month: 'short', year: '2-digit', timeZone: 'UTC' });
+const PERIODS = [{ value: 'week', label: 'Weekly' }, { value: 'month', label: 'Monthly' }, { value: 'year', label: 'Yearly' }];
+// how far back each view goes: weeks (Monday to Sunday), months, financial years (1 April to 31 March)
+const RANGES = {
+    week: [{ value: 4, label: '4 weeks' }, { value: 8, label: '8 weeks' }, { value: 13, label: '13 weeks' }],
+    month: [{ value: 3, label: '3 months' }, { value: 6, label: '6 months' }, { value: 12, label: '12 months' }],
+    year: [{ value: 1, label: 'This year' }, { value: 2, label: '2 years' }, { value: 3, label: '3 years' }],
+};
+const WORD = { week: 'week', month: 'month', year: 'financial year' };
+const DEFAULT_COUNT = { week: 8, month: 6, year: 2 };
 
 // Is my business in profit or loss, and exactly why.
 export default function ProfitLossScreen() {
     const t = useTheme();
     const nav = useNavigation();
-    const [months, setMonths] = useState(6);
+    const [period, setPeriod] = useState('month');
+    const [count, setCount] = useState(6);
     const [d, setD] = useState(null);
     const [error, setError] = useState('');
     const [refreshing, setRefreshing] = useState(false);
 
-    const load = useCallback(async (m = months) => {
-        try { setD(await fetchProfitLoss(m)); setError(''); } catch (e) { setError(errMsg(e)); }
-    }, [months]);
+    const load = useCallback(async (p = period, c = count) => {
+        try { setD(await fetchProfitLossBy(p, c)); setError(''); } catch (e) { setError(errMsg(e)); }
+    }, [period, count]);
     useFocusEffect(useCallback(() => { load(); }, [load]));
-    const pick = (m) => { setMonths(m); setD(null); load(m); };
+    const pick = (c) => { setCount(c); setD(null); load(period, c); };
+    const pickPeriod = (p) => { setPeriod(p); setCount(DEFAULT_COUNT[p]); setD(null); load(p, DEFAULT_COUNT[p]); };
     const refresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
 
     const profit = d && d.verdict === 'profit';
@@ -39,9 +48,12 @@ export default function ProfitLossScreen() {
     const levelIcon = { bad: 'warning', warn: 'warning', info: 'info', good: 'ok' };
 
     return (
-        <Screen title="Profit and loss" subtitle="Your business, month by month" refreshing={refreshing} onRefresh={refresh}>
+        <Screen title="Profit and loss" subtitle={`Your business, ${period === 'week' ? 'week by week' : period === 'year' ? 'year by year' : 'month by month'}`} refreshing={refreshing} onRefresh={refresh}>
             <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md }}>
-                {RANGES.map((r) => <Chip key={r.value} label={r.label} active={months === r.value} onPress={() => pick(r.value)} />)}
+                {PERIODS.map((r) => <Chip key={r.value} label={r.label} active={period === r.value} onPress={() => pickPeriod(r.value)} />)}
+            </View>
+            <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md }}>
+                {RANGES[period].map((r) => <Chip key={r.value} label={r.label} active={count === r.value} onPress={() => pick(r.value)} />)}
             </View>
 
             {error && !d ? <ErrorBox message={error} onRetry={() => load()} /> : !d ? <SkeletonDashboard /> : (
@@ -56,7 +68,7 @@ export default function ProfitLossScreen() {
                         <Text style={{ color: tone, fontSize: 34, fontWeight: '800', marginTop: spacing.sm }} adjustsFontSizeToFit numberOfLines={1}>
                             {loss ? '-' : ''}{rupeesFromPaise(Math.abs(d.totals.netPaise))}
                         </Text>
-                        <Text style={{ color: t.muted, fontSize: font.sm }}>in the last {d.months.length} months (income minus costs)</Text>
+                        <Text style={{ color: t.muted, fontSize: font.sm }}>{count === 1 && period === 'year' ? 'this financial year so far' : `in the last ${d.rows.length} ${WORD[period]}${d.rows.length > 1 ? 's' : ''}`} (income minus costs)</Text>
                     </View>
 
                     <SectionTitle section="alerts">Why</SectionTitle>
@@ -71,7 +83,7 @@ export default function ProfitLossScreen() {
 
                     <SectionTitle section="money">Money in and out</SectionTitle>
                     <Card style={{ paddingVertical: 0 }}>
-                        <KeyValue label="Rent received (without GST)" value={rupeesFromPaise(d.totals.rentIncomePaise)} />
+                        <KeyValue label="Plans, extra shops and wallet fees used (without GST)" value={rupeesFromPaise(d.totals.rentIncomePaise)} />
                         <KeyValue label="SMS profit (charged − provider cost)" value={rupeesFromPaise(d.totals.smsMarginPaise)} />
                         <KeyValue label="Total income" value={rupeesFromPaise(d.totals.incomePaise)} />
                         <KeyValue label="Your expenses" value={`-${rupeesFromPaise(d.totals.expensesPaise)}`} />
@@ -82,17 +94,17 @@ export default function ProfitLossScreen() {
                         GST collected ({rupeesFromPaise(d.totals.gstPaise)}) is not your income, it is for the government, so it is not counted.
                     </Text>
 
-                    <SectionTitle section="money">Income per month</SectionTitle>
-                    <Card><BarChart color={t.success} data={d.rows.map((r) => ({ label: monthLabel(r.month), value: r.incomePaise / 100 }))} format={(v) => `₹${Math.round(v)}`} /></Card>
-                    <SectionTitle section="alerts">Costs per month</SectionTitle>
-                    <Card><BarChart color={t.danger} data={d.rows.map((r) => ({ label: monthLabel(r.month), value: r.costsPaise / 100 }))} format={(v) => `₹${Math.round(v)}`} /></Card>
+                    <SectionTitle section="money">Income per {WORD[period]}</SectionTitle>
+                    <Card><BarChart color={t.success} data={d.rows.map((r) => ({ label: r.label, value: r.incomePaise / 100 }))} format={(v) => `₹${Math.round(v)}`} /></Card>
+                    <SectionTitle section="alerts">Costs per {WORD[period]}</SectionTitle>
+                    <Card><BarChart color={t.danger} data={d.rows.map((r) => ({ label: r.label, value: r.costsPaise / 100 }))} format={(v) => `₹${Math.round(v)}`} /></Card>
 
-                    <SectionTitle section="platform">Every month</SectionTitle>
+                    <SectionTitle section="platform">Every {WORD[period]}</SectionTitle>
                     <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
                         {[...d.rows].reverse().map((r, i, a) => (
-                            <View key={r.month} style={{ paddingVertical: spacing.md, borderBottomWidth: i === a.length - 1 ? 0 : 1, borderBottomColor: t.border }}>
+                            <View key={r.key} style={{ paddingVertical: spacing.md, borderBottomWidth: i === a.length - 1 ? 0 : 1, borderBottomColor: t.border }}>
                                 <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                                    <Text style={{ color: t.text, fontWeight: '800' }}>{monthLabel(r.month)}</Text>
+                                    <Text style={{ color: t.text, fontWeight: '800' }}>{period === 'week' ? `Week of ${r.label}` : r.label}</Text>
                                     <Text style={{ color: r.netPaise < 0 ? t.danger : t.success, fontWeight: '800' }}>
                                         {r.netPaise < 0 ? '-' : '+'}{rupeesFromPaise(Math.abs(r.netPaise))}
                                     </Text>
