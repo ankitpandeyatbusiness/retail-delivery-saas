@@ -1,36 +1,36 @@
-# Plans and pricing (built in phases 1 to 8, 2026-11)
+# Plans and pricing (current state, 2026-11-10)
 
-Three plans. Everything is prepaid. No late fee. Old monthly rent, price tiers, go live and free orders/months are gone (docs/old-billing-removal-list.md).
+Three plans. Everything is prepaid. No late fee, no bills after the fact (the old monthly rent model is gone). Test list: `docs/plans-phone-test.md`. Questions for the CA: `docs/ca-pack-plans`.
 
 | | Partner | Growth | Pro |
 |---|---|---|---|
-| Price | Rs 0 rent; Rs 3 to Rs 15 per completed order from a prepaid wallet | Rs 2,999 per month + GST | Rs 4,999 per month + GST |
-| Customer app, web and app, push, order timeline, rider Call button, dine-in QR, waitlist, table booking | yes | yes | yes |
+| Price | Rs 0 a month; Rs 3 to Rs 15 per completed order from a prepaid wallet | Rs 2,999 a month + GST, paid in advance | Rs 4,999 a month + GST, paid in advance |
+| Delivery and pickup (the owner switches each in Shop settings) | yes | yes | yes |
+| Customer app on website and phone, order timeline, rider Call button, coupons, tax invoices, languages | yes | yes | yes |
+| Table booking, with a waitlist for full slots (needs your per-shop switch) | yes | yes | yes |
+| **Dine-in ordering with QR tables** (table bills, waiter calls) | no | yes | yes |
 | Rider live map for customers | no | yes | yes |
 | Riders | up to 2 | unlimited | unlimited |
 | Kitchen and waiter logins | none | up to 5 | unlimited |
 | Soundbox voice, services and inquiries, loyalty, auto-accept, costs and profit | no | yes | yes |
-| Bulk orders, full exports, analytics, custom push, multi-branch, custom domain | no | no | yes |
+| Bulk orders, analytics and PDF reports, push offers and daily push, full exports, multi-branch, custom domain (later) | no | no | yes |
 | Exports | money columns only | money columns only | everything |
 
-All values are defaults in `backend/src/config/plans.js` and editable by the supreme admin (More > Plan defaults, and per shop). Prices, fee slabs, free days, grace days, GST, branch add-on and multi-month discounts are settings.
+**Which plan has which feature is not fixed in stone:** the supreme admin edits it in More > Plan defaults > What each plan includes. Taking a feature away from Growth or Pro lets the shops already on it keep it until their term ends; adding one reaches everyone at once. Kitchen and waiter logins and the rider limit stay in the code. Dine-in lives in the same table.
 
-## Where things live
-- **Catalog and gates:** `config/plans.js`, `services/featureGate.js` (`hasFeature`, `planGate`, `limitOf`). The server refuses first; the apps hide second ("Available in Pro").
-- **A shop's plan:** `Tenant.plan` (id, endsAt, freeUntil, extras, scheduled, paused, price/free-days overrides, webEnabled/nativeEnabled). A shop with no plan yet is not limited until it is moved (phase 9).
-- **Partner wallet:** `services/partnerWalletService.js` (ledger, fee per completed order from the order value at checkout, overdraft Rs 100, kill switch `PARTNER_FEES=off`), top-up through `platformCheckout.startPartnerTopup`.
-- **Owner pays:** `services/planBilling.js` (quote, preview, pay, upgrade by whole days, wallet credit, GST once, held payments), screens: owner Plan and Wallet.
-- **Lifecycle:** `services/planLifecycle.js` (7/3/1 day reminders, end, grace days, pause, scheduled lower plan, wallet low/empty).
-- **Preview before creating a shop:** superadmin new-shop wizard shows the customer app and the owner menu as that plan gives them.
+## Money rules
+- **Prepaid, one plan at a time.** Owner pays for 1 to 6 months at once, at most 12 months prepaid in total. Renewing adds the new months after the current end.
+- **Discounts:** 3 months 5% and 6 months 10%, nothing else. A coupon never adds to it: the better of the two applies. GST is added after the discount.
+- **Upgrade:** pay only the difference for the whole days left, starts at once, end date unchanged. No month discount or coupon on an upgrade.
+- **Lower plan:** waits for the end of the paid time (nothing is paid now). During a FREE period an owner can prepay a lower plan: it starts when the free days end ("Already paid").
+- **Free days left** are added at the end when an owner buys another plan during a free period.
+- **Plan ends:** reminders 7, 3 and 1 days before, then grace days (default 3), then the shop is paused for new orders (orders in progress finish). Paying, or choosing Partner, opens it again at once.
+- **Partner wallet:** top-up with GST on top; the fee is taken when an order completes, from the order value at checkout; overdraft about Rs 100; at zero only new orders pause. Fee slabs are never shown to owners.
+- **Coupons** (More > Plan coupons): percentage off, for Growth, Pro or both, for 3 or 6 months or any term, once per shop, with a use limit, edit, delete (unused), and a push to the shops that can use it.
+- **No refunds** (stated on the Plan screen and in the Terms) except mistakes, done by the supreme admin with "Send money back" (real money back through Razorpay, a credit note, one at a time per shop).
 
-## To confirm with your CA
-GST on the per-order fee and on wallet top-ups; the SAC code; delivery charge excluded from the fee base; the Terms wording (shop owner Terms sections 3, 4, 6, 11 were rewritten for plans and need a lawyer's check).
+## What the supreme admin can do (all in the superadmin app)
+Plan defaults (prices, slabs, free and grace days, GST, branches, discounts, features) · a shop's Plan screen (switch plan, free period start and end, remove the plan, give more time, record a payment made outside the app with an invoice, own price / free days / fee slabs, extras, website and app switches, wallet corrections, Send money back) · Plans overview (who is on what, ending soon, ended, held payments, bank disputes) · Plan coupons · Move shops to plans (dry run first, undoable) · Money tab (profit this week, month and year; profit and loss by week, month and financial year).
 
-## Brands (one plan per brand)
-- A brand has ONE plan, set by the supreme admin on its MAIN shop; every branch carries a copy (`plan.inheritedFrom`), kept in step by `services/brandPlan.js`. The plan of a branch cannot be edited on its own.
-- 3 shops are free (the main shop + 2 branches). This is editable PER BRAND (Brand screen > Plan and shops) and the platform default is More > Plan defaults (`includedBranches`, the branches besides the main shop). The supreme admin can also allow free extra shops (audit logged).
-- Each extra shop is Rs 1,499 a month + GST (setting `branchAddonPaise`). The brand owner pays FIRST (owner app: Plan > Your shops > Add an extra shop): Rs 1,499 split by the whole days left of the paid term / 30, with its own small invoice. Then the platform team can create the branch; creating beyond the paid places is refused.
-- The RENEWAL is one payment and one invoice: the plan + the extra shops x months, the 1 to 6 month discount on both, GST once. A branch removed stops being billed at the next renewal. No refund of paid days.
-- Only the brand owner pays; a branch's owner works on the main shop's plan.
-- With no multi-branch (Pro) in the brand, switching to another branch is VIEW ONLY and the brand tools are refused.
-- Existing brands whose branches had plans of their own: the brand screen lists them, and "Make every branch follow the main plan" merges them. The phase 9 move moves the main shop and the branches follow.
+## Things the app watches for you
+A refund the server left half-done is finished or undone; a bank dispute on a plan, wallet or SMS payment alerts you, blocks a refund of that payment while open, and takes the service back (with a credit note) when lost; held payments and open disputes are reminded every morning at 10:00; Partner shops whose orders drop by half or are often not completed are flagged every night.

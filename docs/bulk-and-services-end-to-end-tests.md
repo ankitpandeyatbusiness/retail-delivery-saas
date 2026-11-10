@@ -306,7 +306,7 @@ Expected: "Includes bulk orders: N · ₹…" under the sales, and the order is 
 **E8-04** Look at the Orders history and the sales list.
 Expected: the cook's work ticket does not appear as a second sale.
 
-**E8-05** Admin panel → Rent / bill screen.
+**E8-05** Admin panel → Business report.
 Expected: a completed bulk order counts as **one** order.
 
 ---
@@ -350,7 +350,7 @@ For each event, tap the notification from the lock screen and again from the Not
 
 **E10-10** Cook panel: a leave answer. Expected: opens the **Leave** page.
 
-**E10-11** Admin panel: daily summary, weekly digest, rent bill. Expected: opens the Business or Rent page.
+**E10-11** Admin panel: daily summary, weekly digest. Expected: opens the Business page.
 
 ---
 

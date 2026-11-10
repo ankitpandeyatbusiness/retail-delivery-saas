@@ -16,8 +16,8 @@ A5. Brand owners -> Add a brand owner (a third phone). Check in "Shops" that thi
 A6. Try the same phone as a rider in Test Delhi and then as brand owner: refused with the job named.
 A7. Try to make the manager phone of Test Delhi owner of Test Mumbai too: refused, "already works at Test Delhi".
 A8. Go live on a branch with no map pin and radius: refused. Set pin and radius in the shop settings, then Go live works.
-A9. Rent discount: Brand page -> Rent discount 10. Try 20: refused (cap 15). Next month's rent invoices of the 2nd branch show a "Multi-branch discount 10%" line; the first branch pays full.
-A10. After bills exist, the brand page shows "Statement for <last month>": a line per branch, the discount, unpaid amount, and about how many SMS each branch used.
+(Removed with the old billing, 2026-11: the brand rent discount. Plans, the wallet and money are tested in plans-phone-test.md.)
+(Removed with the old billing, 2026-11: the brand statement. Plans, the wallet and money are tested in plans-phone-test.md.)
 A11. SMS wallet: top up the wallet of one branch by Rs 100. The other branch shows the same balance. Send an OTP at the other branch: both show the lower balance.
 A12. Take the oldest branch out of the brand: the SMS money goes to the next branch, the shop stays a normal shop with an empty wallet.
 
@@ -93,14 +93,14 @@ I3. The brand owner (in that branch) and a superadmin can still change it. Unloc
 
 ## J. Statement PDF
 
-J1. Superadmin: Brand page -> Statement card -> Share the statement PDF: a one-page A4 opens in the share sheet. Check: the brand and month on top, a row per branch (nothing cut off), the discount column, totals, Unpaid line, SMS wallet lines.
-J2. Brand owner: All branches -> Rent bills card -> Open the statement (PDF): the same page opens.
+(Removed with the old billing, 2026-11: the statement PDF. Plans, the wallet and money are tested in plans-phone-test.md.)
+(Removed with the old billing, 2026-11: the statement PDF. Plans, the wallet and money are tested in plans-phone-test.md.)
 
 ## K. Free start of a brand
 
-K1. Brand page -> Free start card: "New branches get no free start" by default. Add a branch and press Go live on it: its rent preview says the first rent is the NEXT full month (the go-live month is not billed).
-K2. Press "Give new branches a shared free start": the card shows the orders used out of the free orders and how many branches are in it. Go live on two branches; place orders at both: the count adds them together.
-K3. When the total reaches the free orders (or the months pass) both branches show rent starting the same month; "free ended" on both at the same moment.
+(Removed with the old billing, 2026-11: the shared free start. Plans, the wallet and money are tested in plans-phone-test.md.)
+(Removed with the old billing, 2026-11: the shared free start. Plans, the wallet and money are tested in plans-phone-test.md.)
+(Removed with the old billing, 2026-11: the shared free start. Plans, the wallet and money are tested in plans-phone-test.md.)
 K4. Add a branch while the shared free start runs: it shares what is left. Add one after it ended: no free time.
 K5. "End the free start now" ends it for all at once.
 
@@ -108,7 +108,7 @@ K5. "End the free start now" ends it for all at once.
 
 L1. Brand owner: All branches page -> Unpaid bills card: the total, and a line per branch that owes something.
 L2. "Pay this branch" on one line: the payment screen opens for that branch only; after paying, only that branch's bills are paid.
-L3. "Pay all branches": ONE payment; afterwards every branch's bills are paid and a branch that was paused for rent is open again.
+(Removed with the old billing, 2026-11: "pay all branches" for rent; a brand now pays one plan on the main shop, with extra shops added to it. Plans, the wallet and money are tested in plans-phone-test.md.)
 L4. A branch manager does not see these buttons (he sees the note that the brand owner pays).
 L5. Superadmin, Brand page -> Money actions for several branches: choose branches (or All), Waive late fees / Mark bills paid / Mark a month's bills not paid; the answer sheet lists each branch with what changed and anything skipped (a bill paid online is never undone).
 
@@ -125,7 +125,7 @@ M5. Superadmin: a shop page -> Make this shop a brand (name, city, optional owne
 
 N1. Superadmin: More -> Platform health opens. The top box is green "All fine", amber "Look when you can" or red "Act now", with one line why.
 N2. "Needs you" lists every card that is not green, worst first.
-N3. Rent card: shops that paid / total collected / shops still to pay / total to collect; overdue bills show red.
+N3. Plans card: shops on each plan, plans ending soon, ended or paused shops.
 N4. SMS card: sent in 7 days, cost and price per SMS, profit.
 N5. Orders card: today, 7 days (with  hange), last month.
 N6. Google card: every call type with a bar; amber from 60
@@ -133,7 +133,7 @@ N6. Google card: every call type with a bar; amber from 60
 
 N1. Superadmin: More -> Platform health opens. The top box is green "All fine", amber "Look when you can" or red "Act now", with one line why.
 N2. "Needs you" lists every card that is not green, worst first.
-N3. Rent card: shops that paid / total collected / shops still to pay / total to collect; overdue bills show red.
+N3. Plans card: shops on each plan, plans ending soon, ended or paused shops.
 N4. SMS card: sent in 7 days, cost and price per SMS, profit.
 N5. Orders card: today, 7 days (with the change in percent), last month.
 N6. Google card: every call type with a bar; amber from 60 percent, red from 90 percent.
@@ -153,7 +153,7 @@ O8. Log in as Vivyaan's (ordinary) superadmin: the same home, but no "Shop money
 
 ## P. The red-light push
 
-P1. When a Platform health card turns red (rent with 3 or more overdue bills, orders down 40 percent, no backup, SMS losing money, and so on) every superadmin phone gets a push "Platform: Rent is red" with the reason, even with the app closed. Tapping it opens Platform health.
+P1. When a Platform health card turns red (orders down 40 percent, no backup, SMS losing money, and so on) every superadmin phone gets a push "Platform: <card> is red" with the reason, even with the app closed. Tapping it opens Platform health.
 P2. The same card is not pushed again for 6 hours; if still red then, "red again" arrives.
 P3. When it goes back to normal and later turns red again, you are told at once.
 P4. Payment notices and a failing SMS provider keep their own older alerts and are not repeated by this one.
@@ -170,7 +170,7 @@ Q5. Orders -> an order -> its shop -> Back returns to that order. Inside the sho
 Q6. Open a shop from the Shops list itself: Back is the normal Back to the list.
 
 Q7. More -> Platform health -> SMS card -> SMS profit -> Back returns straight to Platform health with no flash of another screen in between. Same for the Orders card (Sales report), Shops card (Shops growth) and Google card (Live tracking).
-Q8. Platform health -> Rent card -> Receivables -> a shop -> Back goes to Receivables; Back again goes to Platform health.
+Q8. Platform health -> a card -> a shop -> Back goes to Platform health.
 
 Q9. Platform health now lives inside the Home tab. Open it, tap the SMS card, then Back: you return to Platform health exactly as you left it (scroll place and open drop-downs kept), with no Home in between. Also: More -> Platform health -> Back returns to More; Home -> Platform health -> Back returns to Home; a red-alert push opens Platform health.
 

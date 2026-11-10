@@ -27,4 +27,12 @@
   (orders, table booking deposits, table bills, unpaid table bills).
 - A refund is saved with a fixed key first, so it can never go out twice; a retry asks Razorpay first.
 - Every 2 minutes a job repairs payments whose webhook was missed or whose follow-up work stopped half way.
-- Money that arrives on the platform account and matches no bill, dues or top-up raises an alert.
+- Money that arrives on the platform account and matches no plan payment or top-up raises an alert.
+
+## Plans, wallet, refunds and disputes (the platform account)
+1. The platform account's webhook also needs `payment.dispute.*` ticked: a bank dispute on a plan payment, wallet top-up or SMS top-up alerts you, blocks a refund of that payment while open, and takes the service back (with a credit note) if it is lost. Close one by hand in More > Plans overview if the notice never comes.
+2. "Send money back" refunds through the platform Razorpay account, so it needs balance there. A refund the server could not finish is finished or undone within minutes by itself.
+3. Fill in Business details (legal name, GSTIN, address, state) before the first payment: invoices and credit notes need them.
+4. The database must be a replica set (the wallet and plan payments use transactions). Atlas is one by default.
+5. `PARTNER_FEES=off` is the kill switch for per-order wallet fees (plans keep working).
+6. Test once in Razorpay TEST mode before real money: a plan payment, a coupon, a refund, a dispute notice. Steps: `docs/plans-phone-test.md`.

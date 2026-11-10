@@ -42,6 +42,22 @@ describe('month close', () => {
         assert.ok(typeof r.body.netEstimatePaise === 'number');
     });
 
+    test('next 30 days counts the PAID plans that end, at their own price, and the free ones apart', async () => {
+        const Tenant = require('../src/models/Tenant');
+        const DAY = 86400000;
+        const mk = async (plan) => { const x = await f.makeWorld('n30-' + Math.random().toString(36).slice(2, 8)); await Tenant.updateOne({ _id: x.tenant._id }, { $set: { plan } }); return x; };
+        await mk({ id: 'growth', startedAt: new Date(), endsAt: new Date(Date.now() + 10 * DAY) });                                  // ends in 10 days: counted
+        await mk({ id: 'pro', startedAt: new Date(), endsAt: new Date(Date.now() + 12 * DAY), priceOverridePaise: 300000 });          // own price: counted at that price
+        const free = new Date(Date.now() + 8 * DAY);
+        await mk({ id: 'growth', startedAt: new Date(), endsAt: free, freeUntil: free });                                              // free: counted apart
+        await mk({ id: 'growth', startedAt: new Date(), endsAt: new Date(Date.now() + 45 * DAY) });                                  // later: not counted
+        await mk({ id: 'partner' });                                                                                                   // no end date
+        const r = await request(app).get('/api/admin/finance/next30').set(auth());
+        assert.deepEqual([r.body.endingPlans.count, r.body.endingFree.count], [2, 1]);
+        assert.equal(r.body.endingPlans.estimatePaise, 299900 + 300000);
+        assert.equal(r.body.nextBillsEstimatePaise, 599900);
+    });
+
     test('the CA Excel has a sheet each for the summary, bills, SMS top-ups, GST register and expenses', async () => {
         const w = await f.makeWorld('mx-' + Date.now().toString(36));
         await paidPlan(w.tenant._id, { baseRs: 1000, invoiceNo: 'MX/1' });

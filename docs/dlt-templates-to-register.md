@@ -23,6 +23,8 @@ Every SMS the app sends must be a message you registered and got approved on the
 
 ## 2. The texts to register
 
+> Only the nine texts below are sent now. The bill, overdue-bill and shop-paused texts of the old rent model were removed in 2026-11: do NOT register them. Plan reminders, wallet alerts and refunds go as app notifications and push, not SMS.
+
 Register each text as a **transactional / service** message. The Name column is the `<NAME>` in `SMS_TEMPLATE_<NAME>`.
 
 | # | Name | Who gets it | Register exactly this |
@@ -36,9 +38,6 @@ Register each text as a **transactional / service** message. The Name column is 
 | 7 | `ORDER_UNACCEPTED_REMINDER` | shop owner | `Order #{#var#} at {#var#} is still waiting to be accepted. Please open the app now.` |
 | 8 | `DELIVERY_PIN` | customer | `Your {#var#} delivery PIN for order #{#var#} is {#var#}. Tell it to the delivery partner at your door.` |
 | 9 | `RIDER_SOS` | shop owner | `Rider {#var#} of {#var#} pressed the help button. Call him now on {#var#}.` |
-| 10 | `BILL_ISSUED` | shop owner | `New bill {#var#} of Rs {#var#} for {#var#}. Please pay by {#var#} to keep taking orders.` |
-| 11 | `BILL_OVERDUE` | shop owner | `Rs {#var#} is overdue for {#var#}. Pay now in the app to stop the late fee from growing.` |
-| 12 | `SHOP_PAUSED` | shop owner | `Your shop {#var#} is paused because a bill is unpaid. Pay now to start taking orders again.` |
 
 What goes in each `{#var#}`, in order:
 
@@ -48,9 +47,6 @@ What goes in each `{#var#}`, in order:
 4. **ORDER_UNACCEPTED_REMINDER**: order number, shop name.
 5. **DELIVERY_PIN**: shop name, order number, the PIN.
 6. **RIDER_SOS**: rider name, shop name, rider phone.
-7. **BILL_ISSUED**: invoice number, amount, shop name, pay-by date.
-8. **BILL_OVERDUE**: amount, shop name.
-9. **SHOP_PAUSED**: shop name.
 
 The shop name is filled in automatically for every shop, so one registered template serves all shops.
 
@@ -75,4 +71,4 @@ Register it too. It has no name of its own in the code, so it uses `SMS_DEFAULT_
 3. Set the server settings in section 1 and restart the server.
 4. Superadmin: Money > SMS balance > **Ask the provider now**. If the number is in SMS credits and not rupees, switch the unit and ask again.
 5. Send a login OTP to yourself and check the text on your phone matches the registered one.
-6. Trigger one order SMS and one bill SMS and check them too.
+6. Trigger one order SMS and one rider-help SMS and check them too.

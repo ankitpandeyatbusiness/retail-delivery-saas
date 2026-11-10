@@ -74,7 +74,7 @@ export default function MonthCloseScreen() {
                         <>
                             <SectionTitle section="catalog">Next 30 days</SectionTitle>
                             <Card style={{ paddingVertical: 0 }}>
-                                <KeyValue label="Plans and fees (guessed from last month)" value={rupeesFromPaise(next.nextBillsEstimatePaise)} />
+                                <KeyValue label={`Plans ending in 30 days, if renewed (${next.endingPlans ? next.endingPlans.count : 0} paid shops)`} value={rupeesFromPaise(next.nextBillsEstimatePaise)} />
                                 <KeyValue label="Costs (average of 3 months)" value={'− ' + rupeesFromPaise(next.costsEstimatePaise)} />
                                 <KeyValue label="Likely" value={rupeesFromPaise(next.netEstimatePaise)} last />
                             </Card>

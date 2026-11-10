@@ -7,7 +7,7 @@
 | Thing | The one place | Who may change it |
 |---|---|---|
 | The company on the bills (name, address, GST number, PAN, state, invoice prefix, "Powered by", contact phone) | **Money, Business details** = the ACTIVE company. | Supreme admin |
-| Razorpay keys that receive rent and SMS top-ups | **Money, My Razorpay** = the ACTIVE company. | Supreme admin |
+| Razorpay keys that receive plan payments, wallet top-ups and SMS top-ups | **Money, My Razorpay** = the ACTIVE company. | Supreme admin |
 | The other company (your own agency), saved and waiting | **More, Companies and Switch** | Supreme admin |
 | Which company is active | The **Switch** button there. It copies the chosen company into Business details and My Razorpay. | Supreme admin |
 | Who brought each shop (50/50 or 70/30) | **Shop page, "Who brought this shop"** | Supreme admin |

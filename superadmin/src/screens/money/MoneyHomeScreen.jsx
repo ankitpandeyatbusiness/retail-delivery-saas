@@ -43,7 +43,7 @@ export default function MoneyHomeScreen() {
                         <Stat section="money" label="Collected this month" value={rupeesFromPaise(d.month.current.collectedPaise)} icon="wallet" note={vs(d.month.change.collected)} onPress={go('MonthClose')} />
                     </View>
                     <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.md }}>
-                        <Stat label="Expected next 30 days" value={rupeesFromPaise(d.next.nextBillsEstimatePaise)} icon="clock" note="Estimate" onPress={go('MonthClose')} />
+                        <Stat label="Plans ending in 30 days" value={rupeesFromPaise(d.next.nextBillsEstimatePaise)} icon="clock" note={`${d.next.endingPlans ? d.next.endingPlans.count : 0} paid, if renewed`} onPress={go('MonthClose')} />
                         <Stat label={d.month.current.netPaise < 0 ? 'Loss this month' : 'Net this month'} value={rupeesFromPaise(d.month.current.netPaise)} icon="chart" tone={d.month.current.netPaise < 0 ? 'danger' : 'success'} note={vs(d.month.change.net)} onPress={go('ProfitLoss')} />
                     </View>
 

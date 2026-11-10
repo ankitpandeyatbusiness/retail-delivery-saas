@@ -1,65 +1,34 @@
 # Billing, papers and legal position (a working note, not legal advice)
 
-> **2026-11: monthly rent, price tiers, go live, free orders/months and the late fee were REPLACED by plans** (Partner wallet, Growth, Pro). See docs/plans-and-pricing.md and docs/old-billing-removal-list.md. Sections below that talk about monthly rent, tiers and late fees describe the OLD system and apply only to bills issued before the change, which can still be paid, waived or voided until they are settled. Nothing new is generated. There is no late fee any more.
+I am a software assistant, not a CA or a lawyer. This is how the app behaves today and what usually matters; have your CA and lawyer confirm the legal points. The questions to take to the CA are in `docs/ca-pack-plans` (with sample invoices). Plans and prices: `docs/plans-and-pricing.md`.
 
-I am a software assistant, not a CA or a lawyer. Everything below is how the app behaves today and what usually matters; please have a CA or lawyer confirm the legal points before relying on them. Rules change, so check the current ones.
-
-## 1. Who are the parties?
-| Money | From | To | Paper today |
+## 1. Who pays whom, and the paper for each
+| Money | From | To | Paper |
 |---|---|---|---|
-| Customer pays for food | customer | the shop | order invoice PDF (shop's name, GSTIN and FSSAI if saved; CGST/SGST columns when the shop charges GST) |
-| App rent (monthly) | the shop | the platform company | numbered tax invoice PDF (emailed), receipt email, VOID stamp when cancelled |
-| SMS top-up | the shop | the platform company | GST now added on top (only if the platform business has a GSTIN); **no invoice document yet** |
+| Food | customer | the shop | order invoice PDF (shop name, GSTIN and FSSAI if saved; CGST/SGST when the shop charges GST) |
+| Plan, extra shops | the shop | the platform company | numbered tax invoice `PLN/...` (PDF in the owner's Plan > Payments) |
+| Partner wallet top-up | the shop | the platform company | tax invoice `TOP/...` (PDF in the wallet history). Wallet money is the shop's prepaid balance; the per-order fee (Rs 3 to Rs 15) is taken from it when an order completes |
+| SMS top-up | the shop | the platform company | invoice or receipt `TOP/...` |
+| Money sent back or taken back | the platform | the shop | credit note `CN/...` (refund by the admin, or a bank dispute the platform lost) |
+| Payment made outside the app | the shop | the platform company | the same `PLN/...` invoice, marked "bank transfer", "UPI" or "cash" with your reference |
 | Rider pay | the shop | the rider | earnings and cash screens; no statement PDF |
 
-Seller and buyer details are copied onto every invoice when it is made, so changing the business details later never changes an old invoice.
+Seller and buyer details are copied onto every document when it is made, so changing the business details later never changes an old document. GST is added only while the platform business has a GSTIN saved. CGST+SGST or IGST follows the shop's state.
 
-## 2. Question: the GST and the company are not mine; can I move to my own company later?
-**What the app does:** the platform company's name, address, GSTIN, PAN-like details and SAC code are settings (superadmin: Platform, Business details). Each invoice keeps its own copy. So moving later is mostly a settings change: new invoices carry the new company; old invoices stay in the old company's name, which is correct.
+## 2. The company and the GST number
+The platform company's name, address, GSTIN, PAN and SAC code are settings (superadmin: Money > Business details). Whoever's GSTIN is on the invoice is the legal supplier and must receive the money (check whose bank account and Razorpay account is used).
 
-**Using someone else's company and GSTIN today is only safe if it is a real arrangement.** Whoever's GSTIN is on the invoice is the legal supplier. That company receives the money (check whose bank account and Razorpay account receive it), must report the sales, file GST returns and pay the GST and income tax. If it is only "lending" the number with no agreement, both of you carry risk, and shop owners who take input tax credit on your invoice can be hurt if the supplier's returns do not match. A written agreement is the minimum (for example: that company operates the platform commercially and pays you a fee or a share, or you are its contractor). Ask a CA how to structure it. Do **not** charge GST under a number that is not truly the business that is supplying the service.
+**To move to another company later, in order:** register the new business (a proprietorship costs little: PAN, a bank account, a free Udyam registration) and its bank account; open a Razorpay account for it and put the new keys in Money > My Razorpay; put the new details in Business details (new documents show the new company; use a new invoice prefix for a new GSTIN); tell every shop by a policy notice and update the Terms and Privacy; move the Play Store, domain, SMS (DLT) registration and cloud accounts.
 
-**To move later, in order:**
-1. Register the new business (a proprietorship in your own name is the cheapest; see the next point) and get its bank account, PAN and, if needed, GSTIN.
-2. Open a Razorpay account for it (new keys). Superadmin: Platform, Payments takes the new keys and webhook secret.
-3. Put the new business details in Business details. From that moment new invoices show the new company.
-4. Start a new invoice series for a new GSTIN (change the prefix; the counter is per financial year today, so this needs a small code change which I can make).
-5. Tell every shop by a policy-change notice and email ("the service is now provided by X"), update Terms and Privacy to name the new company, and settle the prepaid SMS balances (money already paid is the old company's liability: either refund, or transfer by agreement).
-6. Move the Google Play developer account, domain, SMS (DLT) registration and cloud accounts to the new owner.
+## 3. Shops without a GST number
+Razorpay usually accepts proprietorships with PAN, a bank account and a business proof (a restaurant needs an FSSAI licence). Cash on delivery works with no payment account. A shop without a GSTIN gets "INVOICE" with no tax on its order invoices; with a GSTIN it gets "TAX INVOICE" with CGST and SGST. The platform's own invoices charge GST only when the platform business has a GSTIN; shops with a GSTIN can use them for input credit.
 
-**You may not need to "buy an agency".** A sole proprietorship costs nothing to create: PAN, a current or savings bank account, and (as business proof) a free Udyam registration are often enough. GST registration is free from the government and is generally required only above the turnover threshold for services (about Rs 20 lakh a year in most states) or in some interstate cases. Check with a CA whether you need it now. Until you are registered, **you must not charge GST at all.**
+## 4. What is built, and what still needs a human
+Built: numbered tax invoices with place of supply, the tax split and "reverse charge: no"; credit notes; a GST register by month in Excel (the CA's layout); Terms and Privacy as real pages in the apps; refunds, bank disputes, held payments and the money screens all agree because they read one list of paid documents.
 
-## 3. Question: shops without a GST number cannot join Razorpay?
-That is not always true, but a GST number makes it easier. Razorpay generally accepts proprietorships and individuals with a PAN, a bank account and a business proof. For a restaurant, an FSSAI licence is compulsory for the food business, and Udyam or a Shop Act certificate are other common proofs. Confirm the current list on Razorpay's website; it changes.
+Still needs a human:
+1. **Your CA** on the points in `docs/ca-pack-plans/QUESTIONS-FOR-THE-CA.pdf`: GST on plans, wallet top-ups and the per-order fee; credit notes for refunds and lost chargebacks; the "no refunds" rule; when wallet money counts as income; coupons; e-invoicing; invoice numbering; section 9(5) / TCS.
+2. **A lawyer** on the Terms of Service, the Privacy Policy and the "no refund" wording, the written agreement between Ankit and Vivek (`docs/agreement-ankit-vivek.md`, `docs/mou-addendum-plans.md`), a written rider agreement, and the data-protection duties (who accepted which version).
 
-How the app copes with shops that have no GST (the roughly 10%):
-- Cash on delivery works with no payment account.
-- A shop without a GSTIN gets "INVOICE" and no tax on its order invoices; with a GSTIN it gets "TAX INVOICE" with CGST and SGST.
-- The platform's rent invoice charges GST only when the platform business has a GSTIN. Shops with a GSTIN can use it to claim input credit, which is why the 90% will check your invoice carefully.
-
-## 4. What I changed today because of this
-SMS top-up GST is now added only while the platform business has a GSTIN saved (the same rule as the rent invoice). With no GSTIN the owner pays exactly what he types and no GST is shown. Tests cover both cases.
-
-## 5. Gaps, most serious first (what to build)
-1. **SMS top-up document:** a numbered receipt or tax invoice PDF, emailed (same style as the rent invoice). Today there is none.
-2. **Tax invoice details on platform invoices:** CGST/SGST or IGST split, place of supply (the shop's state), "reverse charge: no", the platform's PAN. Today only "GST @ 18%" is shown.
-3. **Credit notes:** a numbered credit note when an issued invoice is cancelled, instead of only the VOID stamp.
-4. **Receipt PDF for rent payments** (today the "payment received" mail is a table of values).
-5. **Terms of Service and Privacy Policy:** real pages in the apps (they are plain words on the login screen), and a record of who accepted which version and when. Needed for customer data under India's data protection law, and for every shop and rider.
-6. **For your accountant:** a monthly pack (platform sales register by GST rate and state, top-up and rent summaries, rider statements as CSV). The ledger and CSV export exist, but not in an accountant's layout.
-7. **Rider papers:** an earnings statement per rider and a written rider agreement (who is the rider's employer or principal).
-
-## 6. Agreements you need on paper (no software replaces these)
-- Platform to shop (Terms): who the operator is, fees, refunds of the prepaid SMS balance, what happens when rent is unpaid (the app pauses the shop).
-- Shop to rider: how riders are engaged and paid.
-- The arrangement with the company whose GSTIN you use now (section 2).
-- A privacy notice naming the company that holds customer data.
-
-## 7. (OLD, no longer issued) Unpaid rent: late fee, reminders and "pay all" (built 2026-10-18)
-- **What happens:** a monthly bill unpaid after its due date earns a **late fee for every overdue month** (a block of `lateFeeEveryDays`, 30 by default): `lateFeePercent` (5) % **of that bill's amount**, not compounding, plus GST at the bill's own rate. Settings are in the superadmin app: Billing rules > "Late fee and reminders" (`PUT /api/admin/platform/billing`). 0 percent switches it off. At most 12 fees per bill.
-- **Each fee is its own invoice** (kind `custom` with `lateFee` filled, numbered SUB/..., GST shown, one line saying which bill, which overdue month, the dates and the working: "5% of Rs 3000"). It never pauses the shop (no grace date). One per bill per month (unique index), so the job can run twice safely. Code: `services/lateFees.js`, run every 10 minutes by the billing alerts job.
-- **Cancel or waive a bill:** its unpaid late fees are cancelled with it, each with a credit note. A bill that is paid stops earning fees; fees already issued stay to be paid.
-- **Reminders:** every `overdueRemindDays` (3) days while anything is overdue: in the app, push and email (the email has the rent and the late fee apart). SMS is sent only when neither the app nor push reaches the owner (needs the DLT template `DLT_TEMPLATE_BILL_OVERDUE`). The shop is paused as before when the grace date of a bill passes.
-- **What he owes:** `GET /api/shop/subscription/dues` lists each unpaid month with its late fees and one grand total. The owner app shows it on the Monthly bill screen ("What you owe") with a "Pay all" button.
-- **Pay all in one payment:** `POST /api/shop/subscription/dues/pay/start` then `/pay/verify` (and the platform webhook as a safety net). One Razorpay order for the sum of every unpaid bill and fee listed at that moment; when it is captured each bill is settled the usual way (`rentPaymentService.settle`). A repeat changes nothing. If a bill in the list was paid or cancelled in between, the superadmin gets an alert to refund the difference. Model: `DuesPayment`.
-- **To confirm with your CA:** that a late fee is a taxable supply with 18% GST, issued as its own tax invoice, and the SAC code to use on it.
+## 5. Agreements on paper (no software replaces these)
+Platform to shop (the Terms: who the operator is, plans and fees, no refunds, what happens when a plan is not renewed: the shop is paused for new orders); shop to rider; the arrangement with the company whose GSTIN you use now (section 2); a privacy notice naming the company that holds customer data.

@@ -44,7 +44,7 @@ Deploy the server first, then update the superadmin app. Use one test shop with 
 1. Sales / Orders / Average order show "Up 12% on before" or "Down 5% on before" (against the period of the same length just before). "By shop" has sort chips (Most sales, Most orders, Growing most, Falling most) and a badge per shop: Growing (up 20%+), Falling (down 30%+), Gone quiet, New. Tapping a shop opens its report.
 2. "Sales lost": money on cancelled or not-delivered orders, split by who caused it, the shops losing most, and the amount refunded.
 3. "When people order": orders by hour and weekday, delivery / pickup / dine-in, new against returning customers, and cash still with riders (tap a rider to open him).
-4. "Your income this month" (all shops only): rent billed and collected, SMS margin, costs, net, and what is still owed (tap to open Who owes you).
+4. "Your income this month" (all shops only): plans and wallet fees received, SMS margin, costs and net.
 5. **Excel** downloads one file with a sheet each: Summary, By day, By shop, Best items, Sales lost, By hour, By weekday. **Share summary** opens WhatsApp or any app with a short text.
 6. The morning push: after 8:00 India time, once a day: "Yesterday: N orders, Rs X", up or down on the day before, orders needing attention, refunds not finished. Tapping it opens the Sales report. Switch it off in the notification rules (admin_daily_summary).
 

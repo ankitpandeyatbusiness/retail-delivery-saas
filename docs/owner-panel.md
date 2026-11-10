@@ -1,5 +1,7 @@
 # Owner panel (shop admin) inside the customer app
 
+> **Updated 2026-11-10:** this is the design history of the owner panel. The monthly rent, the "Monthly bill" / Rent screen, free orders and the rent tiers described below were REPLACED by plans (Partner wallet, Growth, Pro): the owner now has a Plan screen, a Wallet screen (Partner), SMS and Money. See `docs/plans-and-pricing.md`. Delivery, pickup and dine-in are switched in Shop settings.
+
 One app, three panels, chosen by the phone number's role: a customer gets the shop tabs, a `rider` gets the delivery
 screen, an `admin` (the shop owner) gets the owner panel. Code lives next to the customer code, in `owners/` folders:
 `mobile/src/{screens,components,api,store,utils,hooks}/owners/`.

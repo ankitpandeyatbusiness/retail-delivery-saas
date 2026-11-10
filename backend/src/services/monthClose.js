@@ -30,22 +30,35 @@ async function summary(month = nowKey()) {
     };
 }
 
-// What is likely to come in and go out over the next 30 days. Estimates say so: the next bills are guessed from the last month's, the costs from the last three.
+// What is likely to come in and go out over the next 30 days. Everything is prepaid, so the income to expect is the PLANS THAT END in the next 30 days (paid Growth and Pro):
+// if each owner renewed for one month at his own price, without GST. Shops still in a free period are counted separately (they may start paying). Costs are guessed from the last three months.
 async function next30({ now = Date.now() } = {}) {
     const n = new Date(now);
+    const end = new Date(n.getTime() + 30 * DAY);
+    const planService = require('./planService');
+    const def = await planService.getDefaults();
+    const shops = await Tenant.find({ 'closure.on': { $ne: true }, 'plan.id': { $in: ['growth', 'pro'] }, 'plan.endsAt': { $gt: n, $lte: end } }).select('plan').lean();
+    let paidCount = 0; let freeCount = 0; let estimate = 0;
+    for (const t of shops) {
+        const v = planService.viewOf(t, n);
+        if (v.status === 'free') { freeCount += 1; continue; }
+        if (v.status !== 'active') continue;
+        paidCount += 1;
+        estimate += t.plan.priceOverridePaise ?? def[t.plan.id].pricePaise;
+    }
     const fin = await finance.summary({ months: 3 });
     const k = nowKey();
     const done = fin.rows.filter((r) => r.month < k);   // finished months only
-    const lastBilled = done.length ? done[done.length - 1].billedPaise : 0;
     const avgCosts = done.length ? Math.round(done.reduce((a, r) => a + r.costsPaise, 0) / done.length) : 0;
-    const net = lastBilled - avgCosts;
     return {
         dueSoon: { paise: 0, bills: 0 },   // everything is prepaid: nothing falls due
         overdue: { paise: 0, bills: 0 },
-        nextBillsEstimatePaise: lastBilled,
+        endingPlans: { count: paidCount, estimatePaise: estimate },
+        endingFree: { count: freeCount },
+        nextBillsEstimatePaise: estimate,   // kept under its old name for older apps: the plans that end, if renewed
         costsEstimatePaise: avgCosts,
-        netEstimatePaise: net,
-        note: 'Everything is prepaid. The next income is guessed from last month, the costs from the last three months.',
+        netEstimatePaise: estimate - avgCosts,
+        note: 'Everything is prepaid. The income to expect is the paid plans that end in the next 30 days, if each owner renewed for one month (without GST). The costs are the average of the last three months.',
     };
 }
 

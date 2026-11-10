@@ -197,7 +197,7 @@ Make a **delivery** bulk order (delivery, with your saved address) for later tod
 | M-05 | Owner | Open **Orders** (not Bulk): find the order called **"Bulk order <code>"** and **cancel it there** | The **whole bulk order cancels** and the customer is refunded, same as M-04 |
 | M-06 | Owner | Same Orders list: try the **rider/cook** cancel buttons | They **cannot cancel** a bulk order (message says so) |
 | M-07 | Owner | Razorpay test dashboard | Refund amounts match what the app said |
-| M-08 | Owner | Rent / bill screen | A completed bulk order counts as **one** order (not two) |
+| M-08 | Owner | Home and Business report | A completed bulk order counts as **one** order (not two) |
 
 ---
 
@@ -233,7 +233,7 @@ For each, send the event, then **tap the notification (from the lock screen AND 
 | N-13 | Customer | A normal order status update | That order |
 | N-14 | Rider | An offer / assigned order | The **trip page** |
 | N-15 | Cook | Leave approved/rejected | The **Leave** page |
-| N-16 | Owner | Daily summary / weekly digest / rent bill | Business page / Rent page |
+| N-16 | Owner | Daily summary / weekly digest | Business page |
 
 ---
 
