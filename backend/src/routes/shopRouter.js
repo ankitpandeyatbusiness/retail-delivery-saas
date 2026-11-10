@@ -549,6 +549,7 @@ router.get('/settings', wrap(async (req, res) => {
             mixRules: { ...DEFAULTS.orders.mixRules, ...(cfg.orders.mixRules || {}) },
             staff: { ...DEFAULTS.orders.staff, ...(cfg.orders.staff || {}) },   // shown only: the super admin decides
             dineIn: { ...DEFAULTS.orders.dineIn, ...(cfg.orders.dineIn || {}) },
+            types: (cfg.orders.types || []).filter((x) => x === 'delivery' || x === 'pickup'), lockTypes: !!cfg.orders.lockTypes,   // delivery and pickup: the owner switches them in Shop settings unless the platform team locked it
             deliveryFee: { ...DEFAULTS.orders.deliveryFee, ...(st.orders?.deliveryFee || {}) },
             packagingCharge: cfg.orders.packagingCharge || 0,
             tipOptions: cfg.orders.tipOptions || [],
@@ -622,13 +623,19 @@ router.put('/settings', wrap(async (req, res) => {
     if (body.orders !== undefined) {
         // what the owner may change of the order settings: the cash limit and what a customer pays on top of the food.
         // GST, payment methods and order types stay with the platform.
-        const OWNER_ORDER_KEYS = ['codCap', 'pickupCod', 'pickupRules', 'mixRules', 'dineIn', 'deliveryFee', 'packagingCharge', 'tipOptions', 'minOrder', 'prepTimeMin', 'kitchenQueueSec', 'kitchenOfferMode', 'kitchenOfferPercent'];
+        const OWNER_ORDER_KEYS = ['types', 'codCap', 'pickupCod', 'pickupRules', 'mixRules', 'dineIn', 'deliveryFee', 'packagingCharge', 'tipOptions', 'minOrder', 'prepTimeMin', 'kitchenQueueSec', 'kitchenOfferMode', 'kitchenOfferPercent'];
         if (!body.orders || typeof body.orders !== 'object' || Array.isArray(body.orders) || Object.keys(body.orders).some((k) => !OWNER_ORDER_KEYS.includes(k))) {
-            throw httpError(400, 'You can change only the cash limit, delivery fee, packaging charge, tips, minimum order and preparation time');
+            throw httpError(400, 'You can change only delivery and pickup, the cash limit, delivery fee, packaging charge, tips, minimum order and preparation time');
         }
         const v = validateSettings({ orders: body.orders });
         if (!v.ok) return res.status(400).json({ error: 'Invalid order settings', errors: v.errors });
         if (v.clean.orders?.dineIn?.enabled === true && !require('../services/featureGate').hasFeature(req.tenant, 'dineIn')) throw httpError(403, 'Dine-in ordering is not in your plan. See Plan to upgrade.');
+        if (v.clean.orders?.types !== undefined) {   // delivery and pickup, switched by the owner inside his shop (the platform team can lock it)
+            const now = require('../services/tenantConfigService').resolveConfig(req.tenant).orders;
+            if (now.lockTypes) throw httpError(403, 'The platform team has set how your shop takes orders. Contact support to change it.');
+            if (!v.clean.orders.types.some((x) => x === 'delivery' || x === 'pickup')) throw httpError(400, 'Keep at least delivery or pickup switched on.');
+            v.clean.orders.types = v.clean.orders.types.filter((x) => x === 'delivery' || x === 'pickup');
+        }
         for (const [k, val] of Object.entries(v.clean.orders || {})) {
             if (val && typeof val === 'object' && !Array.isArray(val)) {
                 for (const [k2, val2] of Object.entries(val)) updates[`settings.orders.${k}.${k2}`] = val2;

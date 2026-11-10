@@ -4427,7 +4427,6 @@ export default {
     "You can cancel only after you collected the order. Before that, give it back.": "रउआ ऑर्डर लेला के बादे रद्द कर सकेनी। ओकरा से पहिले एकरा वापस क दीं।",
     "You can cancel this order yourself": "रउआ ई ऑर्डर खुदे रद्द कर सकेनी",
     "You can cancel until the shop starts preparing your order. Please call the shop.": "दुकान के रउआ ऑर्डर बनावल सुरू कइला ले ही रउआ रद्द कर सकेनी। दुकान के कॉल करीं।",
-    "You can change only the cash limit, delivery fee, packaging charge, tips, minimum order and preparation time": "रउआ खाली कैश सीमा, डिलीवरी फीस, पैकेजिंग शुल्क, टिप, न्यूनतम ऑर्डर आ तैयारी के समय बदल सकीलें",
     "You can change only whether sold-out dishes are shown": "रउआ खाली ई बदल सकेनी कि खतम भइल व्यंजन देखाव या ना",
     "You can change only your name here": "रउआ एहिजा खाली आपन नाम बदल सकीलें",
     "You can complain after the order is delivered": "ऑर्डर डिलीवर भइला के बाद रउआ शिकायत कर सकीलें",

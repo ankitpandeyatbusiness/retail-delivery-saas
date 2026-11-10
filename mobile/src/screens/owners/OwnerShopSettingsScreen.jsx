@@ -4,6 +4,7 @@ import { View, Text, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import MapPicker from '../../components/customers/MapPicker';
 import ShopAreaMap from '../../components/owners/ShopAreaMap';
+import { PlanTag, askUpgrade } from '../../components/owners/PlanLock';
 import { useBrand } from '../../components/common/kit';
 import { useNavigation } from '@react-navigation/native';
 import { Button, Empty } from '../../components/owners/ui';
@@ -29,6 +30,9 @@ export default function OwnerShopSettingsScreen() {
             latitude: s.delivery?.latitude, longitude: s.delivery?.longitude, radiusKm: s.delivery?.radiusKm,
             phone: s.phone || '', line: s.address.line || '', city: s.address.city || '', state: s.address.state || '', pincode: s.address.pincode || '',
             showSoldOut: s.menu?.outOfStock !== 'hide',
+            delivery: (s.orders?.types || ['delivery']).includes('delivery'), pickup: (s.orders?.types || []).includes('pickup'), dineIn: s.orders?.dineIn?.enabled === true,
+            lockTypes: !!s.orders?.lockTypes, dineAllowed: !s.plan || s.plan.features?.dineIn !== false, dineNeeds: s.plan?.needs?.dineIn || 'Growth',
+            was: { delivery: (s.orders?.types || ['delivery']).includes('delivery'), pickup: (s.orders?.types || []).includes('pickup'), dineIn: s.orders?.dineIn?.enabled === true },
             smsAlerts: s.notifications.smsAlerts !== false, monthlyReport: s.notifications.monthlyReport !== false,
         })).catch((e) => { useOwnerStore.getState().noteError(e); setErr(apiError(e, 'Could not load your settings.')); });
     }, []);
@@ -49,9 +53,16 @@ export default function OwnerShopSettingsScreen() {
     const save = async () => {
         if (v.phone && !/^[6-9]\d{9}$/.test(v.phone)) { showToast(tr('Enter a valid 10-digit mobile number')); return; }
         if (v.pincode && !/^\d{6}$/.test(v.pincode)) { showToast(tr('Pincode is 6 digits')); return; }
+        if (!v.delivery && !v.pickup) { showToast(tr('Keep at least delivery or pickup switched on')); return; }
         const body = { notifications: { smsAlerts: v.smsAlerts, monthlyReport: v.monthlyReport }, menu: { outOfStock: v.showSoldOut ? 'dim' : 'hide' } };
         if (v.phone) body.phone = v.phone;
         if (pinMoved && Number.isFinite(v.latitude) && Number.isFinite(v.longitude)) body.delivery = { latitude: v.latitude, longitude: v.longitude };
+        // how the shop serves customers: only what changed is sent
+        const types = [v.delivery && 'delivery', v.pickup && 'pickup'].filter(Boolean);
+        const orders = {};
+        if (!v.lockTypes && (v.delivery !== v.was.delivery || v.pickup !== v.was.pickup)) orders.types = types;
+        if (v.dineAllowed && v.dineIn !== v.was.dineIn) orders.dineIn = { enabled: v.dineIn };
+        if (Object.keys(orders).length) body.orders = orders;
         body.address = { line: v.line, city: v.city, state: v.state, ...(v.pincode ? { pincode: v.pincode } : {}) };
         setSaving(true);
         try { await saveSettings(body); showToast(tr('Saved')); nav.goBack(); }
@@ -62,6 +73,22 @@ export default function OwnerShopSettingsScreen() {
         <FormPage title={tr('Shop settings')} footer={<Button label={tr('Save')} icon="checkmark" busy={saving} onPress={save} />}>
             <Group title={tr('Contact')} hint={tr('Customers and riders call this number.')}>
                 <TextBox label={tr('Shop phone')} value={v.phone} onChangeText={(x) => set('phone', x.replace(/\D/g, '').slice(0, 10))} keyboardType="number-pad" maxLength={10} placeholder={tr('10-digit mobile number')} last />
+            </Group>
+            <Group title={tr('How you serve customers')} hint={v.lockTypes ? tr('The platform team has set delivery and pickup for your shop. Contact support to change them.') : tr('Switch on what you offer. Customers see only these. Orders already placed always finish.')}>
+                <ToggleRow title={tr('Delivery')} subtitle={tr('A rider brings the order to the customer')} value={v.delivery} disabled={v.lockTypes} onValueChange={(x) => set('delivery', x)} />
+                <ToggleRow title={tr('Pickup')} subtitle={tr('The customer collects the order at the shop')} value={v.pickup} disabled={v.lockTypes} onValueChange={(x) => set('pickup', x)} last={v.dineAllowed} />
+                {v.dineAllowed
+                    ? <ToggleRow title={tr('Dine-in')} subtitle={tr('Guests order from the table by QR. Set the tables in the Dine in screen.')} value={v.dineIn} onValueChange={(x) => set('dineIn', x)} last />
+                    : (
+                        <Pressable onPress={() => askUpgrade(nav, { title: tr('Dine-in'), need: v.dineNeeds, feature: 'dineIn' })} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12 }}>
+                            <Ionicons name="lock-closed" size={20} color={primary} />
+                            <View style={{ flex: 1, marginHorizontal: 12 }}>
+                                <Text style={{ color: text, fontWeight: '800' }}>{tr('Dine-in')}</Text>
+                                <Text style={{ color: muted, fontSize: 12 }}>{tr('Available in {plan}', { plan: v.dineNeeds })}</Text>
+                            </View>
+                            <PlanTag need={v.dineNeeds} />
+                        </Pressable>
+                    )}
             </Group>
             <Group title={tr('Address')} hint={tr('Shown to customers and on invoices.')}>
                 {pinned ? <ShopAreaMap latitude={v.latitude} longitude={v.longitude} radiusKm={v.radiusKm} onPress={() => setPin(true)} /> : null}

@@ -70,3 +70,37 @@ describe('dine-in follows the plan', () => {
         assert.equal(plans.planIncludes('partner', 'dineIn'), false);
     });
 });
+
+describe('the owner switches delivery and pickup in his own settings', () => {
+    const settings = () => request(app).get('/api/shop/settings').set(w.owner.headers);
+
+    test('he can switch delivery off and keep pickup; customers then see only pickup', async () => {
+        await Tenant.updateOne({ _id: w.tenant._id }, { $set: { 'settings.orders.types': ['delivery', 'pickup'] } });
+        tenantRecognizer.invalidateTenant(slug);
+        assert.deepEqual((await settings()).body.orders.types, ['delivery', 'pickup']);
+        const r = await saveOrders({ types: ['pickup'] });
+        assert.equal(r.status, 200);
+        assert.deepEqual((await settings()).body.orders.types, ['pickup']);
+        const cfg2 = resolveConfig(await Tenant.findById(w.tenant._id).lean()).orders;
+        assert.deepEqual(cfg2.types, ['pickup']);
+    });
+
+    test('at least delivery or pickup must stay on', async () => {
+        assert.equal((await saveOrders({ types: ['dine_in'] })).status, 400);
+        assert.equal((await saveOrders({ types: [] })).status, 400);
+    });
+
+    test('when the platform team locks it, the owner cannot change it', async () => {
+        await Tenant.updateOne({ _id: w.tenant._id }, { $set: { 'settings.orders.lockTypes': true } });
+        tenantRecognizer.invalidateTenant(slug);
+        assert.equal((await settings()).body.orders.lockTypes, true);
+        const r = await saveOrders({ types: ['pickup'] });
+        assert.equal(r.status, 403);
+        assert.match(r.body.error, /platform team has set how your shop takes orders/);
+    });
+
+    test('delivery and pickup are not plan-gated: Partner can switch them too', async () => {
+        await setPlan({ id: 'partner' });
+        assert.equal((await saveOrders({ types: ['delivery', 'pickup'] })).status, 200);
+    });
+});

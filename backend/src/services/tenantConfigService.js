@@ -146,9 +146,10 @@ function validateSettings(input) {
 
     // orders
     section('orders',
-        ['types', 'payments', 'minOrder', 'deliveryFee', 'packagingCharge', 'gst', 'tipOptions', 'prepTimeMin', 'kitchenQueueSec', 'kitchenOfferMode', 'kitchenOfferPercent', 'acceptingOrders', 'pausedUntil', 'busy', 'codCap', 'pickupCod', 'pickupRules', 'mixRules', 'limits', 'staff', 'dineIn', 'autoAccept', 'hoursOverride'],   // hoursOverride (the owner opened the shop against its hours, until the hours change next) and autoAccept is the owner's own (services/autoAccept.js): known here so a panel save does not fail on it, never taken from the panel
+        ['types', 'lockTypes', 'payments', 'minOrder', 'deliveryFee', 'packagingCharge', 'gst', 'tipOptions', 'prepTimeMin', 'kitchenQueueSec', 'kitchenOfferMode', 'kitchenOfferPercent', 'acceptingOrders', 'pausedUntil', 'busy', 'codCap', 'pickupCod', 'pickupRules', 'mixRules', 'limits', 'staff', 'dineIn', 'autoAccept', 'hoursOverride'],   // hoursOverride (the owner opened the shop against its hours, until the hours change next) and autoAccept is the owner's own (services/autoAccept.js): known here so a panel save does not fail on it, never taken from the panel
         (o, out, p) => {
             if (o.types !== undefined) { const v = listOf(p('types'), o.types, O.ORDER_TYPES, 1, 3); if (v) out.types = v; }
+            if (o.lockTypes !== undefined && bool(p('lockTypes'), o.lockTypes)) out.lockTypes = o.lockTypes;   // true = the owner cannot change delivery and pickup (the platform team decides)
             if (o.payments !== undefined) { const v = listOf(p('payments'), o.payments, O.PAYMENT_METHODS, 1, 4); if (v) out.payments = v; }
             if (o.minOrder !== undefined && num(p('minOrder'), o.minOrder, 0, 5000)) out.minOrder = o.minOrder;
             if (o.packagingCharge !== undefined && num(p('packagingCharge'), o.packagingCharge, 0, 500)) out.packagingCharge = o.packagingCharge;
@@ -501,7 +502,7 @@ const DEFAULTS = {
     },
     menu: { outOfStock: 'dim', groupByCategory: true },
     orders: {
-        types: ['delivery'], payments: ['cod'], minOrder: 0,
+        types: ['delivery'], lockTypes: false, payments: ['cod'], minOrder: 0,
         deliveryFee: { type: 'free', amount: 0, freeAbove: 0 },
         packagingCharge: 0, gst: { mode: 'none', percent: 0 },
         tipOptions: [], prepTimeMin: 20, kitchenQueueSec: 60, kitchenOfferMode: 'ask', kitchenOfferPercent: 10, acceptingOrders: true,

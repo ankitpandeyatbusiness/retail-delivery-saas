@@ -173,3 +173,52 @@ Setup: shop B has a paid Growth plan from test Razorpay with 20 of 30 days unuse
 
 ---
 When something fails, send me: the test number, what you saw, a screenshot, and the shop name.
+
+---
+
+# Added later: more tests (new features)
+
+## 16. One shop only: how to use a single shop for everything
+Move the same shop through the states with the superadmin app: Partner, then Growth, then Pro, then a free period, then plan ended. Use "Free period" on the shop Plan screen (days box, Start free Growth / Start free Pro, End the free period now) and "Remove the plan".
+
+## 17. Plan defaults: what each plan includes
+| # | Do | Expect |
+|---|---|---|
+| 17.1 | More > Plan defaults > What each plan includes | A row per feature with Partner, Growth, Pro chips. Dine-in ordering is on Growth and Pro only. Kitchen and waiter logins are not in the list |
+| 17.2 | Add Loyalty to Partner, save | Within seconds a Partner owner sees Loyalty unlocked (no tag, the row opens) |
+| 17.3 | Take Loyalty away from Growth, save | A Growth shop already on a term keeps Loyalty until the term ends (the shop Plan screen shows it as an Extra "kept until ..."). A shop that joins Growth later does not get it. The Growth card no longer lists it, the Pro card does |
+| 17.4 | Take a feature away from Partner | Gone at once for Partner shops |
+| 17.5 | Plain superadmin tries to save | Refused |
+
+## 18. Dine-in is a Growth feature
+| # | Do | Expect |
+|---|---|---|
+| 18.1 | Shop on Partner, customer app | Only delivery and pickup. No dine-in or table QR ordering. Table booking is still there if you switched it on for the shop |
+| 18.2 | Partner owner: side menu | "Dine in" is locked with a GROWTH tag. Tapping shows what dine-in does and "See plans" |
+| 18.3 | Partner owner: Shop settings > How you serve customers | Delivery and Pickup switches. Dine-in shows a lock and the Growth tag |
+| 18.4 | Move the shop to Growth | Dine-in switch works. The owner switches it on, sets tables in the Dine in screen. Customers see dine-in |
+| 18.5 | Move back to Partner | Dine-in stops for customers at once (new table scans are refused). Open table bills can still be settled by the owner. The saved dine-in setting returns when Growth comes back |
+| 18.6 | Partner plan card in the owner Plan screen | Says "Table booking, with a waitlist when a slot is full". Growth card has "Guests order from the table by QR, with table bills and waiter calls" |
+
+## 19. The owner switches delivery and pickup
+| # | Do | Expect |
+|---|---|---|
+| 19.1 | Owner: Shop settings > How you serve customers, switch Delivery off, Pickup on, Save | The customer app offers pickup only. Orders already placed still finish |
+| 19.2 | Switch both off | "Keep at least delivery or pickup switched on" |
+| 19.3 | Superadmin: shop settings > Orders and fees > "The owner can change delivery and pickup" off | The owner's two switches are greyed with a message to contact support. Saving from the app is refused |
+| 19.4 | Superadmin: new shop wizard | No "How customers get orders" question. The new shop starts with delivery and pickup. A note explains the owner switches them |
+
+## 20. Fairness and safety
+| # | Do | Expect |
+|---|---|---|
+| 20.1 | Free Pro with 10 days left, owner buys Pro for 1 month | The paid term starts after the free days (no double count) |
+| 20.2 | Free Growth with 10 days left, owner buys Pro for 1 month | Pro starts now. Preview note: "Your 10 leftover free days are added at the end", end date includes them, price unchanged |
+| 20.3 | Free Pro, owner buys Growth for 1 month | Preview: Growth starts on the day your free time ends, until then you keep Pro. It is paid now. After paying the Plan screen shows "Growth starts on ... Already paid", no cancel |
+| 20.4 | Then try to buy another plan, or you switch/remove the plan | Owner: "You already paid for Growth, which starts on ...". You: "refund it first with Send money back" |
+| 20.5 | Refund that prepaid Growth in full from Send money back | The waiting plan is cancelled |
+| 20.6 | Renew Pro until the total prepaid time would pass 12 months | "You can prepay up to 12 months in total. You can add up to N more month(s)." At the limit: "already runs for the most prepaid time" |
+| 20.7 | Pro owner with a scheduled move to Partner, 3 days left | The reminder says: Then you move to Partner. Add money to your wallet so new orders keep coming. The preview also says to add wallet money |
+| 20.8 | Upgrade preview (Growth to Pro) | A note: the month discounts and coupons are for new purchases, not for the difference on an upgrade |
+| 20.9 | Two supreme admins press Send money back on the same payment at the same moment | Only one refund goes. The other is refused or finds nothing left |
+| 20.10 | After a refund, open Plan > Refunds | A row with the amount and "Credit note (PDF)". The PDF is a CREDIT NOTE with the original invoice number. The ledger and GST register show the credit note number on the minus row |
+| 20.11 | Remove the plan from a shop | The shop has no plan: nothing locked, no reminders. The owner gets "Your plan was removed. Changed by the Platform." |

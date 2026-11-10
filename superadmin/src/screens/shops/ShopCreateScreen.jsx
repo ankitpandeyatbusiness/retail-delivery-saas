@@ -52,7 +52,7 @@ export default function ShopCreateScreen() {
     const [f, setF] = useState({
         name: '', slug: '', slugTouched: false, phone: '', line: '', city: '', state: '', pincode: '', ownerPhone: '', broughtBy: '',
         plan: 'growth',   // Partner / Growth / Pro: switches that plan's features on (only the supreme admin can set it; others create the shop without a plan)
-        foodMode: 'mixed', types: ['delivery'], minOrder: 0, feeType: 'free', feeAmount: 0, freeAbove: 0,
+        foodMode: 'mixed', types: ['delivery', 'pickup'], minOrder: 0, feeType: 'free', feeAmount: 0, freeAbove: 0,
         latitude: null, longitude: null, radiusKm: 5,
         primary: '#E8590C', accent: '', fontStyle: 'modern', buttonShape: 'rounded', cardStyle: 'big',
         logoUri: '', logoType: '', logoCols: null, source: 'own',   // source: 'logo' (colours read from the logo) or 'own' (picked here): never both
@@ -276,7 +276,7 @@ export default function ShopCreateScreen() {
                     {opts ? (
                         <>
                             <Choice label="Food" options={choices('foodMode', opts.options.FOOD_MODES)} value={f.foodMode} onChange={set('foodMode')} />
-                            <MultiChoice label="How customers get orders" options={choices('orderType', opts.options.ORDER_TYPES)} value={f.types} min={1} onChange={set('types')} />
+                            <Text style={{ color: t.muted, fontSize: font.sm, marginBottom: spacing.md }}>The shop starts with delivery and pickup. The owner switches delivery, pickup and dine-in in Shop settings (dine-in needs the Growth or Pro plan).</Text>
                             <NumberField label="Minimum order" placeholder="e.g. 150" hint="The smallest basket in rupees. 0 or empty = no minimum." prefix="₹" value={f.minOrder} onChange={(v) => set('minOrder')(v ?? 0)} />
                             <Choice label="Delivery fee" options={choices('fee', (opts.options.FEE_TYPES || []).filter((x) => x !== 'distance'))} value={f.feeType} onChange={set('feeType')} last={f.feeType === 'free'} />
                             {f.feeType === 'flat' || f.feeType === 'free_above' ? <NumberField label="Fee" placeholder="e.g. 30" hint="The delivery fee in rupees." prefix="₹" value={f.feeAmount} onChange={(v) => set('feeAmount')(v ?? 0)} last={f.feeType === 'flat'} /> : null}

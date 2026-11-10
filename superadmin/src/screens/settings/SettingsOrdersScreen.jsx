@@ -44,6 +44,7 @@ export default function SettingsOrdersScreen() {
                             min={1}
                             onChange={(v) => ed.set('orders', 'types', v)}
                         />
+                        <Switch title="The owner can change delivery and pickup" subtitle="On: the owner switches them in Shop settings. Off: only you can." value={!o.lockTypes} onValueChange={(v) => ed.set('orders', 'lockTypes', !v)} />
                         <MultiChoice
                             label="Payment methods"
                             options={choices('payment', ed.options.PAYMENT_METHODS)}
