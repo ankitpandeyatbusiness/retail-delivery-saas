@@ -27,6 +27,7 @@ import { fetchMe, updateMe, deleteMe, updatePrefs, deleteUpload, fetchMyBookings
 import { useServiceFlags } from '../../utils/customers/serviceFlags';
 import { useMeStore } from '../../store/customers/useMeStore';
 import { pickPhoto, uploadAvatar } from '../../utils/common/photoUpload';
+import { useGetApp } from '../../utils/common/installApp';
 import { Skel } from '../../components/common/motion';
 import OwedStrip from '../../components/customers/OwedStrip';
 import { tr, LANGS, useLang } from '../../i18n';
@@ -470,6 +471,7 @@ function AccountInner() {
                 ) : null}
 
                 <Group title={tr('MANAGE')} delay={200}>
+                    {getApp.show ? <Item icon="download-outline" label={getApp.kind === 'store' ? tr('Get the app') : tr('Install the app')} onPress={getApp.open} /> : null}   {/* the website only */}
                     <Item icon="information-circle-outline" label={tr('About Us')} onPress={() => nav.navigate('AboutUs')} />
                     <Item icon="phone-portrait-outline" label={tr("Where you're logged in")} onPress={() => nav.navigate('Sessions')} />
                     <Item icon="log-out-outline" label={tr('Log out')} onPress={doLogout} />
@@ -488,6 +490,7 @@ function AccountInner() {
 }
 
 export default function AccountScreen() {
+    const getApp = useGetApp();   // the website only: "Get the app" / "Install the app"
     return <GuestGate title={tr('Account')}><AccountInner /></GuestGate>;
 }
 
