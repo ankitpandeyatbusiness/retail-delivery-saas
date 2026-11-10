@@ -129,6 +129,9 @@ async function quote(tenant, { to, months = 1, coupon: couponCode }, now = new D
         const sameFree = free && from === to;
         const after = (out.kind === 'renew' && paidActive) || sameFree ? dayAfter(endsAt) : now;
         out.startsAt = after; out.endsAt = endAfterMonths(after, m);
+        // buying a paid plan while a free period of ANOTHER plan is running: the free days left are added at the end, so buying early never loses them
+        const carry = free && from && from !== to && endsAt && endsAt > now ? Math.ceil((endsAt.getTime() - now.getTime()) / DAY) : 0;
+        if (carry) { out.endsAt = new Date(out.endsAt.getTime() + carry * DAY); out.carryDays = carry; out.notes.push(`Your ${carry} leftover free days are added at the end.`); }
         out.notes.push(`${NAME[to]} runs until ${out.endsAt.toISOString().slice(0, 10)}. The price is locked for this term.`);
     }
     out.gstPaise = Math.round((out.taxablePaise * gstPercent) / 100);   // GST is worked out once, on the whole taxable amount

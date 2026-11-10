@@ -214,3 +214,25 @@ describe('dates', () => {
         assert.equal(billing.endAfterMonths(new Date('2026-01-31T05:00:00Z'), 1).toISOString(), '2026-02-27T18:29:59.999Z');   // short month: 28 Feb less a day
     });
 });
+
+describe('free days left when buying another plan', () => {
+    test('free Growth with 10 days left, then Pro for 1 month: the 10 days are added at the end', async () => {
+        const freeEnd = new Date(Date.now() + 10 * DAY);
+        await setPlan({ id: 'growth', startedAt: new Date(), endsAt: freeEnd, freeUntil: freeEnd });
+        const q = (await owner('post', '/quote', { to: 'pro', months: 1 })).body;
+        assert.equal(q.kind, 'new');
+        assert.equal(q.carryDays, 10);
+        const plain = billing.endAfterMonths ? billing.endAfterMonths(new Date(), 1) : null;
+        if (plain) assert.equal(Math.round((new Date(q.endsAt) - plain) / DAY), 10);
+        assert.ok(q.notes.some((x) => /10 leftover free days/.test(x)));
+        assert.equal(q.totalPaise, 499900);   // the price is the same, only the end date moves
+    });
+
+    test('the same plan during its free period still starts after the free days (no double count)', async () => {
+        const freeEnd = new Date(Date.now() + 10 * DAY);
+        await setPlan({ id: 'pro', startedAt: new Date(), endsAt: freeEnd, freeUntil: freeEnd });
+        const q = (await owner('post', '/quote', { to: 'pro', months: 1 })).body;
+        assert.equal(q.carryDays, undefined);
+        assert.ok(new Date(q.startsAt) > freeEnd);
+    });
+});
