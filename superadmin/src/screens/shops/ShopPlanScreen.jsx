@@ -7,7 +7,8 @@ import { Card, SectionTitle, Badge, Chip, Button } from '../../components/ui';
 import { Field } from '../../components/inputs';
 import { SkeletonList } from '../../components/blocks';
 import { ConfirmSheet, toast } from '../../components/feedback';
-import { fetchPlanCatalog, fetchShopPlan, removeShopPlan, setShopPlan, setShopPlanExtra, setShopPlanTerms, fetchShopWallet, adjustShopWallet, endShopFreePeriod } from '../../api/shopsApi';
+import { DatePickField } from '../../components/DatePicker';
+import { recordPlanPaymentQuote, recordPlanPayment, extendShopPlan, fetchPlanCatalog, fetchShopPlan, removeShopPlan, setShopPlan, setShopPlanExtra, setShopPlanTerms, fetchShopWallet, adjustShopWallet, endShopFreePeriod } from '../../api/shopsApi';
 import { errMsg } from '../../api/adminClient';
 import { useShopStore } from '../../store/useShopStore';
 import { planLine } from '../../components/shopBits';
@@ -36,13 +37,37 @@ export default function ShopPlanScreen() {
     const [adjAmt, setAdjAmt] = useState('');
     const [freeDays, setFreeDays] = useState('');   // the days of a free period to start
     const [startFree, setStartFree] = useState(null);   // 'growth' | 'pro' waiting for confirmation
-    const [removing, setRemoving] = useState(false);     // the "Remove the plan" confirm
+    const [removing, setRemoving] = useState(false);
+    // record a payment made outside the app
+    const [rp, setRp] = useState({ to: 'growth', months: 1, amount: '', method: 'bank', reference: '' });
+    const [rpQuote, setRpQuote] = useState(null);
+    const [rpSure, setRpSure] = useState(false);
+    // more time
+    const [moreDays, setMoreDays] = useState('');
+    const [moreOn, setMoreOn] = useState('');
+    const [moreSure, setMoreSure] = useState(false);
+    // this shop's own terms
+    const [terms, setTerms] = useState(null);   // { price, freeDays, slabs: [{ upTo, fee }] }
+    const [termsSure, setTermsSure] = useState(false);
+    const [removing2, setRemoving2] = useState(false);     // the "Remove the plan" confirm
     const [endFree, setEndFree] = useState(false);   // the "End the free period now" confirm
 
     const load = useCallback(async () => {
         try { const [c, p, wl] = await Promise.all([fetchPlanCatalog(), fetchShopPlan(shopId), fetchShopWallet(shopId).catch(() => null)]); setCat(c); setPlan(p); setWallet(wl?.partner ? wl : null); setDays(''); } catch (e) { toast(errMsg(e), 'error'); }
     }, [shopId]);
     useEffect(() => { load(); }, [load]);
+
+    useEffect(() => {
+        if (!plan || terms) return;
+        const tm = plan.terms || {};
+        setTerms({ price: tm.pricePaise != null ? String(tm.pricePaise / 100) : '', freeDays: tm.freeDays != null ? String(tm.freeDays) : '', slabs: (tm.feeSlabs || []).map((x) => ({ upTo: x.upTo === null ? '' : String(x.upTo), fee: String(x.feeRs) })) });
+    }, [plan, terms]);
+    useEffect(() => {
+        let on = true;
+        setRpQuote(null);
+        recordPlanPaymentQuote(shopId, rp.to, rp.months).then((q) => { if (on) setRpQuote(q); }).catch(() => { if (on) setRpQuote(false); });
+        return () => { on = false; };
+    }, [shopId, rp.to, rp.months, plan && plan.id, plan && plan.endsAt]);
 
     if (!cat || !plan) return <Screen title="Plan" subtitle={tenant?.name}><SkeletonList count={4} /></Screen>;
 
@@ -125,6 +150,57 @@ export default function ShopPlanScreen() {
                 </>
             ) : null}
 
+            <SectionTitle section="money">Record a payment made outside the app</SectionTitle>
+            <Card>
+                <Text style={{ color: t.muted, marginBottom: spacing.sm }}>The owner paid you by bank transfer, UPI or cash. Record what you received: the plan starts for the term, a tax invoice is made and the money screens show it. Nothing goes to Razorpay, so it cannot be refunded with Send money back.</Text>
+                <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm }}>
+                    {['growth', 'pro'].map((id) => <Chip key={id} label={NAMES[id]} active={rp.to === id} onPress={() => setRp({ ...rp, to: id, amount: '' })} />)}
+                </View>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.sm }}>
+                    {[1, 2, 3, 4, 5, 6].map((m) => <Chip key={m} label={`${m} month${m > 1 ? 's' : ''}`} active={rp.months === m} onPress={() => setRp({ ...rp, months: m, amount: '' })} />)}
+                </View>
+                {rpQuote ? <Text style={{ color: t.text, marginBottom: spacing.sm }}>Price with GST: Rs {(rpQuote.suggestedPaise / 100).toLocaleString('en-IN')}. Runs until {dateTime(rpQuote.endsAt)}.</Text> : rpQuote === false ? <Text style={{ color: t.warn, marginBottom: spacing.sm }}>This plan cannot be recorded for this shop now (a lower plan waits for the end, or a prepaid plan is waiting).</Text> : null}
+                <Field label="Amount received (Rs, GST included)" placeholder={rpQuote ? String(rpQuote.suggestedPaise / 100) : ''} value={rp.amount} onChangeText={(v) => setRp({ ...rp, amount: v.replace(/[^0-9.]/g, '').slice(0, 9) })} keyboardType="decimal-pad" />
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.sm }}>
+                    {[['bank', 'Bank transfer'], ['upi', 'UPI'], ['cash', 'Cash'], ['other', 'Other']].map(([k, l]) => <Chip key={k} label={l} active={rp.method === k} onPress={() => setRp({ ...rp, method: k })} />)}
+                </View>
+                <Field label="Reference" placeholder="Bank reference, UPI id or a note" value={rp.reference} onChangeText={(v) => setRp({ ...rp, reference: v })} maxLength={120} />
+                <Button title="Record the payment" kind="soft" disabled={!rpQuote || !(Number(rp.amount || (rpQuote && rpQuote.suggestedPaise / 100)) >= 1) || rp.reference.trim().length < 3} onPress={() => setRpSure(true)} />
+            </Card>
+
+            <SectionTitle section="settings">Give more time</SectionTitle>
+            <Card>
+                <Text style={{ color: t.muted, marginBottom: spacing.sm }}>Add days to the end of the plan (a goodwill gesture, a payment sorted out by phone). A shop that ended or was paused opens again. It can only move the end later.</Text>
+                <Field label="Days to add" placeholder="e.g. 7" value={moreDays} onChangeText={(v) => { setMoreDays(v.replace(/\D/g, '').slice(0, 3)); setMoreOn(''); }} keyboardType="number-pad" maxLength={3} />
+                <DatePickField label="Or set the end day" value={moreOn} onChange={(v) => { setMoreOn(v); setMoreDays(''); }} title="New end day" />
+                <Button title="Give more time" kind="soft" disabled={!plan.id || plan.id === 'partner' || !(Number(moreDays) > 0 || moreOn)} onPress={() => setMoreSure(true)} />
+                {!plan.id || plan.id === 'partner' ? <Text style={{ color: t.muted, marginTop: spacing.sm }}>Only a Growth or Pro plan has an end date.</Text> : null}
+            </Card>
+
+            {terms ? (
+                <>
+                    <SectionTitle section="money">This shop's own terms</SectionTitle>
+                    <Card>
+                        <Text style={{ color: t.muted, marginBottom: spacing.sm }}>Leave a field empty to use the platform value. Changes apply to what this shop is quoted from now on; what it already paid stays.</Text>
+                        <Field label="Special monthly price (Rs, before GST)" placeholder="Platform price" value={terms.price} onChangeText={(v) => setTerms({ ...terms, price: v.replace(/[^0-9]/g, '').slice(0, 6) })} keyboardType="number-pad" />
+                        <Field label="Free days for this shop" placeholder="Platform default" value={terms.freeDays} onChangeText={(v) => setTerms({ ...terms, freeDays: v.replace(/\D/g, '').slice(0, 3) })} keyboardType="number-pad" />
+                        <Text style={{ color: t.text, fontWeight: '700', marginBottom: spacing.xs }}>Partner fee per order (own slabs)</Text>
+                        {terms.slabs.length ? terms.slabs.map((sl, i) => (
+                            <View key={i} style={{ flexDirection: 'row', gap: spacing.sm }}>
+                                <View style={{ flex: 1 }}>{i === terms.slabs.length - 1 ? <Field label="Above the last amount" value="open ended" editable={false} /> : <Field label="Order value up to Rs" value={sl.upTo} onChangeText={(v) => setTerms({ ...terms, slabs: terms.slabs.map((x, j) => (j === i ? { ...x, upTo: v.replace(/\D/g, '').slice(0, 6) } : x)) })} keyboardType="number-pad" />}</View>
+                                <View style={{ flex: 1 }}><Field label="Fee Rs" value={sl.fee} onChangeText={(v) => setTerms({ ...terms, slabs: terms.slabs.map((x, j) => (j === i ? { ...x, fee: v.replace(/\D/g, '').slice(0, 2) } : x)) })} keyboardType="number-pad" /></View>
+                            </View>
+                        )) : <Text style={{ color: t.muted, marginBottom: spacing.sm }}>Using the platform slabs.</Text>}
+                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.sm }}>
+                            {!terms.slabs.length ? <Button title="Set own slabs" kind="outline" small onPress={() => setTerms({ ...terms, slabs: [{ upTo: '150', fee: '3' }, { upTo: '', fee: '6' }] })} /> : null}
+                            {terms.slabs.length < 10 && terms.slabs.length ? <Button title="Add a slab" kind="outline" small onPress={() => setTerms({ ...terms, slabs: [...terms.slabs.slice(0, -1), { upTo: '', fee: '6' }, terms.slabs[terms.slabs.length - 1]] })} /> : null}
+                            {terms.slabs.length ? <Button title="Use platform slabs" kind="outline" small onPress={() => setTerms({ ...terms, slabs: [] })} /> : null}
+                        </View>
+                        <Button title="Save this shop's terms" kind="soft" onPress={() => setTermsSure(true)} />
+                    </Card>
+                </>
+            ) : null}
+
             <SectionTitle section="money">Emergency</SectionTitle>
             <Card>
                 <Text style={{ color: t.muted, marginBottom: spacing.sm }}>Send real money back to this shop's payment method: the unused part of its plan, its wallet balance or its SMS balance.</Text>
@@ -191,6 +267,33 @@ export default function ShopPlanScreen() {
                 confirmLabel="Remove the plan"
                 danger
                 onConfirm={() => run(() => removeShopPlan(shopId), 'Plan removed')}
+            />
+            <ConfirmSheet
+                visible={rpSure}
+                onClose={() => setRpSure(false)}
+                title={`Record Rs ${rp.amount || (rpQuote ? rpQuote.suggestedPaise / 100 : '')} for ${NAMES[rp.to]}?`}
+                message={`${NAMES[rp.to]} for ${rp.months} month${rp.months > 1 ? 's' : ''} starts now${rpQuote ? `, runs until ${dateTime(rpQuote.endsAt)}` : ''}. A tax invoice is made for the amount you received, and the owner is told. This is written to the audit log.`}
+                confirmLabel="Record it"
+                onConfirm={() => run(() => recordPlanPayment(shopId, { to: rp.to, months: rp.months, receivedPaise: Math.round(Number(rp.amount || (rpQuote ? rpQuote.suggestedPaise / 100 : 0)) * 100), method: rp.method, reference: rp.reference.trim() }).then((r) => r.plan), 'Payment recorded').then(() => { setRp({ ...rp, amount: '', reference: '' }); load(); })}
+            />
+            <ConfirmSheet
+                visible={moreSure}
+                onClose={() => setMoreSure(false)}
+                title="Give this shop more time?"
+                message={moreOn ? `The plan will run until the end of ${moreOn}.` : `${moreDays} day${Number(moreDays) > 1 ? 's' : ''} are added after the current end.`}
+                confirmLabel="Give more time"
+                onConfirm={() => run(() => extendShopPlan(shopId, moreOn ? { endsOn: moreOn } : { days: Number(moreDays) }), 'Plan extended').then(() => { setMoreDays(''); setMoreOn(''); load(); })}
+            />
+            <ConfirmSheet
+                visible={termsSure}
+                onClose={() => setTermsSure(false)}
+                title="Save this shop's own terms?"
+                message="From now on this shop is quoted with these. Empty fields go back to the platform values."
+                confirmLabel="Save"
+                onConfirm={() => run(() => setShopPlanTerms(shopId, {
+                    pricePaise: terms.price === '' ? null : Number(terms.price) * 100, freeDays: terms.freeDays === '' ? null : Number(terms.freeDays),
+                    feeSlabs: terms.slabs.length ? terms.slabs.map((x, i) => ({ upTo: i === terms.slabs.length - 1 ? null : Number(x.upTo), feeRs: Number(x.fee) })) : null,
+                }), 'Terms saved').then(() => { setTerms(null); load(); })}
             />
             <ConfirmSheet
                 visible={!!adj}

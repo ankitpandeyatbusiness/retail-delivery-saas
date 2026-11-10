@@ -61,6 +61,7 @@ export const SCREEN_INDEX = [
     E('Edit shop', 'Shop', 'ShopEdit', 'ShopsTab', 'edit', 'settings', 'edit shop name tagline phone address city pincode delivery radius minimum order map location latitude longitude gst fssai legal name billing email', 'shop'),
     E('Message the owner', 'Shop', 'ShopNotify', 'ShopsTab', 'bell', 'platform', 'message owner notice notify app', 'shop'),
     E('Plan defaults', 'More', 'PlanDefaults', 'MoreTab', 'star', 'money', 'plan defaults partner growth pro price fee slabs free days grace gst branch addon discount months'),
+    E('Plans overview', 'More', 'PlanOverview', 'MoreTab', 'star', 'money', 'plans overview how many shops growth pro partner ending soon expiring ended paused held payments bank disputes chargeback'),
     E('Plan coupons', 'More', 'PlanCoupons', 'MoreTab', 'star', 'money', 'plan coupons coupon code offer discount percent off push shops 3 months 6 months'),
     E('Move shops to plans', 'More', 'PlanMigration', 'MoreTab', 'bolt', 'money', 'move shops plans migrate pro free 30 days existing shops preview backup undo'),
     E('Plan', 'Shop', 'ShopPlan', 'ShopsTab', 'star', 'catalog', 'plan partner growth pro free days extras website app switch subscription', 'shop'),

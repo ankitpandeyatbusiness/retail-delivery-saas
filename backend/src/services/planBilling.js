@@ -218,7 +218,7 @@ async function createPayment(tenant, { to, months = 1, branch = false, coupon },
 
 // The money was captured (app verify or webhook). Applies the plan ONCE. If the shop's situation changed since the owner saw the quote
 // (a different plan, or the term moved), the payment is HELD for the supreme admin instead of being applied blindly.
-async function settle(paymentId, { payId, amountPaise, via = 'app' }) {
+async function settle(paymentId, { payId, amountPaise, via = 'app', force = false }) {
     const row = await PlanPayment.findById(paymentId);
     if (!row) throw httpError(404, 'Payment not found');
     if (row.status === 'paid') return { ok: true, duplicate: true };
@@ -231,7 +231,7 @@ async function settle(paymentId, { payId, amountPaise, via = 'app' }) {
     // the plan the owner started from must still be the plan held, and an upgrade needs the same end date
     const now = new Date();
     const same = (tenant.plan?.id || null) === row.from && ((row.kind !== 'upgrade' && row.kind !== 'branch') || (tenant.plan?.endsAt && new Date(tenant.plan.endsAt).getTime() === new Date(q.endsAt).getTime()));
-    if (!same) {
+    if (!same && !force) {   // force: the supreme admin chose to apply a held payment as the owner saw it
         await PlanPayment.updateOne({ _id: row._id }, { $set: { status: 'held', heldWhy: 'The shop plan changed after the owner saw the price', paymentId: payId, paidAt: now } });
         try { await require('./paymentAlerts')('admin_webhook_failed', { tenantId: row.tenantId, vars: { event: 'plan payment', error: `Payment ${payId} of Rs ${(row.payablePaise / 100).toFixed(2)} is HELD: the shop plan changed after the owner saw the price. Refund it or apply the plan by hand.` } }); } catch (e) { /* the alert is best effort */ }
         return { ok: true, held: true };
@@ -267,9 +267,48 @@ async function settle(paymentId, { payId, amountPaise, via = 'app' }) {
     } catch (e) { if (e && e.code === 11000) return { ok: true, duplicate: true }; throw e; }
     invalidateTenant(tenant.slug);
     if (row.kind !== 'branch') await require('./brandPlan').afterPlanChange(await Tenant.findById(row.tenantId).select('brandId').lean());
-    if (row.from !== row.to && !q.deferred) require('./planLifecycle').notifyChanged({ tenantId: row.tenantId, from: row.from, to: row.to, by: 'the owner (paid online)' });
+    if (row.from !== row.to && !q.deferred) require('./planLifecycle').notifyChanged({ tenantId: row.tenantId, from: row.from, to: row.to, ...(via === 'admin' ? { admin: true } : { by: 'the owner (paid online)' }) });
     await ensureInvoice(row._id).catch((e) => console.error('Plan invoice error:', e.message));
     return { ok: true, applied: true };
+}
+
+const METHOD = { bank: 'bank transfer', upi: 'UPI', cash: 'cash', other: 'other' };
+
+// What the owner would pay for this plan and term, for the "Record a payment" screen: the price with GST, and the dates. The amount actually received is typed by the admin.
+async function offlineQuote(tenant, { to, months = 1 }) {
+    const q = await quote(tenant, { to, months });
+    return { kind: q.kind, months: q.months, suggestedPaise: q.totalPaise + (q.walletCreditPaise || 0), gstPercent: q.gstPercent, startsAt: q.startsAt, endsAt: q.endsAt, notes: q.notes, lines: q.lines };
+}
+
+// The owner paid OUTSIDE the app (bank transfer, UPI to you, cash) and the supreme admin records it. The plan is applied exactly as an online payment would apply it
+// (same term, same dates, a tax invoice, the money screens), for the amount the admin says was received (GST included). Nothing is sent to the payment partner, so it
+// cannot be refunded with "Send money back" (return the money yourself and switch the plan).
+async function recordOffline(tenant, { to, months = 1, receivedPaise, method, reference, receivedOn, by }) {
+    if (!['growth', 'pro'].includes(to)) throw httpError(400, 'Choose Growth or Pro');
+    if (!Number.isInteger(receivedPaise) || receivedPaise < 100 || receivedPaise > 100000000) throw httpError(400, 'Type the amount received, from Rs 1');
+    if (!METHOD[method]) throw httpError(400, 'Choose how it was paid');
+    if (typeof reference !== 'string' || reference.trim().length < 3) throw httpError(400, 'Write the reference (bank reference, UPI id or a note)');
+    const q = await quote(tenant, { to, months });
+    if (q.kind === 'downgrade' || q.kind === 'switch') throw httpError(409, 'A lower plan cannot be recorded as paid. Switch the plan instead.');
+    const g = q.gstPercent || 0;
+    const taxable = g ? Math.round(receivedPaise / (1 + g / 100)) : receivedPaise;
+    const q2 = { ...q, walletCreditPaise: 0, coupon: undefined, free: false, canPay: true, offline: true, lines: [{ label: `Plan payment received (${METHOD[method]})`, paise: taxable }], taxablePaise: taxable, gstPaise: receivedPaise - taxable, totalPaise: receivedPaise };
+    await PlanPayment.updateMany({ tenantId: tenant._id, status: 'pending' }, { $set: { status: 'expired' } });
+    const row = await PlanPayment.create({
+        tenantId: tenant._id, kind: q.kind, from: q.from, to, months: q.months, quote: q2, payablePaise: receivedPaise, status: 'pending', expiresAt: new Date(Date.now() + 30 * 60000),
+        createdBy: { type: 'superadmin', label: by }, offline: { method, reference: reference.trim().slice(0, 120), receivedOn: receivedOn || new Date(), by },
+    });
+    const r = await settle(row._id, { payId: undefined, amountPaise: receivedPaise, via: 'admin' });
+    if (r.held) throw httpError(409, 'The shop changed while this was being recorded. Check the shop and try again.');
+    return { ok: true, paymentId: String(row._id) };
+}
+
+// A payment that was HELD (the plan changed after the owner saw the price) and that the supreme admin decides to apply as the owner saw it.
+async function applyHeld(paymentId, by) {
+    const row = await PlanPayment.findOneAndUpdate({ _id: paymentId, status: 'held' }, { $set: { status: 'pending', heldWhy: `Applied by ${by}` } }, { returnDocument: 'after' });
+    if (!row) throw httpError(404, 'No held payment found');
+    const r = await settle(row._id, { payId: row.paymentId, amountPaise: row.payablePaise, via: 'admin', force: true });
+    return r;
 }
 
 // The tax invoice of a PAID plan payment, made once.
@@ -290,7 +329,7 @@ async function ensureInvoice(paymentId) {
     const gstAmount = (q.gstPaise || 0) / 100;
     const tax = invoicing.taxFor({ seller, buyer, gstAmount });
     const invoice = {
-        invoiceNo: num.invoiceNo, kind: 'plan', issueDate, status: 'paid', paidAt: issueDate, paymentMode: 'online', paymentRef: r.paymentId || undefined,
+        invoiceNo: num.invoiceNo, kind: 'plan', issueDate, status: 'paid', paidAt: issueDate, paymentMode: r.offline ? r.offline.method : 'online', paymentRef: r.offline ? r.offline.reference : (r.paymentId || undefined),
         description: r.kind === 'branch' ? 'Extra shop' : `${NAME[r.to]} plan`, lineItems, baseAmount, gstPercent: q.gstPercent || 0, gstAmount, total: r.payablePaise / 100, reverseCharge: false, ...tax, seller, buyer,
     };
     const u = await PlanPayment.updateOne({ _id: r._id, 'invoice.invoiceNo': { $exists: false } }, { $set: { invoice } });
@@ -333,4 +372,4 @@ async function payFree(tenant, { to, months = 1, coupon }, actor) {
     return settle(payment._id, { payId: `free:${payment._id}`, amountPaise: 0 });
 }
 
-module.exports = { quoteBranch, payFree, quote, overview, createPayment, settle, ensureInvoice, chooseFree, cancelScheduled, endAfterMonths, wholeDaysLeft };
+module.exports = { quoteBranch, payFree, quote, overview, createPayment, settle, offlineQuote, recordOffline, applyHeld, ensureInvoice, chooseFree, cancelScheduled, endAfterMonths, wholeDaysLeft };

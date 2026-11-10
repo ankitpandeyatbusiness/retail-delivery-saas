@@ -60,6 +60,7 @@ export default function MoreScreen() {
                     <SectionTitle section="alerts">Rules and SMS</SectionTitle>
                     <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
                         <ListRow section="money" icon="bolt" title="Move shops to plans" subtitle="Give every existing shop Pro, free for 30 days (preview first, backup first)" onPress={go('PlanMigration')} />
+                        <ListRow section="money" icon="star" title="Plans overview" subtitle="Who is on which plan, plans ending soon, held payments and bank disputes" onPress={go('PlanOverview')} />
                         <ListRow section="money" icon="star" title="Plan coupons" subtitle="Offers for plan payments: make one, send a push to the shops that can use it" onPress={go('PlanCoupons')} />
                         <ListRow section="money" icon="star" title="Plan defaults" subtitle="Growth and Pro prices, Partner fee, free days, GST, branch add-on" onPress={go('PlanDefaults')} />
                         <ListRow section="settings" icon="tune" title="Notification rules" subtitle="How each event is delivered" onPress={go('NotificationRules')} />

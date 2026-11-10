@@ -222,3 +222,18 @@ Move the same shop through the states with the superadmin app: Partner, then Gro
 | 20.9 | Two supreme admins press Send money back on the same payment at the same moment | Only one refund goes. The other is refused or finds nothing left |
 | 20.10 | After a refund, open Plan > Refunds | A row with the amount and "Credit note (PDF)". The PDF is a CREDIT NOTE with the original invoice number. The ledger and GST register show the credit note number on the minus row |
 | 20.11 | Remove the plan from a shop | The shop has no plan: nothing locked, no reminders. The owner gets "Your plan was removed. Changed by the Platform." |
+
+## 21. Running plans by hand (superadmin, shop Plan screen and More tab)
+| # | Do | Expect |
+|---|---|---|
+| 21.1 | Shop Plan screen > Record a payment made outside the app: Growth, 1 month, amount, Bank transfer, a reference > Record the payment | The shop is on Growth for the term. The Plan > Payments list of the owner shows it with Invoice (PDF): the PDF says paid by bank transfer with your reference. The owner gets "Changed by the Platform". The ledger / GST register show it |
+| 21.2 | Type an amount different from the price | Allowed. The invoice is for the amount you typed (GST included) |
+| 21.3 | Try with no reference, no amount, or a lower plan than the shop has | Refused with a clear message |
+| 21.4 | Send money back screen for that shop | The outside payment is NOT listed (no online money to refund) |
+| 21.5 | Give more time: 7 days | The plan end moves 7 or more days later (to the end of that day). The owner gets "Your plan now runs until ... Changed by the Platform." |
+| 21.6 | Give more time on an ended or paused shop | It opens again and works at once |
+| 21.7 | Give more time with a day earlier than the current end, or on Partner | Refused |
+| 21.8 | This shop's own terms: set a special monthly price and free days, save | The owner's Plan screen quotes the special price. Empty fields return to the platform values. The fee slabs are never shown to the owner |
+| 21.9 | Plan coupons > Edit: change the end day, use limit, note | Saved. A used coupon cannot be deleted; an unused one can |
+| 21.10 | More > Plans overview | Counts per plan and state, plans ending within 7 days, ended or paused shops (tap one to open its Plan screen), held payments and open bank disputes |
+| 21.11 | A held payment: Apply as the owner saw it | The shop's plan changes to what the owner paid for, the payment shows as paid. Or tap Refund it to send the money back |

@@ -30,7 +30,7 @@ router.get('/plans/preview', wrap(async (req, res) => { res.json(await svc.previ
 router.get('/tenants/:tid/plan/preview', loadTenant, wrap(async (req, res) => { res.json({ current: svc.viewOf(req.tenantDoc), preview: await svc.previewOf(req.tenantDoc, req.query.plan, { freeDays: req.query.freeDays !== undefined && req.query.freeDays !== '' ? Number(req.query.freeDays) : undefined }) }); }));
 
 router.get('/tenants/:tid/plan', loadTenant, wrap(async (req, res) => {
-    res.json(svc.viewOf(req.tenantDoc));
+    res.json({ ...svc.viewOf(req.tenantDoc), terms: svc.termsOf(req.tenantDoc) });
 }));
 
 router.put('/tenants/:tid/plan', requireSupreme, loadTenant, wrap(async (req, res) => {
@@ -44,6 +44,26 @@ router.delete('/tenants/:tid/plan', requireSupreme, loadTenant, wrap(async (req,
     req.auditBefore = svc.viewOf(req.tenantDoc);
     const who = req.admin?.phone || req.admin?.email || 'supreme';
     res.json(await svc.removePlan(req.tenantDoc, { by: String(who) }));
+}));
+
+// more time for a shop: { days } or { endsOn: 'YYYY-MM-DD' }
+router.post('/tenants/:tid/plan/extend', requireSupreme, loadTenant, wrap(async (req, res) => {
+    req.auditBefore = svc.viewOf(req.tenantDoc);
+    const who = req.admin?.phone || req.admin?.email || 'supreme';
+    res.json(await svc.extendPlan(req.tenantDoc, { days: req.body?.days, endsOn: req.body?.endsOn, by: String(who) }));
+}));
+
+// the owner paid outside the app: what it would cost, then record what was received (the plan and the invoice follow)
+router.get('/tenants/:tid/plan/record-payment', requireSupreme, loadTenant, wrap(async (req, res) => {
+    res.json(await require('../services/planBilling').offlineQuote(req.tenantDoc, { to: req.query.to, months: Number(req.query.months) || 1 }));
+}));
+router.post('/tenants/:tid/plan/record-payment', requireSupreme, loadTenant, wrap(async (req, res) => {
+    req.auditBefore = svc.viewOf(req.tenantDoc);
+    const who = req.admin?.phone || req.admin?.email || 'supreme';
+    const b = req.body || {};
+    const r = await require('../services/planBilling').recordOffline(req.tenantDoc, { to: b.to, months: Number(b.months) || 1, receivedPaise: Number(b.receivedPaise), method: b.method, reference: b.reference, by: String(who) });
+    const t = await require('../models/Tenant').findById(req.tenantDoc._id).lean();
+    res.status(201).json({ ...r, plan: svc.viewOf(t) });
 }));
 
 router.put('/tenants/:tid/plan/extras', requireSupreme, loadTenant, wrap(async (req, res) => {

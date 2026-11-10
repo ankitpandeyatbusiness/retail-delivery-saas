@@ -39,6 +39,15 @@ function notifyChanged({ tenantId, from, to, by, admin }) {
         : { ...base, body: `${was} to ${NAME[to]}, by ${by || 'the platform team'}.` }));
 }
 
+// the platform team gave more time: the owner reads the new end day and "Changed by the Platform"
+function notifyExtended({ tenantId, plan, until, by, was }) {
+    const day = new Date(until).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', year: 'numeric' });
+    safe(() => center.notify('plan_changed', {
+        tenantId, title: 'Your plan was changed', body: `Your plan now runs until ${day}. Changed by the Platform.`,
+        vars: { summary: `${NAME[plan]} extended to ${day}, by ${by || 'the platform team'}` }, data: { prompt: 'plan' },
+    }));
+}
+
 // the platform team took the plan away: the owner reads "Changed by the Platform", the superadmin alert keeps who
 function notifyRemoved({ tenantId, from, by }) {
     safe(() => center.notify('plan_changed', {
@@ -136,4 +145,4 @@ async function sweep(now = new Date()) {
     await wallets(now).catch((e) => console.error('Wallet alerts error:', e.message));
 }
 
-module.exports = { sweep, one, wallets, notifyChanged, notifyRemoved, graceEnd };
+module.exports = { sweep, one, wallets, notifyChanged, notifyRemoved, notifyExtended, graceEnd };

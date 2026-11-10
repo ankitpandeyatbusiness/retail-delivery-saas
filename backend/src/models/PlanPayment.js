@@ -18,6 +18,7 @@ const planPaymentSchema = new mongoose.Schema({
     appliedAt: Date,
     heldWhy: String,
     invoice: { type: mongoose.Schema.Types.Mixed },
+    offline: { type: mongoose.Schema.Types.Mixed },   // a payment the owner made outside the app (bank, UPI, cash) that the supreme admin recorded: { method, reference, receivedOn, by }
     createdBy: { type: { type: String }, id: String, label: String },
 }, { timestamps: true });
 

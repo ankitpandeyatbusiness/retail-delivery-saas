@@ -94,6 +94,7 @@ import ShopPlanScreen from '../screens/shops/ShopPlanScreen';
 import ShopRefundScreen from '../screens/shops/ShopRefundScreen';
 import PlanDefaultsScreen from '../screens/platform/PlanDefaultsScreen';
 import PlanCouponsScreen from '../screens/platform/PlanCouponsScreen';
+import PlanOverviewScreen from '../screens/platform/PlanOverviewScreen';
 import PlanMigrationScreen from '../screens/platform/PlanMigrationScreen';
 import ShopDevScreen from '../screens/shops/ShopDevScreen';
 import ShopNotifyScreen from '../screens/shops/ShopNotifyScreen';
@@ -226,6 +227,7 @@ const DETAIL = [
     ['Gst', GstScreen],
     ['PlanDefaults', PlanDefaultsScreen],
     ['PlanCoupons', PlanCouponsScreen],
+    ['PlanOverview', PlanOverviewScreen],
     ['PlanMigration', PlanMigrationScreen],
     ['MoneyRules', MoneyRulesScreen],
     ['Team', TeamScreen],

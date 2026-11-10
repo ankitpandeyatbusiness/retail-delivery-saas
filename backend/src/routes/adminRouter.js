@@ -89,6 +89,7 @@ admin.use(require('./adminPlatformRouter'));
 admin.use(require('./adminPlansRouter'));
 admin.use(require('./adminPlanCouponsRouter'));
 admin.use(require('./adminRefundsRouter'));
+admin.use(require('./adminPlanOverviewRouter'));
 admin.use(require('./adminTrackingRouter'));   // live tracking: server health and the sockets / polling / off switch (everyone looks, the supreme admin changes)
 admin.use(require('./adminBrandsRouter'));   // brands with branches (everyone looks, the supreme admin changes)
 admin.use(require('./adminPlatformHealthRouter'));   // is the platform running fine (everyone reads)

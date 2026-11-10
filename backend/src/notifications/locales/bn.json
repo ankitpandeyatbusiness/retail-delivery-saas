@@ -1089,6 +1089,7 @@
  "Your plan has ended. Choose your plan to open your shop again. You can finish current orders and open Plan.": "আপনার প্ল্যান শেষ হয়ে গেছে। দোকান আবার খুলতে আপনার প্ল্যান বেছে নিন। আপনি চলমান অর্ডার শেষ করতে এবং প্ল্যান খুলতে পারবেন।",
  "Your plan has ended. Renew it first, the extra shops are part of the renewal.": "আপনার প্ল্যান শেষ হয়ে গেছে। আগে এটি নবায়ন করুন, অতিরিক্ত দোকান নবায়নের অংশ।",
  "Your plan is ending": "আপনার প্ল্যান শেষ হতে চলেছে",
+ "Your plan now runs until {v1}. Changed by the Platform.": "আপনার প্ল্যান এখন {v1} পর্যন্ত চলবে। প্ল্যাটফর্ম পরিবর্তন করেছে।",
  "Your plan was changed": "আপনার প্ল্যান বদলানো হয়েছে",
  "Your plan was not renewed. New orders have stopped. Open Plan to choose and pay. Running orders can be finished.": "আপনার প্ল্যান নবায়ন হয়নি। নতুন অর্ডার বন্ধ হয়ে গেছে। বেছে নিতে ও পেমেন্ট করতে প্ল্যান খুলুন। চলমান অর্ডার শেষ করা যায়।",
  "Your plan was removed. Changed by the Platform.": "আপনার প্ল্যান সরিয়ে দেওয়া হয়েছে। প্ল্যাটফর্ম পরিবর্তন করেছে।",

@@ -8,7 +8,7 @@ import { Field, Segmented } from '../../components/inputs';
 import { DatePickField, ymd } from '../../components/DatePicker';
 import { SkeletonList } from '../../components/blocks';
 import { Sheet, ConfirmSheet, Empty, toast } from '../../components/feedback';
-import { fetchPlanCoupons, createPlanCoupon, updatePlanCoupon, fetchPlanCouponTexts, notifyPlanCoupon, fetchShops } from '../../api/shopsApi';
+import { deletePlanCoupon, fetchPlanCoupons, createPlanCoupon, updatePlanCoupon, fetchPlanCouponTexts, notifyPlanCoupon, fetchShops } from '../../api/shopsApi';
 import { errMsg } from '../../api/adminClient';
 
 const DAY = 86400000;
@@ -28,6 +28,8 @@ export default function PlanCouponsScreen() {
     const [found, setFound] = useState(null);
     const [send, setSend] = useState(null);       // { coupon, texts, title, body }
     const [off, setOff] = useState(null);
+    const [edit, setEdit] = useState(null);       // { c, end, maxUses, note }
+    const [del, setDel] = useState(null);
 
     const load = useCallback(() => { fetchPlanCoupons().then((r) => setList(r.coupons)).catch((e) => { setList([]); toast(errMsg(e), 'error'); }); }, []);
     useFocusEffect(useCallback(() => { load(); }, [load]));
@@ -60,6 +62,10 @@ export default function PlanCouponsScreen() {
     const doSend = async () => {
         setBusy(true);
         try { const r = await notifyPlanCoupon(send.coupon.id, { title: send.title, body: send.body }); toast(`Sent to ${r.sent} shop${r.sent === 1 ? '' : 's'}`); setSend(null); load(); } catch (e) { toast(errMsg(e), 'error'); } finally { setBusy(false); }
+    };
+    const saveEdit = async () => {
+        setBusy(true);
+        try { await updatePlanCoupon(edit.c.id, { endsOn: edit.end, maxUses: edit.maxUses === '' ? null : Number(edit.maxUses), note: edit.note }); toast('Coupon updated'); setEdit(null); load(); } catch (e) { toast(errMsg(e), 'error'); } finally { setBusy(false); }
     };
     const toggle = async (c) => { try { await updatePlanCoupon(c.id, { active: !c.active }); load(); } catch (e) { toast(errMsg(e), 'error'); } finally { setOff(null); } };
 
@@ -105,7 +111,8 @@ export default function PlanCouponsScreen() {
                     {c.notifiedAt ? <Text style={{ color: t.muted, fontSize: font.sm, marginTop: spacing.sm }}>Push last sent {day(c.notifiedAt)}</Text> : null}
                     <View style={{ flexDirection: 'row', marginTop: spacing.md }}>
                         <Button title="Send push" small onPress={() => openSend(c)} disabled={!c.live} style={{ marginRight: spacing.sm }} />
-                        <Button title={c.active ? 'Switch off' : 'Switch on'} kind="outline" small onPress={() => (c.active ? setOff(c) : toggle(c))} />
+                        <Button title={c.active ? 'Switch off' : 'Switch on'} kind="outline" small onPress={() => (c.active ? setOff(c) : toggle(c))} style={{ marginRight: spacing.sm }} />
+                        <Button title="Edit" kind="outline" small onPress={() => setEdit({ c, end: ymd(new Date(c.endsAt)), maxUses: c.maxUses ? String(c.maxUses) : '', note: c.note || '' })} />
                     </View>
                 </Card>
             ))}
@@ -123,6 +130,19 @@ export default function PlanCouponsScreen() {
                     </>
                 ) : null}
             </Sheet>
+            <Sheet visible={!!edit} onClose={() => setEdit(null)} title={edit ? `Edit ${edit.c.code}` : ''}>
+                {edit ? (
+                    <>
+                        <Text style={{ color: t.muted, marginBottom: spacing.sm }}>The code, the discount, the plan and the term cannot change once made (owners may already have seen them). You can move the end day, set the use limit and change your note. To change anything else, switch this off and make a new one.</Text>
+                        <DatePickField label="Ends" value={edit.end} onChange={(v) => setEdit({ ...edit, end: v })} title="End date" />
+                        <Field label="Use limit (empty = no limit)" value={edit.maxUses} onChangeText={(v) => setEdit({ ...edit, maxUses: v.replace(/\D/g, '').slice(0, 5) })} keyboardType="number-pad" />
+                        <Field label="Note for yourself" value={edit.note} onChangeText={(v) => setEdit({ ...edit, note: v })} maxLength={200} />
+                        <Button title="Save" onPress={saveEdit} loading={busy} style={{ marginBottom: spacing.sm }} />
+                        <Button title={edit.c.usedCount ? 'Cannot delete: it was used' : 'Delete this coupon'} kind="dangerSoft" disabled={edit.c.usedCount > 0} onPress={() => setDel(edit.c)} />
+                    </>
+                ) : null}
+            </Sheet>
+            <ConfirmSheet visible={!!del} onClose={() => setDel(null)} icon="trash-outline" title={`Delete ${del ? del.code : ''}?`} message="Nobody has used it. It is removed for good." confirmLabel="Delete" danger onConfirm={async () => { try { await deletePlanCoupon(del.id); toast('Coupon deleted'); setEdit(null); load(); } catch (e) { toast(errMsg(e), 'error'); throw e; } finally { setDel(null); } }} />
             <ConfirmSheet visible={!!off} onClose={() => setOff(null)} icon="pricetag-outline" title={`Switch off ${off?.code || ''}?`} message="Owners will no longer see or use it. Past uses stay." confirmLabel="Switch off" danger onConfirm={() => toggle(off)} />
         </Screen>
     );

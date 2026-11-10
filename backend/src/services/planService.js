@@ -117,6 +117,9 @@ function viewOf(tenant, now = new Date()) {
     };
 }
 
+// the shop's own terms, for the supreme admin's Plan screen (null = the platform value is used)
+const termsOf = (tenant) => { const p = (tenant && tenant.plan) || {}; return { pricePaise: p.priceOverridePaise ?? null, freeDays: p.freeDaysOverride ?? null, feeSlabs: p.feeSlabsOverride ?? null }; };
+
 // Switch a shop's plan (supreme admin, instant). `extras` = feature keys outside the plan to keep (default: keep the old extras only if they still lie outside the new plan).
 // freeDays > 0 starts a free period (no invoice). Partner has no end date (wallet based).
 const PREPAID_WAITING = 'This shop has a plan the owner already paid for, waiting to start. Refund it first with Send money back, then change the plan.';
@@ -202,6 +205,39 @@ async function loadFeatureOverrides() {
     plans.setFeatureOverrides(s?.plans?.features || {});
 }
 
+// Gives a shop more time (goodwill, a payment made outside the app, a mistake): add whole days to the end, or set the end to a day. Paid and free terms alike; an ended or
+// paused shop is opened again from today. Never moves the end into the past. Partner has no end.
+async function extendPlan(tenantDoc, { days, endsOn, by = 'supreme' }) {
+    await require('./brandPlan').guardBranch(tenantDoc);
+    const p = { ...(tenantDoc.plan || {}) };
+    if (!p.id || p.id === 'partner') throw Object.assign(new Error('Only a Growth or Pro plan has an end date to extend'), { status: 409 });
+    if (p.scheduled && p.scheduled.prepaid) throw Object.assign(new Error(PREPAID_WAITING), { status: 409 });
+    const now = new Date();
+    let end;
+    if (endsOn !== undefined && endsOn !== null && endsOn !== '') {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(String(endsOn))) throw Object.assign(new Error('Choose the end date'), { status: 400 });
+        const [y, m, d] = String(endsOn).split('-').map(Number);
+        end = new Date(Date.UTC(y, m - 1, d, 23, 59, 59, 999) - 5.5 * 3600000);
+    } else {
+        if (!INT(days, 1, 365)) throw Object.assign(new Error('Days must be a whole number from 1 to 365'), { status: 400 });
+        const from = p.endsAt && new Date(p.endsAt) > now ? new Date(p.endsAt) : now;
+        end = endOfIstDay(from, days);   // the end of the Indian day that is `days` days after the day the plan ends: always at least `days` extra days
+    }
+    if (end <= now) throw Object.assign(new Error('The new end must be in the future'), { status: 400 });
+    if (p.endsAt && new Date(p.endsAt) > now && end <= new Date(p.endsAt)) throw Object.assign(new Error('That is not later than the current end. Use Remove or End the free period to shorten it.'), { status: 400 });
+    p.history = [...(p.history || []).slice(-49), { at: now, by, from: p.id, to: p.id, note: `extended to ${end.toISOString().slice(0, 10)}` }];
+    const was = p.endsAt;
+    p.endsAt = end;
+    if (p.freeUntil && new Date(p.freeUntil) > now) p.freeUntil = end;   // a running free period moves with it
+    delete p.paused; delete p.notified;
+    await Tenant.updateOne({ _id: tenantDoc._id }, { $set: { plan: p } });
+    tenantDoc.plan = p;
+    invalidateTenant(tenantDoc.slug);
+    await require('./brandPlan').afterPlanChange(tenantDoc);
+    require('./planLifecycle').notifyExtended({ tenantId: tenantDoc._id, plan: p.id, until: end, by, was });
+    return viewOf(tenantDoc, now);
+}
+
 // Takes EVERY plan away from a shop: it has no plan again (nothing is limited, no reminders, no pause). The owner is asked to choose a plan.
 // Per-shop terms (price, free days, fee slabs, website/app switches) stay. A payment that was waiting is closed.
 async function removePlan(tenantDoc, { by = 'supreme' } = {}) {
@@ -265,4 +301,4 @@ async function previewOf(tenant, to, { freeDays } = {}) {
     };
 }
 
-module.exports = { endFree, previewOf, needsOf, getDefaults, saveDefaults, viewOf, setPlan, setExtra, setShopTerms, endOfIstDay, removePlan, loadFeatureOverrides };
+module.exports = { extendPlan, endFree, previewOf, needsOf, getDefaults, saveDefaults, viewOf, termsOf, setPlan, setExtra, setShopTerms, endOfIstDay, removePlan, loadFeatureOverrides };

@@ -62,6 +62,16 @@ router.put('/plan-coupons/:id', requireSupreme, wrap(async (req, res) => {
     res.json(await view(c, new Date()));
 }));
 
+// delete a coupon nobody has used (a used one is only switched off, so the record of who got what stays)
+router.delete('/plan-coupons/:id', requireSupreme, wrap(async (req, res) => {
+    if (!mongoose.isValidObjectId(req.params.id)) throw httpError(404, 'Coupon not found');
+    const c = await PlatformCoupon.findById(req.params.id).lean();
+    if (!c) throw httpError(404, 'Coupon not found');
+    if (c.usedCount > 0) throw httpError(409, 'This coupon was used, so it cannot be deleted. Switch it off instead.');
+    await PlatformCoupon.deleteOne({ _id: c._id });
+    res.json({ ok: true });
+}));
+
 router.get('/plan-coupons/:id/texts', wrap(async (req, res) => {
     const c = mongoose.isValidObjectId(req.params.id) ? await PlatformCoupon.findById(req.params.id).lean() : null;
     if (!c) throw httpError(404, 'Coupon not found');

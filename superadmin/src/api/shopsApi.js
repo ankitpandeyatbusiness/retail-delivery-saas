@@ -104,6 +104,12 @@ export const rollbackPlanMigration = (confirm) => data(api.post('/admin/plans/mi
 export const fetchShopWallet = (id) => data(api.get(`${T(id)}/wallet`));
 export const adjustShopWallet = (id, body) => data(api.post(`${T(id)}/wallet/adjust`, body));
 export const savePlanDefaults = (body) => data(api.put('/admin/platform/plans', body));
+export const recordPlanPaymentQuote = (id, to, months) => data(api.get(`${T(id)}/plan/record-payment`, { params: { to, months } }));
+export const recordPlanPayment = (id, body) => data(api.post(`${T(id)}/plan/record-payment`, body));
+export const extendShopPlan = (id, body) => data(api.post(`${T(id)}/plan/extend`, body));
+export const deletePlanCoupon = (id) => data(api.delete(`/admin/plan-coupons/${id}`));
+export const fetchPlanOverview = () => data(api.get('/admin/plan-overview'));
+export const applyHeldPlanPayment = (id) => data(api.post(`/admin/plan-money/held/${id}/apply`));
 export const fetchShopRefunds = (id) => data(api.get(`/admin/tenants/${id}/refunds`));
 export const sendShopRefund = (id, body) => data(api.post(`/admin/tenants/${id}/refunds`, body));
 export const fetchPlanCoupons = () => data(api.get('/admin/plan-coupons'));

@@ -5815,6 +5815,7 @@ export default {
     "Your plan has ended. Choose your plan to open your shop again. You can finish current orders and open Plan.": "आपका प्लान खत्म हो गया है। अपनी दुकान फिर खोलने के लिए अपना प्लान चुनें। आप चल रहे ऑर्डर पूरे कर सकते हैं और प्लान खोल सकते हैं।",
     "Your plan has ended. Renew it first, the extra shops are part of the renewal.": "आपका प्लान खत्म हो गया है। पहले इसे नवीनीकृत करें, अतिरिक्त दुकानें नवीनीकरण का हिस्सा हैं।",
     "Your plan is ending": "आपका प्लान खत्म होने वाला है",
+    "Your plan now runs until {v1}. Changed by the Platform.": "आपका प्लान अब {v1} तक चलेगा। प्लेटफ़ॉर्म द्वारा बदला गया।",
     "Your plan was changed": "आपका प्लान बदला गया",
     "Your plan was not renewed. New orders have stopped. Open Plan to choose and pay. Running orders can be finished.": "आपका प्लान नवीनीकृत नहीं हुआ। नए ऑर्डर बंद हो गए हैं। चुनने और भुगतान के लिए प्लान खोलें। चल रहे ऑर्डर पूरे किए जा सकते हैं।",
     "Your plan was removed. Changed by the Platform.": "आपका प्लान हटा दिया गया। प्लेटफ़ॉर्म द्वारा बदला गया।",

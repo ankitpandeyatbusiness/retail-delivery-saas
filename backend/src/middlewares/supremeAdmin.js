@@ -15,7 +15,8 @@ const MONEY = [
     /^\/platform\/(business|billing|tax|payments|sms|sms-balance|sms-setup|tracking)(\/|$)/,
     /^\/brands\/[^/]+\/(locations|sync-plan)$/,                       // how many shops are free for a brand and the free extras
     /^\/tenants\/[^/]+\/refunds(\/|$)/,                    // sending real money back (emergency refunds)
-    /^\/plan-coupons(\/|$)/,                                // platform coupons for plan payments
+    /^\/plan-coupons(\/|$)/,
+    /^\/plan-money(\/|$)/,                                  // applying a held plan payment                                // platform coupons for plan payments
     /^\/plans\/migration(\/|$)/,                           // moving every existing shop onto Pro (phase 9)
     /^\/platform\/plans$/,                                  // plan prices, fee slabs, free days, GST, branch add-on, multi-month discounts
     /^\/tenants\/[^/]+\/wallet(\/|$)/,                      // adding to or taking from a Partner wallet
