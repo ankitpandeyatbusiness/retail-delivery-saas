@@ -14,7 +14,7 @@ export const SERVER_TEXTS = () => [
     tr('Your monthly rent bills from the platform, with GST and payment details.'),
     tr('What customers complained about and how it ended.'),
     tr('Every dish of the chosen shops with price and how well it sells.'),
-    tr('Each shop or branch of yours: sales, orders, rent, team size and how it is doing.'),
+    tr('Each shop or branch of yours: sales, orders, plan, team size and how it is doing.'),
     tr('What you wrote down as costs of the shop (ingredients, salaries, rent...).'),
     tr('Quick'), tr('Standard'), tr('Everything'),
     tr('Joined between'), tr('Ordered between'), tr('Issued between'), tr('Raised between'), tr('Added between'), tr('Spent between'),

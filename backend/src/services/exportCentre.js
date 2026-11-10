@@ -1,5 +1,5 @@
 // The Export centre: every export of the platform works the same way.
-//   pick WHAT (customers, orders, rent invoices, payments ...), the SHOPS (all, some, a brand), the PERIOD, the DETAIL LEVEL and the filters of that export.
+//   pick WHAT (customers, orders, plan invoices, payments ...), the SHOPS (all, some, a brand), the PERIOD, the DETAIL LEVEL and the filters of that export.
 // Detail levels: quick (the few columns you need every day) -> standard (the working detail) -> everything (all of it, plus a sheet of lines where it helps).
 // A dataset is a small description: where the rows come from, which filters it has, and its columns with the level each one first appears at.
 // Read-only. Phone numbers are masked unless the supreme admin asked for full ones (the route writes that down).
@@ -601,7 +601,7 @@ async function shopRecent(ids, now) {
 }
 
 D.owners = {
-    title: 'Shop owners', group: 'People', hint: 'Every shop owner: how the shop is doing, rent, SMS balance and how active the owner is.',
+    title: 'Shop owners', group: 'People', hint: 'Every shop owner: how the shop is doing, its plan, SMS balance and how active the owner is.',
     shopField: 'tenantId', periodLabel: 'Owner joined between', periodOn: true,
     filters: [
         { key: 'rent', label: 'Plan', options: [['', 'Any'], ['free', 'Free period'], ['paused', 'Paused (plan not renewed)']] },
@@ -734,7 +734,7 @@ D.brand_people = {
         const best = [...r.shops].sort((a, b) => 0).length ? r.shops : [];
         const bits = [r.role === 'Brand owner' ? `Owns ${r.brand.name} with ${r.shops.length} branch${r.shops.length === 1 ? '' : 'es'}.` : `Manages the ${r.runs} branch of ${r.brand.name}.`];
         bits.push(r.tot.orders ? `${r.tot.orders} orders and ₹${Math.round(r.tot.sales)} sales in 30 days.` : 'No orders in 30 days.');
-        bits.push(r.tot.unpaid ? `${r.tot.unpaid} unpaid bill${r.tot.unpaid === 1 ? '' : 's'} worth ₹${Math.round(r.tot.owed)}.` : 'Rent is paid up.');
+        bits.push(r.tot.unpaid ? `${r.tot.unpaid} unpaid bill${r.tot.unpaid === 1 ? '' : 's'} worth ₹${Math.round(r.tot.owed)}.` : 'Nothing is owed: everything is prepaid.');
         bits.push(`Last logged in ${inDays(seen)}.`);
         bits.push(r.tot.orders === 0 ? 'Quiet: worth a call.' : seen !== null && seen > 14 ? 'Rarely in the app: worth a check.' : 'Looks active.');
         return {
@@ -820,7 +820,7 @@ D.shop_costs = {
 };
 
 D.branches = {
-    title: 'My shops and branches', group: 'My business', hint: 'Each shop or branch of yours: sales, orders, rent, team size and how it is doing.',
+    title: 'My shops and branches', group: 'My business', hint: 'Each shop or branch of yours: sales, orders, plan, team size and how it is doing.',
     shopField: '_id', noPeriod: true,
     filters: [{ key: 'status', label: 'Shop', options: [['', 'Any'], ['active', 'Open'], ['suspended', 'Suspended']] }],
     columns: [
