@@ -110,7 +110,7 @@ L1. Brand owner: All branches page -> Unpaid bills card: the total, and a line p
 L2. "Pay this branch" on one line: the payment screen opens for that branch only; after paying, only that branch's bills are paid.
 (Removed with the old billing, 2026-11: "pay all branches" for rent; a brand now pays one plan on the main shop, with extra shops added to it. Plans, the wallet and money are tested in plans-phone-test.md.)
 L4. A branch manager does not see these buttons (he sees the note that the brand owner pays).
-L5. Superadmin, Brand page -> Money actions for several branches: choose branches (or All), Waive late fees / Mark bills paid / Mark a month's bills not paid; the answer sheet lists each branch with what changed and anything skipped (a bill paid online is never undone).
+(Removed with the old billing, 2026-11: the brand money actions for waiving late fees and marking bills paid. Plans, the wallet and money are tested in plans-phone-test.md.)
 
 ## M. Attaching an existing shop
 
@@ -137,7 +137,7 @@ N3. Plans card: shops on each plan, plans ending soon, ended or paused shops.
 N4. SMS card: sent in 7 days, cost and price per SMS, profit.
 N5. Orders card: today, 7 days (with the change in percent), last month.
 N6. Google card: every call type with a bar; amber from 60 percent, red from 90 percent.
-N7. Tapping a card opens the matching screen (SMS profit, Receivables, System, Support, Shop health).
+N7. Tapping a card opens the matching screen (SMS profit, System, Support, Shop health).
 N8. Pull down to check again; the time of the last check is shown.
 
 ## O. The new home screen
