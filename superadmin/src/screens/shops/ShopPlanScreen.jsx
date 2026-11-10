@@ -7,7 +7,7 @@ import { Card, SectionTitle, Badge, Chip, Button } from '../../components/ui';
 import { Field } from '../../components/inputs';
 import { SkeletonList } from '../../components/blocks';
 import { ConfirmSheet, toast } from '../../components/feedback';
-import { fetchPlanCatalog, fetchShopPlan, setShopPlan, setShopPlanExtra, setShopPlanTerms, fetchShopWallet, adjustShopWallet, endShopFreePeriod } from '../../api/shopsApi';
+import { fetchPlanCatalog, fetchShopPlan, removeShopPlan, setShopPlan, setShopPlanExtra, setShopPlanTerms, fetchShopWallet, adjustShopWallet, endShopFreePeriod } from '../../api/shopsApi';
 import { errMsg } from '../../api/adminClient';
 import { useShopStore } from '../../store/useShopStore';
 import { planLine } from '../../components/shopBits';
@@ -34,6 +34,9 @@ export default function ShopPlanScreen() {
     const [wallet, setWallet] = useState(null);     // the Partner wallet (balance, last movements, ledger check)
     const [adj, setAdj] = useState(null);           // 'add' | 'take' waiting for the amount and the reason
     const [adjAmt, setAdjAmt] = useState('');
+    const [freeDays, setFreeDays] = useState('');   // the days of a free period to start
+    const [startFree, setStartFree] = useState(null);   // 'growth' | 'pro' waiting for confirmation
+    const [removing, setRemoving] = useState(false);     // the "Remove the plan" confirm
     const [endFree, setEndFree] = useState(false);   // the "End the free period now" confirm
 
     const load = useCallback(async () => {
@@ -86,7 +89,22 @@ export default function ShopPlanScreen() {
                 </>
             ) : null}
 
-            {plan.id && plan.status === 'free' ? <Button title="End the free period now" kind="dangerSoft" icon="bolt" small onPress={() => setEndFree(true)} style={{ marginTop: spacing.sm }} /> : null}
+            <SectionTitle section="settings">Free period</SectionTitle>
+            <Card>
+                {plan.id && plan.status === 'free' ? (
+                    <>
+                        <Text style={{ color: t.text, marginBottom: spacing.sm }}>A free period is running until {dateTime(plan.endsAt)} ({plan.daysLeft} days left).</Text>
+                        <Button title="End the free period now" kind="dangerSoft" icon="bolt" small onPress={() => setEndFree(true)} />
+                    </>
+                ) : (
+                    <Text style={{ color: t.muted }}>{plan.id ? 'No free period is running.' : 'This shop has no plan.'} Start one below: the shop gets the plan for the days you type, no invoice. When it ends, the owner chooses and pays.</Text>
+                )}
+                <Field label={plan.status === 'free' ? 'Start a new free period (replaces this one)' : 'Free days to start'} placeholder="e.g. 14" value={freeDays} onChangeText={(v) => setFreeDays(v.replace(/\D/g, '').slice(0, 3))} keyboardType="number-pad" maxLength={3} style={{ marginTop: spacing.md }} />
+                <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+                    <Button title="Start free Growth" kind="soft" small disabled={!(Number(freeDays) > 0)} onPress={() => setStartFree('growth')} />
+                    <Button title="Start free Pro" kind="soft" small disabled={!(Number(freeDays) > 0)} onPress={() => setStartFree('pro')} />
+                </View>
+            </Card>
 
             <SectionTitle section="settings">Change plan</SectionTitle>
             <Card>
@@ -96,6 +114,16 @@ export default function ShopPlanScreen() {
                 <Text style={{ color: t.muted, marginTop: spacing.md }}>{plan.id ? priceText(cat, plan.id) : 'Pick a plan to start.'}</Text>
                 <Field label="Free days for the new plan (empty = platform default)" value={days} onChangeText={(v) => setDays(v.replace(/\D/g, ''))} keyboardType="number-pad" maxLength={3} />
             </Card>
+
+            {plan.id ? (
+                <>
+                    <SectionTitle section="money">Remove the plan</SectionTitle>
+                    <Card>
+                        <Text style={{ color: t.muted, marginBottom: spacing.sm }}>Takes every plan away from this shop. It then has no plan: nothing is locked, no plan reminders, no pause. The owner is asked to choose a plan. The shop's own price, free days and website/app switches stay. Money already paid is not returned (use Send money back below for that).</Text>
+                        <Button title="Remove the plan" kind="dangerSoft" onPress={() => setRemoving(true)} />
+                    </Card>
+                </>
+            ) : null}
 
             <SectionTitle section="money">Emergency</SectionTitle>
             <Card>
@@ -145,6 +173,23 @@ export default function ShopPlanScreen() {
                 message={switchMsg}
                 confirmLabel="Switch plan"
                 onConfirm={() => run(() => setShopPlan(shopId, { to: pick, ...(days !== '' ? { freeDays: Number(days) } : {}) }), `Now on ${NAMES[pick]}`).then(() => setLook(null))}
+            />
+            <ConfirmSheet
+                visible={!!startFree}
+                onClose={() => setStartFree(null)}
+                title={`Start ${NAMES[startFree] || ''} free for ${freeDays} days?`}
+                message={`The shop gets ${NAMES[startFree] || ''} at once for ${freeDays} days, with no invoice. Any plan it has now is replaced. When the days end, the owner is told and has to choose and pay. This is written to the audit log.`}
+                confirmLabel="Start it"
+                onConfirm={() => run(() => setShopPlan(shopId, { to: startFree, freeDays: Number(freeDays) }), `${NAMES[startFree]} free for ${freeDays} days`).then(() => { setFreeDays(''); setLook(null); })}
+            />
+            <ConfirmSheet
+                visible={removing}
+                onClose={() => setRemoving(false)}
+                title="Remove the plan from this shop?"
+                message="The shop will have no plan. Nothing is locked and no plan reminders are sent. The owner is told 'Changed by the Platform' and has to choose a plan. A payment that was waiting is closed."
+                confirmLabel="Remove the plan"
+                danger
+                onConfirm={() => run(() => removeShopPlan(shopId), 'Plan removed')}
             />
             <ConfirmSheet
                 visible={!!adj}

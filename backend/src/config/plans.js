@@ -64,11 +64,24 @@ const OWNER_MENU = [
 
 const isPlan = (id) => PLAN_IDS.includes(id);
 
+// The supreme admin can move a feature between plans (Plan defaults > What each plan includes). The saved choice is kept here, in memory, and
+// refreshed from the database (middlewares/planFeatureOverrides.js). Without a saved choice the table above is used.
+let overrides = {};
+// Kitchen and waiter logins are tied to the staff numbers in LIMITS, so they stay where the code puts them.
+const EDITABLE = Object.keys(FEATURES).filter((k) => k !== 'staffLogins');
+const plansOf = (key) => (overrides[key] || (FEATURES[key] ? FEATURES[key].plans : PLAN_IDS));
+function setFeatureOverrides(map) {
+    const o = {};
+    for (const k of EDITABLE) { const v = map && map[k]; if (Array.isArray(v) && v.every((id) => PLAN_IDS.includes(id))) o[k] = PLAN_IDS.filter((id) => v.includes(id)); }
+    overrides = o;
+}
+// every feature with the plans that have it NOW, as the admin screens and the apps need it
+const featureTable = () => Object.fromEntries(Object.entries(FEATURES).map(([k, f]) => [k, { label: f.label, plans: plansOf(k), editable: EDITABLE.includes(k) }]));
+
 // does this plan include the feature? An unknown feature key is not plan-gated (true).
 function planIncludes(planId, key) {
-    const f = FEATURES[key];
-    if (!f) return true;
-    return f.plans.includes(planId);
+    if (!FEATURES[key]) return true;
+    return plansOf(key).includes(planId);
 }
 
 function limitFor(planId, what) {
@@ -96,4 +109,4 @@ function checkFeeSlabs(slabs) {
     return null;
 }
 
-module.exports = { OWNER_MENU, PLAN_IDS, FEATURES, LIMITS, DEFAULTS, isPlan, planIncludes, limitFor, featuresOf, checkFeeSlabs };
+module.exports = { OWNER_MENU, PLAN_IDS, FEATURES, EDITABLE, LIMITS, DEFAULTS, isPlan, planIncludes, plansOf, setFeatureOverrides, featureTable, limitFor, featuresOf, checkFeeSlabs };

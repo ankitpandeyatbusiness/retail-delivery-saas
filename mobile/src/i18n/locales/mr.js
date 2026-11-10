@@ -5792,6 +5792,7 @@ export default {
     "Your plan is ending": "तुमचा प्लॅन संपत आहे",
     "Your plan was changed": "तुमचा प्लॅन बदलला गेला",
     "Your plan was not renewed. New orders have stopped. Open Plan to choose and pay. Running orders can be finished.": "तुमचा प्लॅन नूतनीकरण झाला नाही. नवीन ऑर्डर थांबले आहेत. निवडण्यासाठी आणि पेमेंटसाठी प्लॅन उघडा. सुरू असलेल्या ऑर्डर पूर्ण करता येतात.",
+    "Your plan was removed. Changed by the Platform.": "तुमचा प्लॅन काढून टाकला आहे. प्लॅटफॉर्मद्वारे बदलले.",
     "Your plan, what is in it, upgrade or renew": "तुमचा प्लॅन, त्यात काय आहे, अपग्रेड किंवा नूतनीकरण",
     "Your profile, saved addresses and favourites will be removed. Past orders stay with the shop. This cannot be undone.": "तुमची प्रोफाइल, सेव्ह केलेले पत्ते आणि आवडते काढले जातील. जुने ऑर्डर दुकानाकडे राहतील. हे परत करता येत नाही.",
     "Your progress": "तुमची प्रगती",

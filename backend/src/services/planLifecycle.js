@@ -39,6 +39,14 @@ function notifyChanged({ tenantId, from, to, by, admin }) {
         : { ...base, body: `${was} to ${NAME[to]}, by ${by || 'the platform team'}.` }));
 }
 
+// the platform team took the plan away: the owner reads "Changed by the Platform", the superadmin alert keeps who
+function notifyRemoved({ tenantId, from, by }) {
+    safe(() => center.notify('plan_changed', {
+        tenantId, title: 'Your plan was changed', body: 'Your plan was removed. Changed by the Platform.',
+        vars: { summary: `${from ? NAME[from] : 'The plan'} was removed, by ${by || 'the platform team'}` }, data: { prompt: 'plan' },
+    }));
+}
+
 async function one(t, def, now) {
     const p = t.plan;
     if (!p?.endsAt) return;
@@ -124,4 +132,4 @@ async function sweep(now = new Date()) {
     await wallets(now).catch((e) => console.error('Wallet alerts error:', e.message));
 }
 
-module.exports = { sweep, one, wallets, notifyChanged, graceEnd };
+module.exports = { sweep, one, wallets, notifyChanged, notifyRemoved, graceEnd };

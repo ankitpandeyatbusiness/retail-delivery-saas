@@ -89,6 +89,7 @@ export const reversePlace = (lat, lng) => data(api.get('/admin/geo/reverse', { p
 export const fetchPlanCatalog = () => data(api.get('/admin/plans'));
 export const fetchShopPlan = (id) => data(api.get(`${T(id)}/plan`));
 export const setShopPlan = (id, body) => data(api.put(`${T(id)}/plan`, body));
+export const removeShopPlan = (id) => data(api.delete(`/admin/tenants/${id}/plan`));
 export const endShopFreePeriod = (id) => data(api.post(`${T(id)}/plan/end-free`));
 export const setShopPlanExtra = (id, key, on) => data(api.put(`${T(id)}/plan/extras`, { key, on }));
 export const setShopPlanTerms = (id, body) => data(api.put(`${T(id)}/plan/terms`, body));

@@ -64,6 +64,7 @@ const PORT = process.env.PORT || 5000;
 // Connect to the database FIRST, then start the server and the schedulers
 connectDB()
     .then(() => {
+        require('../services/planService').loadFeatureOverrides().catch(() => {});   // the plan feature table, before the first job or request
         const server = app.listen(PORT, () => {
             console.log(`🚀 Server running on port ${PORT}`);
             registerShutdown(server);

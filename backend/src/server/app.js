@@ -34,6 +34,7 @@ app.use(cors());
 app.use('/api/webhooks', webhookRouter);
 
 app.use(express.json({ limit: '200kb' }));
+app.use(require('../middlewares/planFeatureOverrides'));   // the plan feature table (Plan defaults) stays in step with the database
 
 // Whole-platform maintenance. /health and /api/admin are skipped inside the gate, so you can switch it off again.
 app.use(platformGate);

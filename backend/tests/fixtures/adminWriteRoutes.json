@@ -11,6 +11,7 @@
  "DELETE /tenants/:tid/collections/:id",
  "DELETE /tenants/:tid/coupons/:id",
  "DELETE /tenants/:tid/owners/:userId",
+ "DELETE /tenants/:tid/plan",
  "DELETE /tenants/:tid/products/:id",
  "DELETE /tenants/:tid/riders/:rid/duty/holidays/:id",
  "DELETE /tenants/:tid/riders/:rid/me/photo",

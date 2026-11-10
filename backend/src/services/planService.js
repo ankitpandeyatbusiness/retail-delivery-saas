@@ -31,6 +31,7 @@ async function getDefaults() {
         includedBranches: saved.includedBranches ?? d.includedBranches,
         branchAddonPaise: saved.branchAddonPaise ?? d.branchAddonPaise,
         monthDiscounts: { ...d.monthDiscounts, ...(saved.monthDiscounts || {}) },
+        features: Object.fromEntries(plans.EDITABLE.map((k) => [k, plans.plansOf(k)])),   // what each plan includes now
     };
 }
 
@@ -66,8 +67,20 @@ async function saveDefaults(body) {
             set[`plans.monthDiscounts.${m}`] = v;
         }
     }
+    if (b.features !== undefined) {
+        if (!b.features || typeof b.features !== 'object') throw bad('Send the features as an object');
+        const map = {};
+        for (const [k, v] of Object.entries(b.features)) {
+            if (!plans.EDITABLE.includes(k)) throw bad(`"${k}" cannot be moved between plans`);
+            if (!Array.isArray(v) || v.some((id) => !plans.isPlan(id))) throw bad(`${k}: choose from partner, growth and pro`);
+            map[k] = plans.PLAN_IDS.filter((id) => v.includes(id));
+        }
+        const all = Object.fromEntries(plans.EDITABLE.map((k) => [k, map[k] || plans.plansOf(k)]));
+        set['plans.features'] = all;
+    }
     if (!Object.keys(set).length) throw bad('Nothing to change');
     await PlatformSettings.findByIdAndUpdate('main', { $set: set }, { upsert: true, setDefaultsOnInsert: true });
+    if (set['plans.features']) plans.setFeatureOverrides(set['plans.features']);   // takes effect at once on this server; the others pick it up within seconds
     return getDefaults();
 }
 
@@ -164,7 +177,33 @@ async function setShopTerms(tenantDoc, b) {
 }
 
 // the cheapest plan that includes a feature, for the "Available in Growth" notes: { costsProfit: 'Growth', analytics: 'Pro', ... }
-const needsOf = () => Object.fromEntries(Object.entries(plans.FEATURES).map(([k, f]) => [k, plans.PLAN_IDS.find((id) => f.plans.includes(id)).replace(/^./, (c) => c.toUpperCase())]));
+const needsOf = () => Object.fromEntries(Object.keys(plans.FEATURES).map((k) => { const id = plans.PLAN_IDS.find((p) => plans.plansOf(k).includes(p)); return [k, id ? id.replace(/^./, (c) => c.toUpperCase()) : 'Pro']; }));
+
+// reads the saved "what each plan includes" from the database into the catalog (called at start and every few seconds by planFeatureOverrides)
+async function loadFeatureOverrides() {
+    const s = await PlatformSettings.findById('main').select('plans.features').lean();
+    plans.setFeatureOverrides(s?.plans?.features || {});
+}
+
+// Takes EVERY plan away from a shop: it has no plan again (nothing is limited, no reminders, no pause). The owner is asked to choose a plan.
+// Per-shop terms (price, free days, fee slabs, website/app switches) stay. A payment that was waiting is closed.
+async function removePlan(tenantDoc, { by = 'supreme' } = {}) {
+    await require('./brandPlan').guardBranch(tenantDoc);
+    const from = tenantDoc.plan?.id || null;
+    if (!from) throw Object.assign(new Error('This shop has no plan'), { status: 409 });
+    const now = new Date();
+    const p = { ...(tenantDoc.plan || {}) };
+    const history = [...(p.history || []).slice(-49), { at: now, by, from, to: null, note: 'plan removed' }];
+    for (const k of ['id', 'startedAt', 'endsAt', 'freeUntil', 'scheduled', 'paused', 'notified', 'extras', 'migration']) delete p[k];
+    p.history = history;
+    await Tenant.updateOne({ _id: tenantDoc._id }, { $set: { plan: p } });
+    await require('../models/PlanPayment').updateMany({ tenantId: tenantDoc._id, status: 'pending' }, { $set: { status: 'expired' } });
+    tenantDoc.plan = p;
+    invalidateTenant(tenantDoc.slug);
+    await require('./brandPlan').afterPlanChange(tenantDoc);
+    require('./planLifecycle').notifyRemoved({ tenantId: tenantDoc._id, from, by });
+    return viewOf(tenantDoc, now);
+}
 
 // How a shop would look on `to`: built from the SAME catalog the server gates with, so the picture and the real thing cannot drift apart.
 // tenant (optional) gives the shop's own price, free days and extras; `current` is what it has now, for the "changes" lists.
@@ -208,4 +247,4 @@ async function previewOf(tenant, to, { freeDays } = {}) {
     };
 }
 
-module.exports = { endFree, previewOf, needsOf, getDefaults, saveDefaults, viewOf, setPlan, setExtra, setShopTerms, endOfIstDay };
+module.exports = { endFree, previewOf, needsOf, getDefaults, saveDefaults, viewOf, setPlan, setExtra, setShopTerms, endOfIstDay, removePlan, loadFeatureOverrides };

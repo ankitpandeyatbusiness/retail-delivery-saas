@@ -33,29 +33,35 @@ const openInvoice = async (id) => {
     try { await downloadAndOpen({ path: planInvoicePdfPath(id), filename: `invoice-${id}.pdf`, mime: 'application/pdf', title: tr('Invoice') }); }
     catch (e) { showToast(e?.response?.status === 409 ? tr('The invoice is not ready yet') : tr('Could not open the invoice')); }
 };
-// What each plan gives, in words that sell it. A line with a feature key shows only if the server says the plan has it, so this can never promise more than is enforced.
-const COPY = {
-    partner: [
-        [null, 'Your own online shop, on a website and in the customer app'], [null, 'Your own shopname.vivyaan.co.in link to share'], [null, 'Customers follow their order step by step and can call the rider'],
-        [null, 'Dine-in QR tables, waitlist and table booking'], [null, 'Coupons and offers to bring customers back'], [null, 'Online payments and refunds in one place'],
-        [null, 'Daily sales summary and your Money tab'], [null, 'Tax invoices for every order'], [null, 'App in Hindi, Marathi, Gujarati, Bengali and more'],
-        [null, 'Up to {riders} riders for your own deliveries'],
-    ],
-    growth: [
-        ['riderLiveMap', 'Customers watch the rider live on a map'], [null, 'Unlimited riders'], [null, 'Up to {staff} kitchen and waiter logins'], ['soundboxVoice', 'Soundbox voice announces every new order'],
-        ['services', 'Sell services and take inquiries'], ['loyalty', 'Loyalty and rewards to keep customers coming back'], ['autoAccept', 'Auto-accept orders, no waiting'],
-        ['costsProfit', 'Costs and profit view, see what you really earn'],
-    ],
-    pro: [
-        ['multiBranch', 'Run up to {shops} shops from one account, and add more whenever you grow'], ['customDomain', 'Your own website name (custom domain)'], [null, 'Unlimited kitchen and waiter logins'],
-        ['bulkOrders', 'Take bulk and party orders'], ['analytics', 'Business analytics and PDF reports'], ['customPush', 'Send offers to your customers by push'],
-        ['customPush', 'Daily automatic push messages'], ['fullExports', 'Full exports: customers, orders, items and reports'],
-    ],
-};
+// What each plan gives, in words that sell it. The server says which plan has which feature (the supreme admin can move a feature between plans), so a
+// plan's list is: for Partner the basics plus its features; for Growth and Pro what is NEW on top of the plan below. It can never promise more than is enforced.
+const BASICS = [
+    'Your own online shop, on a website and in the customer app', 'Your own shopname.vivyaan.co.in link to share', 'Customers follow their order step by step and can call the rider',
+    'Dine-in QR tables, waitlist and table booking', 'Coupons and offers to bring customers back', 'Online payments and refunds in one place',
+    'Daily sales summary and your Money tab', 'Tax invoices for every order', 'App in Hindi, Marathi, Gujarati, Bengali and more',
+];
+// feature -> its line(s), in the order they are shown
+const FEATURE_LINES = [
+    ['riderLiveMap', ['Customers watch the rider live on a map']], ['soundboxVoice', ['Soundbox voice announces every new order']], ['services', ['Sell services and take inquiries']],
+    ['loyalty', ['Loyalty and rewards to keep customers coming back']], ['autoAccept', ['Auto-accept orders, no waiting']], ['costsProfit', ['Costs and profit view, see what you really earn']],
+    ['multiBranch', ['Run up to {shops} shops from one account, and add more whenever you grow']], ['customDomain', ['Your own website name (custom domain)']],
+    ['bulkOrders', ['Take bulk and party orders']], ['analytics', ['Business analytics and PDF reports']], ['customPush', ['Send offers to your customers by push', 'Daily automatic push messages']],
+    ['fullExports', ['Full exports: customers, orders, items and reports']],
+];
 const includedLines = (p, prev, o) => {
     const vars = { riders: p.limits.riders, staff: p.limits.staff, shops: o.includedLocations };
-    const lines = COPY[p.id].filter(([k]) => !k || p.features[k]).map(([, t]) => tr(t, vars));
-    return { head: prev ? tr('Everything in {name}, plus', { name: prev.name }) : null, lines };
+    const tl = (t) => tr(t, vars);
+    const has = (plan, k) => !!(plan && plan.features && plan.features[k]);
+    const lost = prev ? FEATURE_LINES.filter(([k]) => has(prev, k) && !has(p, k)) : [];
+    const plus = prev && !lost.length;   // "everything in the plan below, plus ..." only while that is true
+    const lines = [];
+    if (!prev) lines.push(...BASICS.map(tl), tl('Up to {riders} riders for your own deliveries'));
+    else {
+        if (p.limits.riders == null && (!plus || prev.limits.riders != null)) lines.push(tl('Unlimited riders'));
+        if (!plus || p.limits.staff !== prev.limits.staff) lines.push(p.limits.staff == null ? tl('Unlimited kitchen and waiter logins') : p.limits.staff > 0 ? tl('Up to {staff} kitchen and waiter logins') : '');
+    }
+    for (const [k, texts] of FEATURE_LINES) if (has(p, k) && !(plus && has(prev, k))) lines.push(...texts.map(tl));
+    return { head: plus ? tr('Everything in {name}, plus', { name: prev.name }) : null, lines: lines.filter(Boolean) };
 };
 const day = (d) => new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 const planLine = (c) => {

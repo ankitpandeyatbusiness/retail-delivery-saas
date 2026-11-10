@@ -17,7 +17,7 @@ const { wrap } = require('../middlewares/apiErrors');
 const router = express.Router();
 
 router.get('/plans', wrap(async (req, res) => {
-    res.json({ ids: plans.PLAN_IDS, features: plans.FEATURES, limits: plans.LIMITS, defaults: await svc.getDefaults() });
+    res.json({ ids: plans.PLAN_IDS, features: plans.featureTable(), limits: plans.LIMITS, defaults: await svc.getDefaults() });
 }));
 
 router.put('/platform/plans', requireSupreme, wrap(async (req, res) => {
@@ -37,6 +37,13 @@ router.put('/tenants/:tid/plan', requireSupreme, loadTenant, wrap(async (req, re
     req.auditBefore = svc.viewOf(req.tenantDoc);
     const who = req.admin?.phone || req.admin?.email || 'supreme';
     res.json(await svc.setPlan(req.tenantDoc, { to: req.body?.to, freeDays: req.body?.freeDays, keepExtras: req.body?.keepExtras !== false, by: String(who) }));
+}));
+
+// takes every plan away from the shop (it has no plan again)
+router.delete('/tenants/:tid/plan', requireSupreme, loadTenant, wrap(async (req, res) => {
+    req.auditBefore = svc.viewOf(req.tenantDoc);
+    const who = req.admin?.phone || req.admin?.email || 'supreme';
+    res.json(await svc.removePlan(req.tenantDoc, { by: String(who) }));
 }));
 
 router.put('/tenants/:tid/plan/extras', requireSupreme, loadTenant, wrap(async (req, res) => {

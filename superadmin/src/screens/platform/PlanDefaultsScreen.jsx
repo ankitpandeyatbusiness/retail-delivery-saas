@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text } from 'react-native';
 import { useTheme, spacing, font } from '../../theme';
 import { Screen } from '../../components/layout';
-import { Card, Button, SectionTitle } from '../../components/ui';
+import { Card, Button, SectionTitle, Chip } from '../../components/ui';
 import { Field } from '../../components/inputs';
 import { SkeletonList } from '../../components/blocks';
 import { toast } from '../../components/feedback';
@@ -18,6 +18,7 @@ export default function PlanDefaultsScreen() {
     const t = useTheme();
     const [f, setF] = useState(null);
     const [busy, setBusy] = useState(false);
+    const [feat, setFeat] = useState(null);   // what each plan includes: { key: { label, plans[], editable } }
 
     useEffect(() => {
         fetchPlanCatalog().then((c) => {
@@ -28,12 +29,14 @@ export default function PlanDefaultsScreen() {
                 disc: [1, 2, 3, 4, 5, 6].map((m) => String(d.monthDiscounts[m] ?? 0)),
                 slabs: d.feeSlabs.map((s) => ({ upTo: s.upTo === null ? '' : String(s.upTo), fee: String(s.feeRs) })),
             });
+            setFeat(Object.fromEntries(Object.entries(c.features).filter(([, x]) => x.editable).map(([k, x]) => [k, { label: x.label, plans: x.plans }])));
         }).catch((e) => toast(errMsg(e), 'error'));
     }, []);
 
     if (!f) return <Screen title="Plan defaults"><SkeletonList count={4} /></Screen>;
     const set = (k) => (v) => setF({ ...f, [k]: digits(v) });
     const setSlab = (i, k, v) => setF({ ...f, slabs: f.slabs.map((s, j) => (j === i ? { ...s, [k]: digits(v) } : s)) });
+    const toggleFeat = (k, id) => setFeat({ ...feat, [k]: { ...feat[k], plans: feat[k].plans.includes(id) ? feat[k].plans.filter((p) => p !== id) : [...feat[k].plans, id] } });
     const setDisc = (i, v) => setF({ ...f, disc: f.disc.map((x, j) => (j === i ? digits(v) : x)) });
 
     const save = async () => {
@@ -46,6 +49,7 @@ export default function PlanDefaultsScreen() {
                 includedBranches: Number(f.branches), branchAddonPaise: Number(f.addon) * 100,
                 monthDiscounts: Object.fromEntries(f.disc.map((v, i) => [i + 1, Number(v)])),
                 feeSlabs: f.slabs.map((s, i) => ({ upTo: i === last ? null : Number(s.upTo), feeRs: Number(s.fee) })),
+                features: Object.fromEntries(Object.entries(feat || {}).map(([k, x]) => [k, x.plans])),
             });
             toast('Plan defaults saved');
         } catch (e) { toast(errMsg(e), 'error'); } finally { setBusy(false); }
@@ -99,6 +103,23 @@ export default function PlanDefaultsScreen() {
                     </View>
                 ))}
             </Card>
+
+            {feat ? (
+                <>
+                    <SectionTitle section="catalog">What each plan includes</SectionTitle>
+                    <Card>
+                        <Text style={{ color: t.muted, fontSize: font.sm, marginBottom: spacing.md }}>Tick the plans that get each feature. A change reaches every shop on those plans within seconds: owners see it in their Plan screen, side menu and locks, and the server enforces it. Kitchen and waiter logins and the rider limit stay fixed in the app. Saved with the button at the bottom.</Text>
+                        {Object.entries(feat).map(([k, x], i) => (
+                            <View key={k} style={{ paddingVertical: spacing.sm, borderTopWidth: i ? 1 : 0, borderTopColor: t.border }}>
+                                <Text style={{ color: t.text, fontWeight: '700', marginBottom: spacing.xs }}>{x.label}</Text>
+                                <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+                                    {['partner', 'growth', 'pro'].map((id) => <Chip key={id} label={id[0].toUpperCase() + id.slice(1)} active={x.plans.includes(id)} onPress={() => toggleFeat(k, id)} />)}
+                                </View>
+                            </View>
+                        ))}
+                    </Card>
+                </>
+            ) : null}
 
             <Button title="Save plan defaults" onPress={save} loading={busy} style={{ marginTop: spacing.lg }} />
         </Screen>
