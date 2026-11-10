@@ -64,6 +64,16 @@ describe('dine-in follows the plan', () => {
         assert.match(g.body.error, /QR code is not valid/);   // dine-in is on: it got as far as checking the code
     });
 
+    test('the table QR stickers are a Growth feature too: Partner is refused, Growth gets them', async () => {
+        await setPlan({ id: 'partner' });
+        const no = await request(app).get('/api/shop/dine-in/qr').set(w.owner.headers);
+        assert.equal(no.status, 403);
+        assert.match(no.body.error, /not in your plan/);
+        assert.equal((await request(app).get('/api/shop/dine-in/qr/sheet').set(w.owner.headers)).status, 403);
+        await setPlan({ id: 'growth', startedAt: new Date(), endsAt: new Date(Date.now() + 5 * DAY) });
+        assert.equal((await request(app).get('/api/shop/dine-in/qr').set(w.owner.headers)).status, 200);
+    });
+
     test('table booking is not touched by the plan', async () => {
         const plans = require('../src/config/plans');
         assert.equal(plans.planIncludes('partner', 'tableBooking'), true);   // not plan-gated at all

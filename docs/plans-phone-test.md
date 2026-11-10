@@ -29,7 +29,7 @@ Tick each line. "Expect" is what you should see. If something differs, note the 
 | # | Do | Expect |
 |---|---|---|
 | 3.1 | Open Plan | Three cards: Partner, Growth, Pro. Prices end with `*`. At the very bottom, small plain text: "* All payments... are non-refundable..." |
-| 3.2 | Tap Partner | Lists only what is included: your own online shop, shopname.vivyaan.co.in link, order timeline and rider call, dine-in QR tables, coupons, online payments, daily sales, tax invoices, languages, up to 2 riders. No "Not included" list anywhere |
+| 3.2 | Tap Partner | Lists only what is included: your own online shop, shopname.vivyaan.co.in link, order timeline and rider call, table booking with a waitlist (no dine-in and no table QR codes), coupons, online payments, daily sales, tax invoices, languages, up to 2 riders. No "Not included" list anywhere |
 | 3.3 | Tap Growth | "Everything in Partner, plus": live rider map, unlimited riders, up to 5 kitchen and waiter logins, Soundbox voice, services, loyalty, auto-accept, costs and profit |
 | 3.4 | Tap Pro | "Everything in Growth, plus": run up to 3 shops from one account, custom domain, unlimited logins, bulk orders, analytics, push offers, daily push, full exports |
 | 3.5 | Change the language to Hindi, reopen Plan | All lines, the footnote and the notes are in Hindi. Nothing in English except plan names |

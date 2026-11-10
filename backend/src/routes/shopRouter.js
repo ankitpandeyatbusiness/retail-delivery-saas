@@ -437,13 +437,13 @@ router.post('/dine-in/sessions/:id/settle', wrap(async (req, res) => {
 }));
 
 // The table QR stickers: the link to print them all, and one table's link to test with.
-router.get('/dine-in/qr', wrap(async (req, res) => {
+router.get('/dine-in/qr', featureGate.planGate('dineIn'), wrap(async (req, res) => {
     const q = require('../services/tableQr');
     res.json({ printUrl: q.printUrl(req, req.tenant), sample: { table: '1', url: q.tableUrl(req, req.tenant, '1') } });
 }));
 
 // the same stickers as one page of HTML, for the app to print or save as a PDF
-router.get('/dine-in/qr/sheet', wrap(async (req, res) => {
+router.get('/dine-in/qr/sheet', featureGate.planGate('dineIn'), wrap(async (req, res) => {
     res.json({ html: await require('../services/tableQr').printHtml(req, req.tenant, false, String(req.query.size || '')) });
 }));
 
