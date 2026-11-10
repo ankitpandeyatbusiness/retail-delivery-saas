@@ -71,4 +71,4 @@ async function build({ month }) {
     };
 }
 
-module.exports = { build, range };
+module.exports = { build, range, row };

@@ -74,7 +74,7 @@ function render(doc, inv, opts = {}) {
     doc.font('Helvetica').fontSize(9).fillColor(MUTED);
     const head = credit
         ? [`Credit note No: ${inv.invoiceNo}`, `Date: ${day(inv.issueDate)}`, `Against invoice: ${inv.originalInvoiceNo || '-'}`, inv.originalIssueDate ? `Invoice date: ${day(inv.originalIssueDate)}` : '']
-        : [`Invoice No: ${inv.invoiceNo}`, inv.ref ? `Ref: ${inv.ref}` : '', `Issue date: ${day(inv.issueDate)}`, inv.dueDate && inv.kind !== 'sms_topup' ? `Due date: ${day(inv.dueDate)}` : '', inv.period ? `Billing month: ${inv.period}` : (inv.kind === 'sms_topup' ? 'SMS balance top-up' : 'Custom invoice')];
+        : [`Invoice No: ${inv.invoiceNo}`, inv.ref ? `Ref: ${inv.ref}` : '', `Issue date: ${day(inv.issueDate)}`, inv.dueDate && inv.kind !== 'sms_topup' ? `Due date: ${day(inv.dueDate)}` : '', inv.period ? `Billing month: ${inv.period}` : ({ sms_topup: 'SMS balance top-up', wallet_topup: 'Partner wallet top-up', plan: 'Plan payment' }[inv.kind] || 'Custom invoice')];
     head.filter(Boolean).forEach((t, i) => doc.text(t, 340, 40 + i * 13, { width: R - 340, align: 'right' }));
 
     let y = 106;
