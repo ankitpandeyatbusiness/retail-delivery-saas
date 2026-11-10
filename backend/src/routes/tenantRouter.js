@@ -34,6 +34,33 @@ tenantRouter.get('/theme', tenantRecognizer, async (req, res) => {
     });
 });
 
+// The website's "Add to Home Screen" identity for THIS shop (name, colours, icon). The hosting Worker serves it as /manifest.webmanifest on the shop's
+// address, asking with the shop's slug (deploy/cloudflare/worker.js). Small and cacheable.
+tenantRouter.get('/manifest', tenantRecognizer, (req, res) => {
+    const t = req.tenant;
+    const c = resolveConfig(t);
+    const icon = brandingIcon(t.slug) || t.logo || '/icons/icon-1024.png';   // the platform icon on the website itself when the shop has none
+    const name = String(t.name || 'Shop').slice(0, 45);
+    const manifest = {
+        id: '/',
+        name,
+        short_name: name.length > 12 ? name.slice(0, 12).trim() : name,
+        description: String(t.tagline || 'Order online').slice(0, 130),
+        start_url: '/',
+        scope: '/',
+        display: 'standalone',
+        orientation: 'portrait',
+        background_color: '#111111',
+        theme_color: (c.brand.colors && c.brand.colors.primary) || '#111111',
+        icons: [
+            { src: icon, sizes: '1024x1024', type: 'image/png', purpose: 'any' },
+            { src: icon, sizes: '1024x1024', type: 'image/png', purpose: 'maskable' },
+        ],
+    };
+    res.set('Cache-Control', 'public, max-age=300');
+    res.type('application/manifest+json').send(JSON.stringify(manifest));
+});
+
 // Everything the app needs to draw itself. Options that have no data yet (e.g. the Weight filter when
 // no item has weights) are removed here, so the app never shows an empty filter or strip.
 // `homeConfig` and `delivery` are kept so the current frontend keeps working.

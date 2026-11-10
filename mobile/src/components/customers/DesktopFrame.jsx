@@ -11,6 +11,7 @@ import { useThemeStore } from '../../store/common/useThemeStore';
 import { useViewMode } from '../../store/owners/useViewMode';
 import { useCartStore } from '../../store/customers/shopStores';
 import { useCustomerDesktop, DESKTOP_PAGE_MAX, DESKTOP_PANEL } from '../../utils/common/layout';
+import GetAppBanner from './GetAppBanner';
 import { tr } from '../../i18n';
 
 const money = (n) => `₹${Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
@@ -149,6 +150,7 @@ export default function DesktopFrame({ navRef, routeName, children }) {
     const showCart = desktop && routeName === 'Home';
     return (
         <View style={{ flex: 1, backgroundColor: desktop ? brand.background : undefined }}>
+            <GetAppBanner />   {/* the website only: nothing is drawn in the phone app */}
             {bare ? null : <TopBar navRef={navRef} routeName={routeName} />}
             <View style={{ flex: 1, flexDirection: 'row', width: '100%', maxWidth: bare ? undefined : PAGE, alignSelf: 'center' }}>
                 <View style={{ flex: 1, overflow: bare ? undefined : 'hidden' }}>{children}</View>

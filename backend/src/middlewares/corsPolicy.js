@@ -3,12 +3,13 @@
 // lock, not the only one: a stranger's website still cannot make a visitor's browser read answers from the API.
 //
 // Allowed:
-//   - the shops' own addresses:  https://<shop>.<WEB_BASE_DOMAIN>  and  https://<WEB_BASE_DOMAIN>   (default vivyaan.co.in)
+//   - the shops' own addresses:  https://<shop>.<PLATFORM_WEB_DOMAIN>  and  https://<PLATFORM_WEB_DOMAIN>   (default vivyaan.co.in)
 //   - addresses listed in CORS_ORIGINS (comma separated, full origins like https://order.example.com): custom domains
 //   - while developing (NODE_ENV is not production, or CORS_ALLOW_LOCAL=1): localhost and local-network addresses on any port
 const cors = require('cors');
 
-const BASE = String(process.env.WEB_BASE_DOMAIN || 'vivyaan.co.in').toLowerCase().replace(/^\.+/, '');
+// one name for the platform's website domain everywhere: PLATFORM_WEB_DOMAIN (the same one services/channelSwitch.js uses). WEB_BASE_DOMAIN still works.
+const BASE = String(process.env.PLATFORM_WEB_DOMAIN || process.env.WEB_BASE_DOMAIN || 'vivyaan.co.in').toLowerCase().replace(/^\.+/, '');
 const LOCAL_RE = /^https?:\/\/(localhost|127\.0\.0\.1|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)(:\d+)?$/i;
 
 const listed = () => new Set(String(process.env.CORS_ORIGINS || '').split(',').map((s) => s.trim().toLowerCase().replace(/\/+$/, '')).filter(Boolean));

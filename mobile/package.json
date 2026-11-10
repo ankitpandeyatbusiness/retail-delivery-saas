@@ -63,6 +63,7 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "prebuild": "expo prebuild && node patch-styles.js",
+    "build:web": "node scripts/build-web.js",
     "postinstall": "patch-package",
     "release:build": "node scripts/release.js build",
     "release:update": "node scripts/release.js update"

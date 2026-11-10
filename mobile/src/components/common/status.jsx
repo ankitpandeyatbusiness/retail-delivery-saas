@@ -66,7 +66,7 @@ export function FrozenOverlay({ onOrders }) {
     const role = user?.role || 'customer';
     const staff = role === 'kitchen' || role === 'waiter' || role === 'rider';
     const viaChannel = !frozen && channelOff;
-    const title = viaChannel ? tr(channel.kind === 'web_only' ? 'We are on the website now' : 'Not available right now') : tr(role === 'customer' ? 'Closed for now' : 'Shop is closed');
+    const title = viaChannel ? tr(channel.kind === 'web_only' ? 'We are on the website now' : channel.kind === 'app_only' ? 'Available in the app' : 'Not available right now') : tr(role === 'customer' ? 'Closed for now' : 'Shop is closed');
     const msg = viaChannel ? tr(channel.message || 'This shop is temporarily unavailable.') : staff
         ? tr('The shop is closed. Please contact the owner.')
         : isOwner && why?.closed
@@ -94,6 +94,11 @@ export function FrozenOverlay({ onOrders }) {
                     {viaChannel && channel.webUrl ? (
                         <Pressable onPress={() => Linking.openURL(channel.webUrl).catch(() => { })} style={[s.solid, { backgroundColor: primary, borderRadius: radius }]}>
                             <Text style={s.solidTxt}>{tr('Open the website')}</Text>
+                        </Pressable>
+                    ) : null}
+                    {viaChannel && channel.playStoreUrl ? (   // the website is switched off for this shop: its app is the way in
+                        <Pressable onPress={() => Linking.openURL(channel.playStoreUrl).catch(() => { })} style={[s.solid, { backgroundColor: primary, borderRadius: radius }]}>
+                            <Text style={s.solidTxt}>{tr('Get the app')}</Text>
                         </Pressable>
                     ) : null}
                     {viaChannel ? (

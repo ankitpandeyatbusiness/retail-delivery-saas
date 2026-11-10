@@ -19,6 +19,8 @@ const appHeaders = {
     'x-app-build': String(Constants.nativeBuildVersion || ''),
     'x-app-platform': Platform.OS,
     'x-app-os': String(Platform.Version || ''),
+    // the website says so: the server then applies the shop's web switch (and not the installed app's). Every other request is the installed app.
+    ...(Platform.OS === 'web' ? { 'x-client': 'web' } : {}),
 };
 
 const api = axios.create({ baseURL, timeout: 15000 });

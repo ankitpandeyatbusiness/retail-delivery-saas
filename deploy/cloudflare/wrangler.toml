@@ -1,0 +1,21 @@
+# The website of every shop, on Cloudflare's free plan (Workers + static assets). See docs/web-hosting.md for the full steps.
+#   cd deploy/cloudflare && npx wrangler deploy
+name = "vivyaan-shops"
+main = "worker.js"
+compatibility_date = "2026-11-01"
+
+[assets]
+directory = "../../mobile/dist-web"          # made by:  cd mobile && npm run build:web
+binding = "ASSETS"
+run_worker_first = true                      # the Worker sees every request (shop name, manifest, headers)
+not_found_handling = "single-page-application"   # an address like /orders opens the app, which shows that page
+
+[vars]
+PLATFORM_WEB_DOMAIN = "vivyaan.co.in"
+# the API on Render, WITH /api at the end (no slash after it). Replace the name before deploying.
+API_BASE = "https://REPLACE-WITH-YOUR-RENDER-APP.onrender.com/api"
+
+# every shop address; needs a proxied wildcard DNS record (docs/web-hosting.md)
+[[routes]]
+pattern = "*.vivyaan.co.in/*"
+zone_name = "vivyaan.co.in"
