@@ -2,6 +2,7 @@
 // Phones, the phone browser and tablets keep the app's own layout, exactly as in the native app; only a wide browser window gets the desktop layout.
 import { Platform, useWindowDimensions } from 'react-native';
 import { useAuthStore } from '../../store/common/useAuthStore';
+import { useViewMode } from '../../store/owners/useViewMode';
 
 export const DESKTOP_MIN_WIDTH = 1024;
 export const DESKTOP_PAGE_MAX = 1240;   // the widest the desktop customer page grows (components/customers/DesktopFrame.jsx)
@@ -11,7 +12,8 @@ export const DESKTOP_PANEL = 380;       // the cart panel beside the menu
 export function useCustomerDesktop() {
     const desktop = useIsDesktopWeb();
     const role = useAuthStore((s) => s.user?.role);
-    return desktop && (!role || role === 'customer');
+    const preview = useViewMode((s) => s.customerView);   // an owner looking at the customer app ("See the customer app") sees the customer website too
+    return desktop && (!role || role === 'customer' || (role === 'admin' && preview));
 }
 
 export function useIsDesktopWeb() {

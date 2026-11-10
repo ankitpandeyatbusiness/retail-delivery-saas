@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useBrand } from '../common/kit';
 import { useAuthStore } from '../../store/common/useAuthStore';
 import { useThemeStore } from '../../store/common/useThemeStore';
+import { useViewMode } from '../../store/owners/useViewMode';
 import { useCartStore } from '../../store/customers/shopStores';
 import { useCustomerDesktop, DESKTOP_PAGE_MAX, DESKTOP_PANEL } from '../../utils/common/layout';
 import { tr } from '../../i18n';
@@ -28,12 +29,15 @@ function TopBar({ navRef, routeName }) {
     const user = useAuthStore((s) => s.user);
     const count = useCartStore((s) => s.lines.reduce((a, l) => a + l.quantity, 0));
     const go = (name, params) => { if (navRef && navRef.isReady()) navRef.navigate(name, params); };
+    // an owner previewing the shop has the customer tabs inside the CustomerPreview page, not in MainTabs (those are the owner's own)
+    const preview = useViewMode((s) => s.customerView);
+    const goTab = (tab) => go(preview ? 'CustomerPreview' : 'MainTabs', { screen: tab });
     const logo = theme.icon || theme.logo;
 
     return (
         <View style={{ backgroundColor: brand.surface, borderBottomWidth: 1, borderBottomColor: brand.border, zIndex: 20 }}>
             <View style={{ width: '100%', maxWidth: PAGE, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', height: 68, paddingHorizontal: 24 }}>
-                <Pressable onPress={() => go('MainTabs', { screen: 'Home' })} style={{ flexDirection: 'row', alignItems: 'center', marginRight: 28 }}>
+                <Pressable onPress={() => goTab('Home')} style={{ flexDirection: 'row', alignItems: 'center', marginRight: 28 }}>
                     {logo ? <Image source={logo} style={{ width: 38, height: 38, borderRadius: 10, marginRight: 10, backgroundColor: brand.background }} contentFit="cover" /> : null}
                     <Text numberOfLines={1} style={{ color: brand.text, fontSize: 19, fontWeight: '900', maxWidth: 260 }}>{theme.name || 'Shop'}</Text>
                 </Pressable>
@@ -41,7 +45,7 @@ function TopBar({ navRef, routeName }) {
                 {LINKS.map((l) => {
                     const on = routeName === l.tab;
                     return (
-                        <Pressable key={l.tab} onPress={() => go('MainTabs', { screen: l.tab })} style={{ paddingHorizontal: 12, paddingVertical: 8, marginRight: 4, cursor: 'pointer' }}>
+                        <Pressable key={l.tab} onPress={() => goTab(l.tab)} style={{ paddingHorizontal: 12, paddingVertical: 8, marginRight: 4, cursor: 'pointer' }}>
                             <Text style={{ color: on ? brand.primary : brand.muted, fontWeight: on ? '900' : '700', fontSize: 15 }}>{tr(l.label)}</Text>
                         </Pressable>
                     );
@@ -65,7 +69,7 @@ function TopBar({ navRef, routeName }) {
                 </Pressable>
 
                 {user ? (
-                    <Pressable onPress={() => go('MainTabs', { screen: 'Account' })} style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: brand.primary, alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                    <Pressable onPress={() => goTab('Account')} style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: brand.primary, alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
                         <Text style={{ color: brand.onPrimary || '#FFFFFF', fontWeight: '900', fontSize: 16 }}>{String(user.name || user.phone || '?').trim().slice(0, 1).toUpperCase()}</Text>
                     </Pressable>
                 ) : (
