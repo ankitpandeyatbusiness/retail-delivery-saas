@@ -19,7 +19,7 @@ import { CommonActions } from '@react-navigation/native';
 import { useAuthStore } from '../../store/common/useAuthStore';
 import { useNotificationStore } from '../../store/common/useNotificationStore';
 import { registerDevice, removeDevice } from '../../api/common/notificationApi';
-import { onNotification, realtimeConnected } from '../../api/common/socket';
+import { onNotification, onNotificationRead, onResync, realtimeConnected } from '../../api/common/socket';
 import { showToast, showTapToast } from '../../components/customers/shop';
 import { speakOnOpen, isNewsType, sayAlert, markSaid, markTapped, acknowledge } from '../owners/soundbox';
 import { showSlider } from '../../components/common/AlertSliderHost';
@@ -397,6 +397,14 @@ export function startNotifications() {
     };
     useAuthStore.subscribe((st, prev) => { if (st.user !== prev.user) onUser(st.user); });
     if (useAuthStore.getState().user) onUser(useAuthStore.getState().user);
+
+    // another phone or browser of mine read or cleared messages: the bell follows at once. After a break in the connection, or when the app or
+    // browser tab comes back to the front, the number is fetched again (an event may have been missed).
+    onNotificationRead((p) => {
+        if (p && typeof p.unread === 'number') useNotificationStore.getState().set(p.unread);
+        else useNotificationStore.getState().refresh();
+    });
+    onResync(() => useNotificationStore.getState().refresh());
 
     // a new message arrived while the app is open
     onNotification((n) => {

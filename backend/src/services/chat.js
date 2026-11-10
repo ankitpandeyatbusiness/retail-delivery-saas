@@ -93,8 +93,8 @@ async function markRead({ tenant, kind, refId, side, customerId }) {
         tell(other(side), tenant._id, customerId, 'chat:status', { kind, refId: String(refId), ids: ids.map(String), status: 'read' });
     }
     if (kind === 'inquiry') await ServiceInquiry.updateOne({ _id: refId }, { $set: side === 'owner' ? { ownerUnread: 0 } : { customerUnread: 0 } });   // the inquiry list badges
-    // his other phone learns it too (the Home card of inquiries waiting, the list badges): a read note about messages that are not his own changes no tick
-    if (kind === 'inquiry') tell(side, tenant._id, customerId, 'chat:status', { kind, refId: String(refId), ids: [], status: 'read', echo: true });
+    // his other phone or browser learns it too (the badges, the Home card of inquiries waiting): a read note about messages that are not his own changes no tick. Every kind of chat, not only inquiries.
+    tell(side, tenant._id, customerId, 'chat:status', { kind, refId: String(refId), ids: [], status: 'read', echo: true });
     return rows.length;
 }
 

@@ -15,13 +15,16 @@ const Notification = require('../models/Notification');
 const User = require('../models/User');
 const i18n = require('../notifications/i18n');
 const DeviceToken = require('../models/DeviceToken');
+const realtime = require('../services/realtime');
 
 const { wrap, httpError } = apiErrors;
 const clamp = (n, min, max) => Math.min(Math.max(n, min), max);
 
 // allowClear: DELETE / removes the person's whole inbox. Only for customers and riders (`mine`):
 // the owner inbox is read by the escalation job, so the shop side is never cleared this way.
-function inbox(rawFilterOf, { allowClear = false, softClear = false } = {}) {
+// tell(req, event, payload): says something to every device of whoever is reading this inbox (one person, or the owner side of the shop), so a message
+// read or cleared on one phone or browser shows as read on the others at once ('notification:read': { ids } or { all: true }, and unread = what is left).
+function inbox(rawFilterOf, { allowClear = false, softClear = false, tell = () => { } } = {}) {
     const r = express.Router();
     // softClear (the owner side): cleared messages are hidden from every list and count
     const filterOf = softClear ? (req) => ({ ...rawFilterOf(req), clearedAt: null }) : rawFilterOf;
@@ -51,6 +54,7 @@ function inbox(rawFilterOf, { allowClear = false, softClear = false } = {}) {
 
     r.post('/read-all', wrap(async (req, res) => {
         const out = await Notification.updateMany({ ...filterOf(req), readAt: null }, { $set: { readAt: new Date() } });
+        tell(req, 'notification:read', { all: true, unread: 0 });
         res.json({ ok: true, marked: out.modifiedCount });
     }));
 
@@ -59,6 +63,7 @@ function inbox(rawFilterOf, { allowClear = false, softClear = false } = {}) {
         const filter = { _id: req.params.id, ...filterOf(req) };
         if (!(await Notification.exists(filter))) throw httpError(404, 'Message not found');
         await Notification.updateOne({ ...filter, readAt: null }, { $set: { readAt: new Date() } });
+        tell(req, 'notification:read', { ids: [String(req.params.id)], unread: await Notification.countDocuments({ ...filterOf(req), readAt: null }) });
         res.json({ ok: true });
     }));
 
@@ -68,6 +73,7 @@ function inbox(rawFilterOf, { allowClear = false, softClear = false } = {}) {
             const now = new Date();
             await Notification.updateMany({ ...filterOf(req), readAt: null }, { $set: { readAt: now } });
             const out = await Notification.updateMany(filterOf(req), { $set: { clearedAt: now } });
+            tell(req, 'notification:read', { all: true, unread: 0, cleared: true });
             res.json({ ok: true, cleared: out.modifiedCount });
         }));
     }
@@ -76,6 +82,7 @@ function inbox(rawFilterOf, { allowClear = false, softClear = false } = {}) {
         // Clear all: deletes every message of this person (filter is always tenant + user, never wider)
         r.delete('/', wrap(async (req, res) => {
             const out = await Notification.deleteMany(filterOf(req));
+            tell(req, 'notification:read', { all: true, unread: 0, cleared: true });
             res.json({ ok: true, deleted: out.deletedCount });
         }));
     }
@@ -116,11 +123,11 @@ mine.post('/devices/remove', wrap(async (req, res) => {
     res.json({ ok: true });
 }));
 
-mine.use(inbox((req) => ({ tenantId: req.tenant._id, userId: req.auth.userId }), { allowClear: true }));
+mine.use(inbox((req) => ({ tenantId: req.tenant._id, userId: req.auth.userId }), { allowClear: true, tell: (req, ev, p) => realtime.toUser(req.tenant._id, req.auth.userId, ev, p) }));
 mine.use(apiErrors);
 
 const shop = express.Router();
-shop.use(inbox((req) => ({ tenantId: req.tenant._id, role: 'owner' }), { softClear: true }));
+shop.use(inbox((req) => ({ tenantId: req.tenant._id, role: 'owner' }), { softClear: true, tell: (req, ev, p) => realtime.toOwner(req.tenant._id, ev, p) }));
 shop.use(apiErrors);
 
 module.exports = { mine, shop };

@@ -16,7 +16,7 @@ import { SkelNotifications } from '../../components/customers/skeletons';
 import { ask } from '../../components/common/dialog';
 import { fetchInbox, markAllRead, clearAll } from '../../api/common/notificationApi';
 import { useNotificationStore } from '../../store/common/useNotificationStore';
-import { onNotification } from '../../api/common/socket';
+import { onNotification, onNotificationRead } from '../../api/common/socket';
 import { tr } from '../../i18n';
 import { notificationTarget } from '../../utils/common/notificationTarget';
 import { useClosedStyle } from '../../components/customers/shop';
@@ -70,7 +70,9 @@ export default function NotificationsScreen() {
 
     useFocusEffect(useCallback(() => {
         load();
-        return onNotification(() => load());   // a new message while this screen is open
+        const a = onNotification(() => load());          // a new message while this screen is open
+        const b = onNotificationRead(() => load());      // read or cleared on my other phone or browser
+        return () => { a(); b(); };
     }, [load]));
 
     const loadMore = async () => {

@@ -50,7 +50,7 @@ const emitJoin = (orderId) => {
 };
 
 function dispatch(event, payload) {
-    listeners[event].forEach((fn) => { try { fn(payload); } catch (e) { /* a screen bug must not stop the others */ } });
+    (listeners[event] || []).forEach((fn) => { try { fn(payload); } catch (e) { /* a screen bug must not stop the others */ } });
 }
 
 function disconnect() {
@@ -70,7 +70,13 @@ function connect() {
         reconnectionDelayMax: 20000,
     });
 
-    socket.on('connect', () => { setMode({ mode: 'socket', retryAfterSec: 0 }); joined.forEach((_, id) => emitJoin(id)); });
+    // After a RE-connect (not the first one) things may have happened while we were away: tell the screens to fetch their numbers again.
+    let connectedBefore = false;
+    socket.on('connect', () => {
+        setMode({ mode: 'socket', retryAfterSec: 0 }); joined.forEach((_, id) => emitJoin(id));
+        if (connectedBefore) dispatch('resync');
+        connectedBefore = true;
+    });
     // the server is busy or tracking is off: poll, and do not keep knocking
     socket.on('tracking:mode', (p) => {
         setMode({ mode: p?.mode || 'socket', pollSec: p?.pollSec || 15, retryAfterSec: p?.retryAfterSec || 0 });
@@ -91,6 +97,7 @@ function connect() {
     socket.on('chat:typing', (p) => dispatch('chat:typing', p));      // the other person is typing      // a bulk order changed (any panel): reload it
     socket.on('waiter:update', (p) => dispatch('waiter:update', p));     // the floor changed (waiters only)   // the kitchen's orders changed (cooks only)
     socket.on('notification', (p) => dispatch('notification', p));
+    socket.on('notification:read', (p) => dispatch('notification:read', p));   // messages were read (or cleared) on my other phone or browser: { ids?, all?, unread }
     socket.on('rider:location', (p) => dispatch('rider:location', p));
     socket.on('rider:route', (p) => dispatch('rider:route', p));
     socket.on('order:eta', (p) => dispatch('order:eta', p));
@@ -130,6 +137,7 @@ export function startRealtime() {
     });
     AppState.addEventListener('change', (s) => {
         if (s === 'active' && useAuthStore.getState().user && socket && !socket.connected) socket.connect();
+        if (s === 'active' && useAuthStore.getState().user) dispatch('resync');
     });
     sync();
 }
@@ -159,7 +167,7 @@ export function onRiderLocation(fn) {
 }
 
 // The road line, the arrival time and "his phone went quiet" for an order we joined (Phase 2 events).
-const sub = (ev) => (fn) => { listeners[ev].add(fn); return () => listeners[ev].delete(fn); };
+const sub = (ev) => (fn) => { (listeners[ev] = listeners[ev] || new Set()).add(fn); return () => listeners[ev].delete(fn); };
 export const onRiderRoute = sub('rider:route');
 export const onOrderEta = sub('order:eta');
 export const onRiderQuiet = sub('rider:quiet');
@@ -172,6 +180,11 @@ export const onChatStatus = sub('chat:status');
 export const onChatTyping = sub('chat:typing');
 export const onChatDeleted = sub('chat:deleted');   // { kind, refId, ids, scope: 'me' | 'all' }
 export const onWaiterUpdate = sub('waiter:update');
+
+// A message was read or cleared on another device of mine. { ids: [..] } or { all: true }, and unread = the number that is still unread.
+export const onNotificationRead = sub('notification:read');
+// The connection came back after a break, or the app / browser tab came back to the front: fetch the badge numbers again.
+export const onResync = sub('resync');
 
 export function onNotification(fn) {
     listeners.notification.add(fn);

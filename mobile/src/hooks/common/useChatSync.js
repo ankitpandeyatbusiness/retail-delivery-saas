@@ -2,7 +2,7 @@
 // the unread count of that chat and is acknowledged to the server, which turns the sender's tick into two. Mounted once, for customers and owners.
 import { useEffect } from 'react';
 import { AppState } from 'react-native';
-import { onChatMessage } from '../../api/common/socket';
+import { onChatMessage, onChatStatus, onResync } from '../../api/common/socket';
 import { chatApi } from '../../api/common/chatApi';
 import { useChatStore } from '../../store/common/useChatStore';
 import { useAuthStore } from '../../store/common/useAuthStore';
@@ -20,7 +20,10 @@ export default function useChatSync() {
             useChatStore.getState().bump(p.kind, p.refId);
             chatApi.ack(p.kind, p.refId, [p.message.id]).catch(() => { });
         });
+        // I read this chat on my other phone or browser: its badge goes here too
+        const offRead = onChatStatus((p) => { if (p?.echo && p.status === 'read' && p.kind && p.refId) useChatStore.getState().clear(p.kind, p.refId); });
+        const offSync = onResync(() => useChatStore.getState().load());   // back after a break: the numbers are fetched again
         const app = AppState.addEventListener('change', (st) => { if (st === 'active') useChatStore.getState().load(); });
-        return () => { off(); app.remove(); };
+        return () => { off(); offRead(); offSync(); app.remove(); };
     }, [on]);
 }
