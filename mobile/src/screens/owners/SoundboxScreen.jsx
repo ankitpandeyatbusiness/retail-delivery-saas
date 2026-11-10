@@ -1,6 +1,7 @@
 // Soundbox settings. These belong to this phone only.
 import React, { useEffect, useState } from 'react';
-import { View, Text, Switch, ScrollView, Linking, TextInput } from 'react-native';
+import { View, Text, Switch, ScrollView, Linking, TextInput, Platform } from 'react-native';
+import AppOnlyNotice from '../../components/common/AppOnlyNotice';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand, alpha } from '../../components/common/kit';
 import { PageHeader, Card, SectionTitle, Button, Pill, Chips, Option } from '../../components/owners/ui';
@@ -46,7 +47,21 @@ function Label({ title, hint }) {
     );
 }
 
+// The website has no Soundbox (no ringing, no voice): a browser cannot do it reliably. It says so instead of showing settings that would do nothing.
 export default function SoundboxScreen() {
+    const { background } = useBrand();
+    if (Platform.OS === 'web') {
+        return (
+            <View style={{ flex: 1, backgroundColor: background }}>
+                <PageHeader title={tr('Soundbox')} />
+                <AppOnlyNotice title={tr('Soundbox is only available in the app')} text={tr('The voice and the ringing for new orders work in the shop app on your phone. Open the app to set it up.')} />
+            </View>
+        );
+    }
+    return <SoundboxApp />;
+}
+
+function SoundboxApp() {
     const { background, text, muted, ok, border, error } = useBrand();
     const st = useSoundboxStore();
     const hindi = st.language === 'hi';

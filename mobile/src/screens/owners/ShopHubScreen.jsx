@@ -1,7 +1,7 @@
 // The shop menu: everything that is not one of the five tabs. It is the side menu opened by the hamburger at the top
 // left of every tab (components/owners/OwnerDrawer.jsx); the same list is also available as a full page (ShopHub).
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, ScrollView, TextInput, Pressable, Text, Animated, Easing } from 'react-native';
+import { View, ScrollView, TextInput, Pressable, Text, Animated, Easing, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useBrand } from '../../components/common/kit';
@@ -134,7 +134,7 @@ const GROUPS = [
     ['Alerts and security', [
         ['notifications', 'Alerts', 'Choose the notification, sound, voice and slider for each alert', 'AlertSettings'],
         ['volume-high', 'Soundbox', 'New-order sound, voice and volume', 'Soundbox'],
-        ['lock-closed', 'App lock', 'Ask for a PIN, fingerprint or face when the app opens', 'OwnerAppLock'],
+        ...(Platform.OS === 'web' ? [] : [['lock-closed', 'App lock', 'Ask for a PIN, fingerprint or face when the app opens', 'OwnerAppLock']]),   // a phone feature: not on the website
     ]],
 ];
 

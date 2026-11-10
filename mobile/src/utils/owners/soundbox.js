@@ -14,7 +14,7 @@
 //
 // Everything is best effort: an audio problem must never get in the way of taking an order.
 import { isOpenInquiry } from '../../store/owners/useOpenInquiry';
-import { AppState } from 'react-native';
+import { AppState, Platform } from 'react-native';
 import * as Speech from 'expo-speech';
 import { LOCAL_VOICES, localizeSpeech } from '../common/speechLang';
 import { inScript } from '../common/indicScript';
@@ -348,6 +348,7 @@ const SAMPLE = {
 
 // Plays a short sample in one of the phone's voices (the voice list on the Soundbox screen).
 export async function sampleVoice(voice, language = 'en') {
+    if (Platform.OS === 'web') return;   // the website has no Soundbox: no ringing, no voice (the app only)
     if (voice && !(await engineHasVoices())) voice = null;
     try {
         Speech.stop();
@@ -364,6 +365,7 @@ export async function sampleVoice(voice, language = 'en') {
 
 // Hear the greeting followed by a sample order, in the chosen voice (the Greeting section of the Soundbox screen).
 export async function previewGreeting() {
+    if (Platform.OS === 'web') return;   // the website has no Soundbox: no ringing, no voice (the app only)
     const language = await languageToUse();
     const g = sampleGreeting(language);
     return speak(g + ' ' + sampleFor(language), language);
@@ -385,6 +387,7 @@ async function speak(said, language, type) {
 }
 
 async function speakNow(said, language, type) {
+    if (Platform.OS === 'web') return;   // the website has no Soundbox: no ringing, no voice (the app only)
     // Marathi, Gujarati, Bengali: the English line, translated. Hindi and these three: the English letters still in the line (a customer's name, a dish) are written in the
     // voice's own script, so the voice says "अनिल" the way it sounds and not "Anil" with an English accent
     const text = inScript(LOCAL_VOICES.includes(language) ? localizeSpeech(said, language) : said, language);
@@ -588,6 +591,7 @@ function stopLoop() {
 
 /* ------------------------------ orders waiting ------------------------------ */
 export function raise({ orderId, orderNo, speech, speechHi, autoAccepted }) {
+    if (Platform.OS === 'web') return;   // the website has no Soundbox: no ringing, no voice (the app only)
     // Soundbox off = the owner wants no new-order sound at all: no chime, no voice, no greeting
     note('new-order message received' + (orderNo ? ' (' + orderNo + ')' : ''));
     if (orderId && !alertOn(isCook() ? 'new' : 'order_new', 's') && !alertOn(isCook() ? 'new' : 'order_new', 'v')) return;   // the Alerts screen: no tone and no voice for new orders
@@ -610,6 +614,7 @@ export function raise({ orderId, orderNo, speech, speechHi, autoAccepted }) {
 const BULK = 'bulk:';
 const bulkSeen = new Set();   // requests the owner opened: they do not ring again (until the customer changes something)
 export function raiseBulk({ bulkId, code, speech, speechHi }) {
+    if (Platform.OS === 'web') return;   // the website has no Soundbox: no ringing, no voice (the app only)
     if (!bulkId || roleNow() !== 'admin' || !settings().soundbox) return;   // the owner only: the cook and the waiter do not quote
     if (!alertOn('bulk_new', 's') && !alertOn('bulk_new', 'v')) return;   // the Alerts screen: no tone and no voice for bulk orders
     if (!settings().alwaysReady && AppState.currentState !== 'active') return;   // the loud push rings instead (same rule as a new order)
@@ -711,6 +716,7 @@ export function wasTapped(type, data) {
 // Say what a notification carries, in the voice and language chosen on the Soundbox screen (a tap on it, or a rider's alert). Once only:
 // if it was already read (the app was open when it arrived) nothing is said.
 export async function sayAlert(type, data) {
+    if (Platform.OS === 'web') return;   // the website has no Soundbox: no ringing, no voice (the app only)
     try {
         if (!type || wasSaid(type, data) || isOpenInquiry(type, data)) return;
         if (!settings().loaded) await useSoundboxStore.getState().hydrate();

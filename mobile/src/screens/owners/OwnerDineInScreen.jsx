@@ -16,7 +16,7 @@ import { onNotification, onOrderUpdate } from '../../api/common/socket';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { showToast } from '../../components/customers/shop';
 import { ask } from '../../components/common/dialog';
-import { Linking, Share } from 'react-native';
+import { Linking, Share, Platform } from 'react-native';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import TableRequests, { GuestFeedback } from '../../components/owners/TableRequests';
@@ -95,7 +95,7 @@ export default function OwnerDineInScreen() {
         try {
             if (what === 'share') { const r = await fetchDineQr(); await Share.share({ message: r.sample.url }); return; }
             const { html } = await fetchDineQrSheet(qrSize);
-            if (what === 'print') await Print.printAsync({ html });
+            if (what === 'print' || Platform.OS === 'web') await Print.printAsync({ html });   // the website has no PDF file to share: the print window also saves as PDF
             else { const f = await Print.printToFileAsync({ html }); await Sharing.shareAsync(f.uri, { mimeType: 'application/pdf', dialogTitle: tr('Table QR stickers') }); }
         } catch (e) { showToast(apiError(e)); }
     };

@@ -1,7 +1,7 @@
 // The cook's and the waiter's alert while the app is OPEN: the "ting-tong", a buzz and a short spoken line. With the app closed the push rings
 // instead (channel staff_alerts_v1, the same clip), and while the app is open the push is kept silent (utils/common/push.js), so the two never clash.
 // staffAlert() is safe to call from anywhere and as often as you like: one alert (same kind and number) sounds once in two minutes.
-import { AppState } from 'react-native';
+import { AppState, Platform } from 'react-native';
 import * as Speech from 'expo-speech';
 import { buzz } from '../common/sfx';
 import { staffSay, markSaid, wasTapped } from '../owners/soundbox';
@@ -57,6 +57,7 @@ function languageNow(setting) {
 
 // a = { kind: 'new'|'cancel'|'hurry'|'ready'|'call'|'bill', orderNo?, table? }
 export function staffAlert(a, { force } = {}) {
+    if (Platform.OS === 'web') return;   // the website has no Soundbox: no ringing, no voice (the app only)
     try {
         if (!a?.kind) return;
         if (!force && AppState.currentState !== 'active') return;   // the push rings for a phone in a pocket

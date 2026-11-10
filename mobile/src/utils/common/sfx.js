@@ -33,6 +33,7 @@ let modeSet = false;
 export const buzz = (pattern = [0, 60, 70, 90]) => { try { Vibration.vibrate(pattern); } catch (e) { /* ignore */ } };
 
 export async function playSfx(name, volume) {
+    if (Platform.OS === 'web') return;   // the website plays no alert tones (the app only)
     const def = SOUNDS[name];
     if (!def) return;
     // quiet: true = a chat tone: nothing when the phone is on silent or vibrate. (On Android a new sound still plays on a silent phone, the audio library only reacts when the

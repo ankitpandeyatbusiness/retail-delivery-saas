@@ -1,6 +1,7 @@
 // The cook's and the waiter's alert settings on the Profile page: the Soundbox (sound, voice, language, volume, "always ready") and the Alerts screen
 // (which alerts, as a notification, a popup or a sound). They belong to this phone. "Test" plays the real thing.
 import React from 'react';
+import { Platform } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Card, Row, SectionTitle } from '../owners/ui';
 import { useSoundboxStore } from '../../store/owners/useSoundboxStore';
@@ -21,7 +22,7 @@ export default function SoundSettings({ role }) {
                     subtitle={sb.soundbox ? tr('On. Sound, voice, language, volume and "always ready" are set there.') : tr('Off. Tap to turn it on and choose the voice.')}
                     onPress={() => nav.navigate('Soundbox')}
                 />
-                <Row icon="play-circle-outline" title={tr('Test the alert')} subtitle={tr('Plays the sound and the line now')} onPress={() => staffAlert(testKind, { force: true })} last />
+                {Platform.OS === 'web' ? null : <Row icon="play-circle-outline" title={tr('Test the alert')} subtitle={tr('Plays the sound and the line now')} onPress={() => staffAlert(testKind, { force: true })} last />}
             </Card>
         </>
     );
