@@ -62,6 +62,7 @@ export const rememberUpiApp = (pkg) => AsyncStorage.setItem(LAST_KEY, pkg).catch
 
 // For "pay again" without asking: the app used last time if it is still installed, else the first installed one.
 export async function defaultUpiApp() {
+    if (Platform.OS === 'web') return { id: 'web', pkg: null, chooser: true, label: 'Online' };   // the website: Razorpay's own payment window
     const apps = await detectInstalledUpiApps();
     if (!apps.length) return null;
     let last = null;

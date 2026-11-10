@@ -2,7 +2,7 @@
 // Cash on delivery, pay online straight from an installed UPI app (GPay, PhonePe, Paytm...), or by credit / debit card.
 // What is offered comes from the server (GET /orders/payment-config), so a shop without online payments shows only cash.
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, Pressable, ScrollView, StyleSheet, Animated, Easing, Image } from 'react-native';
+import { View, Text, Pressable, ScrollView, StyleSheet, Animated, Easing, Image, Platform } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand, BackHeader } from '../../components/common/kit';
@@ -126,8 +126,8 @@ export default function PaymentMethodsScreen() {
 
     const selectMethod = (m) => {
         if (timer.current) return;
-        if (m.value === 'card' && payBill && !deposit && !bulk) return;
-        if (m.value === 'card') { nav.navigate('CardDetails', { depth: 2, deposit, bulk }); return; }   // the card is entered on its own screen
+        if (m.value === 'card' && !m.web && payBill && !deposit && !bulk) return;
+        if (m.value === 'card' && !m.web) { nav.navigate('CardDetails', { depth: 2, deposit, bulk }); return; }   // the card is entered on its own screen
         setPicked(m.key);
         // short pause so the user sees the tick animation, then go back to the cart
         timer.current = setTimeout(() => {
@@ -165,6 +165,8 @@ export default function PaymentMethodsScreen() {
     const dineIn = !!route.params?.dineIn;   // eating at the shop: pay once, at the end
     const cash = { key: 'cod', value: 'cod', label: dineIn ? 'Pay at the end' : 'Cash on Delivery', cartLabel: 'Cash on Delivery', icon: 'cash-outline', desc: codBlocked || (dineIn ? 'Order now and pay once when you finish. Cash or UPI at the counter' : 'Pay in cash or UPI when the order arrives') };
     const cardRow = { key: 'card', value: 'card', label: tr('Credit / Debit card'), cartLabel: 'Credit / Debit card', icon: 'card-outline', desc: tr('Visa, Mastercard, RuPay. You confirm with your bank OTP') };
+    // the WEBSITE: one row. Razorpay's own payment window offers UPI, cards, netbanking and wallets, so there is no app list and no card form here.
+    const webRow = { key: 'web:online', value: cfg.upi ? 'upi' : 'card', web: true, app: { chooser: true, label: 'Online' }, label: tr('Pay online'), cartLabel: 'Online payment', icon: 'card-outline', desc: tr('UPI, cards, netbanking and wallets') };
     const upiRows = [
         ...(apps || []).map((a) => ({
             key: `upi:${a.pkg}`, value: 'upi', app: { pkg: a.pkg, label: a.label }, label: a.label, cartLabel: `${a.label} (UPI)`,
@@ -191,6 +193,10 @@ export default function PaymentMethodsScreen() {
                     <MethodSkeleton />
                 ) : !cfg.online ? (
                     <Text style={[s.note, { color: muted }]}>{tr('Online payment is not available for this shop right now.')}</Text>
+                ) : Platform.OS === 'web' ? (
+                    cfg.upi || cfg.card
+                        ? <MethodCard m={webRow} index={0} selected={picked === webRow.key} onPick={selectMethod} />
+                        : <Text style={[s.note, { color: muted }]}>{tr('Online payment is not available for this shop right now.')}</Text>
                 ) : (
                     <>
                         {cfg.upi ? upiRows.map((m, i) => (
