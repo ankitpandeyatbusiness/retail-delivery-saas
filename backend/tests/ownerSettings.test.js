@@ -49,12 +49,16 @@ describe('owner fees (#1)', () => {
         assert.equal(fee.baseFee, 20);
     });
 
-    test('GST, payment methods and order types stay with the platform, and bad numbers are refused', async () => {
+    test('GST and payment methods stay with the platform, and bad numbers are refused', async () => {
         assert.equal((await call('put', '/settings', { orders: { gst: { mode: 'inclusive', percent: 5 } } })).status, 400);
         assert.equal((await call('put', '/settings', { orders: { payments: ['upi'] } })).status, 400);
-        assert.equal((await call('put', '/settings', { orders: { types: ['pickup'] } })).status, 400);
         assert.equal((await call('put', '/settings', { orders: { deliveryFee: { amount: -5 } } })).status, 400);
         assert.equal((await call('put', '/settings', { orders: { tipOptions: [1, 2, 3, 4, 5, 6] } })).status, 400);
+    });
+
+    test('delivery and pickup are the owner\'s own switches now (at least one stays on); dine-in is not one of the two types', async () => {
+        assert.equal((await call('put', '/settings', { orders: { types: ['pickup'] } })).status, 200);
+        assert.equal((await call('put', '/settings', { orders: { types: ['dine_in'] } })).status, 400);
     });
 
     test('GET /settings shows what he can change, GST read-only', async () => {
