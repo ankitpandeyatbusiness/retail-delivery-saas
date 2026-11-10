@@ -874,6 +874,7 @@ async function announceNews(n) {
 //   others  once: the ting-tong, then the voice.   done: only a soft ping.
 // The same rules as the owner: Soundbox off = silent; the app in the background without "always ready" = the push rings instead.
 export async function staffSay(a, { force } = {}) {
+    if (Platform.OS === 'web') return;   // the website has no Soundbox: no voice, no tone (the on-screen alert and the bell dot still show)
     try {
         if (!a?.kind || !isOwner()) return;
         if (!force && !alertOn(a.kind, 's') && !alertOn(a.kind, 'v')) return;   // the Alerts screen
