@@ -179,7 +179,7 @@ export default function OwnerPlanScreen() {
                         })}
 
                         {pick && pick !== 'partner' && q?.kind !== 'upgrade' && q?.kind !== 'downgrade' ? (
-                            <View style={{ paddingHorizontal: 16 }}>
+                            <View style={{ paddingHorizontal: 16, marginBottom: 14 }}>
                                 <Text style={{ color: muted, fontSize: 12, fontWeight: '700', marginBottom: 6 }}>{tr('How many months')}</Text>
                                 <Chips options={['1', '2', '3', '4', '5', '6'].map((m) => [m, `${m}${o.discounts[m] ? ` · ${o.discounts[m]}% off` : ''}`])} value={months} onChange={setMonths} style={{ marginTop: 0 }} />
                                 {(o.coupons || []).filter((c) => c.plans.includes(pick)).map((c) => {

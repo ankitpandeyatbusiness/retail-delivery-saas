@@ -91,7 +91,7 @@ export default function PlanCouponsScreen() {
 
             <SectionTitle section="money">Coupons</SectionTitle>
             {list === null ? <SkeletonList count={3} /> : !list.length ? <Empty icon="pricetag-outline" title="No coupons yet" hint="Make one above. You can send a push to the shops that can use it." /> : list.map((c) => (
-                <Card key={c.id}>
+                <Card key={c.id} style={{ marginBottom: spacing.md }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm }}>
                         <Text style={{ color: t.text, fontSize: font.lg, fontWeight: '900', flex: 1 }}>{c.code} · {c.pct}% off</Text>
                         <Badge label={!c.active ? 'Off' : c.live ? 'Live' : 'Not live'} tone={!c.active ? 'neutral' : c.live ? 'success' : 'warn'} />

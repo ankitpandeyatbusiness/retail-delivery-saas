@@ -55,7 +55,7 @@ export default function ShopRefundScreen() {
                 <>
                     <SectionTitle section="money">Plan payments</SectionTitle>
                     {!o.plan.length ? <Card><Text style={{ color: t.muted }}>No online plan payments to refund.</Text></Card> : o.plan.map((p) => (
-                        <Card key={p.id}>
+                        <Card key={p.id} style={{ marginBottom: spacing.md }}>
                             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm }}>
                                 <Text style={{ color: t.text, fontWeight: '900', fontSize: font.md, flex: 1 }}>{NAMES[p.to] || p.to} x {p.months} month{p.months > 1 ? 's' : ''}</Text>
                                 {p.status === 'held' ? <Badge label="Held" tone="warn" /> : p.current ? <Badge label="Running" tone="success" /> : null}
@@ -70,7 +70,7 @@ export default function ShopRefundScreen() {
 
                     <SectionTitle section="money">Wallets</SectionTitle>
                     {wallets.map(([kind, label, x]) => (
-                        <Card key={kind}>
+                        <Card key={kind} style={{ marginBottom: spacing.md }}>
                             <Text style={{ color: t.text, fontWeight: '900', fontSize: font.md, marginBottom: spacing.sm }}>{label}</Text>
                             <KeyValue label="Balance now" value={rs(x.balancePaise)} />
                             <KeyValue label="Paid for online (can go back)" value={rs(x.refundableBasePaise)} />
@@ -82,7 +82,7 @@ export default function ShopRefundScreen() {
 
                     <SectionTitle section="money">History</SectionTitle>
                     {!o.history.length ? <Card><Text style={{ color: t.muted }}>No refunds yet.</Text></Card> : o.history.map((h) => (
-                        <Card key={h.id}>
+                        <Card key={h.id} style={{ marginBottom: spacing.md }}>
                             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                                 <Text style={{ color: t.text, fontWeight: '800', flex: 1 }}>{rs(h.cashPaise)} · {h.kind === 'plan' ? 'Plan' : h.kind === 'wallet' ? 'Wallet' : 'SMS'}</Text>
                                 <Badge label={h.status === 'processed' ? 'Sent' : h.status === 'failed' ? 'Failed' : 'Waiting'} tone={h.status === 'processed' ? 'success' : h.status === 'failed' ? 'danger' : 'warn'} />
