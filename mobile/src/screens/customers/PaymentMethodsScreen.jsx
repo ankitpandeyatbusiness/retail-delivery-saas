@@ -19,6 +19,7 @@ import { standardUpiApps } from '../../utils/customers/upiApps';
 import { prewarmPayments } from '../../utils/customers/payOnline';
 import { usePayChoice } from '../../store/customers/usePayChoice';
 import { tr } from '../../i18n';
+import { useIsDesktopWeb } from '../../utils/common/layout';
 
 // one selectable row. `mark` + `color` draw a small app badge, otherwise `icon` is used.
 function MethodCard({ m, index, selected, onPick }) {
@@ -26,6 +27,7 @@ function MethodCard({ m, index, selected, onPick }) {
     const enter = useRef(new Animated.Value(0)).current;
     const press = useRef(new Animated.Value(1)).current;
     const sel = useRef(new Animated.Value(selected ? 1 : 0)).current;
+    const desk = useIsDesktopWeb();   // the desktop website: a roomier card with a hover look (false in the phone app)
 
     useEffect(() => {
         Animated.timing(enter, { toValue: 1, duration: 380, delay: index * 70, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
@@ -45,7 +47,9 @@ function MethodCard({ m, index, selected, onPick }) {
             ],
         }}>
             <Pressable onPress={() => onPick(m)} onPressIn={() => to(0.97)} onPressOut={() => to(1)}
-                style={[s.card, { backgroundColor: surface, borderColor: selected ? primary : border }]}>
+                style={({ hovered }) => [s.card, { backgroundColor: surface, borderColor: selected ? primary : border },
+                    desk && { padding: 20, borderRadius: 20, cursor: 'pointer', transitionProperty: 'border-color, box-shadow', transitionDuration: '200ms' },
+                    desk && hovered && { borderColor: primary, boxShadow: `inset 0 0 0 1px ${primary}, inset 0 0 36px ${primary}26` }]}>
                 <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, s.glow, { backgroundColor: tint(primary), opacity: sel }]} />
                 {m.logo ? (
                     <View style={[s.iconBox, s.logoBox, { borderColor: border }]}>
@@ -176,18 +180,18 @@ export default function PaymentMethodsScreen() {
         ...(apps?.other ? [{ key: 'upi:any', value: 'upi', app: { chooser: true, label: 'UPI' }, label: tr('Other UPI app'), cartLabel: 'UPI', icon: 'phone-portrait-outline', desc: tr('Choose any UPI app on this phone') }] : []),
     ];
 
-    return (
-        <View style={[s.flex, { backgroundColor: background }]}>
-            <BackHeader title={tr('Payment Options')} />
-            <ScrollView contentContainerStyle={s.pad} showsVerticalScrollIndicator={false}>
-                <Animated.View style={[s.secure, {
-                    backgroundColor: tint(primary), opacity: head,
-                    transform: [{ translateY: head.interpolate({ inputRange: [0, 1], outputRange: [-10, 0] }) }],
-                }]}>
-                    <Ionicons name="shield-checkmark-outline" size={20} color={primary} />
-                    <Text style={[s.secureTxt, { color: text }]}>{tr('Your payment details are safe and secure')}</Text>
-                </Animated.View>
-
+    const desk = useIsDesktopWeb();
+    const secure = (
+        <Animated.View style={[s.secure, {
+            backgroundColor: tint(primary), opacity: head,
+            transform: [{ translateY: head.interpolate({ inputRange: [0, 1], outputRange: [-10, 0] }) }],
+        }, desk && { padding: 18, borderRadius: 18, marginBottom: 4 }]}>
+            <Ionicons name="shield-checkmark-outline" size={desk ? 24 : 20} color={primary} />
+            <Text style={[s.secureTxt, { color: text }, desk && { fontSize: 14.5 }]}>{tr('Your payment details are safe and secure')}</Text>
+        </Animated.View>
+    );
+    const onlineBlock = (
+        <>
                 <Text style={[s.title, { color: muted }]}>{tr('PAY ONLINE')}</Text>
                 {cfg.loading || apps === null ? (
                     <MethodSkeleton />
@@ -208,10 +212,40 @@ export default function PaymentMethodsScreen() {
                     </>
                 )}
 
-                {payBill ? null : <Text style={[s.title, { color: muted }]}>{tr('PAY ON DELIVERY')}</Text>}
-                {payBill ? null : <View style={{ opacity: codBlocked ? 0.45 : 1 }}>
+        </>
+    );
+    const cashBlock = payBill ? null : (
+        <>
+                <Text style={[s.title, { color: muted }]}>{tr('PAY ON DELIVERY')}</Text>
+                <View style={{ opacity: codBlocked ? 0.45 : 1 }}>
                     <MethodCard m={cash} index={upiRows.length + 1} selected={picked === 'cod' && !codBlocked} onPick={codBlocked ? () => { } : selectMethod} />
-                </View>}
+                </View>
+        </>
+    );
+
+    if (desk) {
+        // the desktop website: the safe-and-secure line on top, then "pay online" and "pay on delivery" side by side (one column when only one is offered)
+        return (
+            <View style={[s.flex, { backgroundColor: background }]}>
+                <BackHeader title={tr('Payment Options')} />
+                <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 60, width: '100%', maxWidth: 1000, alignSelf: 'center' }} showsVerticalScrollIndicator={false}>
+                    {secure}
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 28, alignItems: 'flex-start' }}>
+                        <View style={{ flex: 1, minWidth: 340 }}>{onlineBlock}</View>
+                        {cashBlock ? <View style={{ flex: 1, minWidth: 340 }}>{cashBlock}</View> : null}
+                    </View>
+                </ScrollView>
+            </View>
+        );
+    }
+
+    return (
+        <View style={[s.flex, { backgroundColor: background }]}>
+            <BackHeader title={tr('Payment Options')} />
+            <ScrollView contentContainerStyle={s.pad} showsVerticalScrollIndicator={false}>
+                {secure}
+                {onlineBlock}
+                {cashBlock}
             </ScrollView>
         </View>
     );

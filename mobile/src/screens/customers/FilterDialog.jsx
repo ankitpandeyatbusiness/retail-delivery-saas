@@ -15,6 +15,7 @@ import SlideNum from '../../components/common/SlideNum';
 import { useHomeStore } from '../../store/customers/useHomeStore';
 import { useFilterStore, applyFilters, countActive } from '../../store/customers/useFilterStore';
 import { tr } from '../../i18n';
+import { useIsDesktopWeb } from '../../utils/common/layout';
 
 const SORT_LABELS = {
     popularity: 'Popular',
@@ -77,6 +78,31 @@ function Mark({ on, radio }) {
 function Opt({ on, label, onPress, radio }) {
     const { primary, text } = useBrand();
     const a = useFade(on);
+    const desk = useIsDesktopWeb();
+    if (desk) {
+        // the desktop website: a roomier row; under the mouse it gets a soft tint, a ring inside its edge and its text turns the shop's colour
+        return (
+            <Pressable
+                onPress={onPress}
+                accessibilityRole={radio ? 'radio' : 'checkbox'}
+                accessibilityState={{ selected: !!on }}
+                style={({ hovered }) => [s.opt, {
+                    paddingVertical: 11, paddingHorizontal: 12, borderRadius: 12, cursor: 'pointer',
+                    boxShadow: hovered && !on ? `inset 0 0 0 1px ${primary}55` : 'inset 0 0 0 0 transparent',
+                    backgroundColor: hovered && !on ? `${primary}0F` : 'transparent',
+                    transitionProperty: 'background-color, box-shadow', transitionDuration: '160ms',
+                }]}
+            >
+                {({ hovered }) => (
+                    <>
+                        <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { borderRadius: 12, backgroundColor: tint(primary), opacity: a }]} />
+                        <Mark on={on} radio={radio} />
+                        <Text style={[s.optTxt, { color: on || hovered ? primary : text, fontSize: 14.5, fontWeight: on ? '800' : '600', transitionProperty: 'color', transitionDuration: '160ms' }]}>{tr(label)}</Text>
+                    </>
+                )}
+            </Pressable>
+        );
+    }
     return (
         <Press onPress={onPress}>
             <View style={s.opt}>
@@ -91,6 +117,24 @@ function Opt({ on, label, onPress, radio }) {
 function Pill({ on, label, onPress }) {
     const { primary, text, border } = useBrand();
     const a = useFade(on);
+    const desk = useIsDesktopWeb();
+    if (desk) {
+        return (
+            <Pressable
+                onPress={onPress}
+                accessibilityRole="button"
+                accessibilityState={{ selected: !!on }}
+                style={({ hovered }) => ({
+                    marginRight: 10, marginBottom: 10, paddingHorizontal: 18, paddingVertical: 10, borderWidth: 1.5, borderRadius: 22, alignItems: 'center', justifyContent: 'center',
+                    borderColor: on || hovered ? primary : border, backgroundColor: on ? tint(primary) : hovered ? `${primary}0F` : 'transparent',
+                    boxShadow: hovered && !on ? `0 4px 14px ${primary}26` : '0 0 0 rgba(0,0,0,0)', transform: [{ scale: hovered && !on ? 1.05 : 1 }],
+                    cursor: 'pointer', transitionProperty: 'background-color, border-color, box-shadow, transform', transitionDuration: '170ms',
+                })}
+            >
+                <Text style={[s.pillTxt, { color: on ? primary : text, fontSize: 13.5 }]}>{tr(label)}</Text>
+            </Pressable>
+        );
+    }
     return (
         <Press onPress={onPress} style={{ marginRight: 8, marginBottom: 8 }}>
             <View style={[s.pill, { borderColor: border }]}>
@@ -116,6 +160,7 @@ function Section({ title, index, sect, children }) {
 
 export default function FilterDialog({ visible, onClose, items }) {
     const closedStyle = useClosedStyle();   // the shop is closed: this popup turns grey
+    const deskWeb = useIsDesktopWeb();   // the desktop website: always the centred dialog, with two columns
     const { primary, radius, text, muted, background, border, surface } = useBrand();
     const insets = useSafeAreaInsets();
     const config = useHomeStore((st) => st.config);
@@ -233,7 +278,7 @@ export default function FilterDialog({ visible, onClose, items }) {
         return () => t.stop();
     }, [active]);
     const style = useThemeStore((st) => st.theme.filterStyle) || 'dialog';   // dialog | sheet | rail
-    const sheetLike = style !== 'dialog';
+    const sheetLike = style !== 'dialog' && !deskWeb;
 
     // every section once: its title, how many are on, and its options
     const secs = [];
@@ -260,6 +305,18 @@ export default function FilterDialog({ visible, onClose, items }) {
     }
     if (filters.includes('serves')) {
         secs.push({ key: 'serves', title: tr('Serves'), n: f.serves ? 1 : 0, body: <View style={s.wrapRow}>{SERVES.map((n) => <Pill key={n} on={f.serves === n} label={`${n}+`} onPress={() => f.setServes(n)} />)}</View> });
+    }
+
+    // the desktop dialog: two columns, each section goes under the shorter one so they end up about the same height
+    const deskCols = [[], []];
+    if (deskWeb) {
+        const hts = [0, 0];
+        secs.forEach((x) => {
+            const w = 2 + (Array.isArray(x.body) ? x.body.length * 1.6 : 2.6);
+            const c = hts[0] <= hts[1] ? 0 : 1;
+            deskCols[c].push(x);
+            hts[c] += w;
+        });
     }
 
     // rail: which section is open on the right
@@ -310,7 +367,7 @@ export default function FilterDialog({ visible, onClose, items }) {
         </View>
     ) : (
         <View style={s.foot}>
-            <Press onPress={onClose} wrap={{ flex: 1 }} style={[s.btn, { backgroundColor: showBg, borderRadius: radius, marginTop: 14 }]}>
+            <Press onPress={onClose} hover={{ filter: 'brightness(1.1)' }} wrap={{ flex: 1 }} style={[s.btn, { backgroundColor: showBg, borderRadius: radius, marginTop: deskWeb ? 18 : 14 }, deskWeb && { paddingVertical: 16 }]}>
                 {showRow}
             </Press>
         </View>
@@ -318,16 +375,16 @@ export default function FilterDialog({ visible, onClose, items }) {
 
     const header = (
         <View style={s.top}>
-            <Text style={[s.title, { color: text }]}>{tr('Filters')}</Text>
+            <Text style={[s.title, { color: text }, deskWeb && { fontSize: 24 }]}>{tr('Filters')}</Text>
             <View style={s.topR}>
                 {!sheetLike ? (
                     <Animated.View pointerEvents={active ? 'auto' : 'none'} style={{ opacity: clearA, transform: [{ scale: clearA.interpolate({ inputRange: [0, 1], outputRange: [0.85, 1] }) }] }}>
-                        <Pressable onPress={() => f.clear()} hitSlop={10}>
-                            <Text style={[s.clear, { color: primary }]}>{tr('Clear all')}</Text>
+                        <Pressable onPress={() => f.clear()} hitSlop={10} style={({ hovered }) => (deskWeb ? { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 14, marginRight: 8, cursor: 'pointer', backgroundColor: hovered ? tint(primary) : 'transparent', transitionProperty: 'background-color', transitionDuration: '150ms' } : null)}>
+                            <Text style={[s.clear, { color: primary }, deskWeb && { marginRight: 0 }]}>{tr('Clear all')}</Text>
                         </Pressable>
                     </Animated.View>
                 ) : null}
-                <Pressable onPress={onClose} hitSlop={10} style={[s.x, { backgroundColor: surface, borderColor: border }]}>
+                <Pressable onPress={onClose} hitSlop={10} style={({ hovered }) => [s.x, { backgroundColor: surface, borderColor: border }, deskWeb && { width: 36, height: 36, borderRadius: 18, cursor: 'pointer', transitionProperty: 'background-color, border-color, transform', transitionDuration: '150ms' }, deskWeb && hovered && { backgroundColor: tint(primary), borderColor: primary, transform: [{ rotate: '90deg' }] }]}>
                     <Ionicons name="close" size={16} color={text} />
                 </Pressable>
             </View>
@@ -341,7 +398,7 @@ export default function FilterDialog({ visible, onClose, items }) {
                 <View style={[s.wrap, closedStyle]}>
                     <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, s.backdrop, { opacity: prog }]} />
                     <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-                    <Animated.View style={[s.card, {
+                    <Animated.View style={[s.card, deskWeb && { maxWidth: style === 'rail' ? 780 : style === 'sheet' ? 580 : 800, maxHeight: '88%', padding: 28, borderRadius: 26, boxShadow: '0 30px 80px rgba(0,0,0,0.38)' }, deskWeb && style === 'rail' && { height: '80%', maxHeight: 620 }, {
                         backgroundColor: background,
                         opacity: prog,
                         transform: [
@@ -350,9 +407,45 @@ export default function FilterDialog({ visible, onClose, items }) {
                         ],
                     }]}>
                         {header}
+                        {deskWeb && style === 'rail' ? (
+                            // the shop chose the side-rail style: the sections on the left, the open one's options on the right
+                            <View style={{ flex: 1, flexDirection: 'row', marginTop: 14, borderTopWidth: 1, borderTopColor: border }}>
+                                <View style={{ width: 200, paddingTop: 12, paddingRight: 12, borderRightWidth: 1, borderRightColor: border }}>
+                                    <ScrollView showsVerticalScrollIndicator={false}>
+                                        {secs.map((x) => {
+                                            const on = x.key === openKey;
+                                            return (
+                                                <Pressable key={x.key} onPress={() => setTab(x.key)} style={({ hovered }) => ({ flexDirection: 'row', alignItems: 'center', paddingVertical: 13, paddingHorizontal: 14, marginBottom: 4, borderRadius: 12, cursor: 'pointer', backgroundColor: on ? tint(primary) : hovered ? `${primary}0F` : 'transparent', transitionProperty: 'background-color', transitionDuration: '150ms' })}>
+                                                    <View style={{ width: 4, height: 20, borderRadius: 2, marginRight: 10, backgroundColor: on ? primary : 'transparent' }} />
+                                                    <Text style={{ flex: 1, fontSize: 14.5, color: on ? primary : text, fontWeight: on ? '900' : '700' }} numberOfLines={1}>{tr(x.title)}</Text>
+                                                    {x.n ? <View style={[s.railN, { backgroundColor: primary }]}><Text style={s.railNTxt}>{x.n}</Text></View> : null}
+                                                </Pressable>
+                                            );
+                                        })}
+                                    </ScrollView>
+                                </View>
+                                <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingLeft: 24, paddingTop: 4, paddingBottom: 8 }} showsVerticalScrollIndicator={false}>
+                                    {openSec ? (
+                                        <FadeIn key={openKey} distance={8}>
+                                            <Text style={[s.h, { color: text }]}>{tr(openSec.title)}</Text>
+                                            {openSec.body}
+                                        </FadeIn>
+                                    ) : null}
+                                </ScrollView>
+                            </View>
+                        ) : (
                         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 6 }}>
-                            {secs.map((x, i) => <Section key={x.key} title={x.title} index={i} sect={sect}>{x.body}</Section>)}
+                            {deskWeb && style === 'dialog' ? (
+                                <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 36 }}>
+                                    {deskCols.map((col, ci) => (
+                                        <View key={ci} style={{ flex: 1, minWidth: 0 }}>
+                                            {col.map((x) => <Section key={x.key} title={x.title} index={secs.indexOf(x)} sect={sect}>{x.body}</Section>)}
+                                        </View>
+                                    ))}
+                                </View>
+                            ) : secs.map((x, i) => <Section key={x.key} title={x.title} index={i} sect={sect}>{x.body}</Section>)}
                         </ScrollView>
+                        )}
                         {footer}
                     </Animated.View>
                 </View>
