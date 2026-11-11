@@ -39,8 +39,28 @@ async function share(file, order) {
     await Sharing.shareAsync(file.uri, { mimeType: 'application/pdf', dialogTitle: nameOf(order), UTI: 'com.adobe.pdf' });
 }
 
+// The website has no phone PDF viewer or share sheet: View opens the PDF in a new browser tab, Download saves invoice-<no>.pdf with the browser's own download.
+async function webInvoice(order, setBusy, mode) {
+    const tab = mode === 'view' ? window.open('', '_blank') : null;   // opened at once, on the click, so a pop-up blocker lets it through
+    if (setBusy) setBusy(true);
+    try {
+        const res = await api.get(order.invoicePath || `/orders/${order.id}/invoice`, { responseType: 'arraybuffer' });
+        const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+        if (mode === 'view') {
+            if (tab) tab.location.href = url; else window.open(url, '_blank');
+        } else {
+            const a = document.createElement('a');
+            a.href = url; a.download = nameOf(order);
+            document.body.appendChild(a); a.click(); a.remove();
+            showToast(tr('Saved {nameOf}', { nameOf: nameOf(order) }));
+        }
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } catch (e) { if (tab) tab.close(); fail(e); } finally { if (setBusy) setBusy(false); }
+}
+
 // Tap on an invoice: opens the PDF in the phone's PDF viewer.
 export async function viewInvoice(order, setBusy) {
+    if (Platform.OS === 'web') return webInvoice(order, setBusy, 'view');
     if (setBusy) setBusy(true);
     try {
         const { file } = await fetchPdf(order);
@@ -74,6 +94,7 @@ function sub(dir, name) {
 
 // Download button: saves invoice-<orderNo>.pdf inside Downloads/<Restaurant>/Invoices/<Month-Year>
 export async function saveInvoice(order, setBusy) {
+    if (Platform.OS === 'web') return webInvoice(order, setBusy, 'save');
     if (setBusy) setBusy(true);
     try {
         const { file, bytes } = await fetchPdf(order);
