@@ -57,6 +57,36 @@ test('the manifest is the shop\'s own, fetched from the API with the shop name f
     } finally { globalThis.fetch = realFetch; }
 });
 
+test('Terms and Privacy are public pages on every shop address, with that shop\'s name, no login', async () => {
+    const seen = [];
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = async (url) => { seen.push(String(url)); return new Response('<html>terms</html>', { status: 200 }); };
+    try {
+        calls.length = 0;
+        for (const [path, page] of [['/terms', 'terms'], ['/privacy/', 'privacy'], ['/about', 'about'], ['/legal/rider-terms', 'rider-terms']]) {
+            const r = await ask(`https://savera.vivyaan.co.in${path}`);
+            assert.equal(r.status, 200, path);
+            assert.match(r.headers.get('content-type'), /text\/html/);
+            assert.equal(r.headers.get('cache-control'), 'public, max-age=60');
+            assert.equal(seen.at(-1), `https://api.example.com/legal/${page}?shop=savera`, 'the API root, not /api; the shop from the address');
+        }
+        await ask('https://burger-king.vivyaan.co.in/terms');
+        assert.equal(seen.at(-1), 'https://api.example.com/legal/terms?shop=burger-king', 'another shop gets its own name');
+        assert.equal(calls.length, 0, 'the app files are not served for these');
+
+        // not a legal page: the app (or its files) as before
+        await ask('https://savera.vivyaan.co.in/orders');
+        assert.deepEqual(calls[0], ['asset', '/orders']);
+        await ask('https://savera.vivyaan.co.in/legal/secret');
+        assert.deepEqual(calls[1], ['asset', '/legal/secret']);
+
+        globalThis.fetch = async () => { throw new Error('down'); };
+        assert.equal((await ask('https://savera.vivyaan.co.in/terms')).status, 502);
+        globalThis.fetch = async () => new Response('x', { status: 404 });
+        assert.equal((await ask('https://savera.vivyaan.co.in/terms')).status, 404);
+    } finally { globalThis.fetch = realFetch; }
+});
+
 test('the bare domain, www and other domains are not shops, and only reads are served', async () => {
     calls.length = 0;
     for (const u of ['https://vivyaan.co.in/', 'https://www.vivyaan.co.in/', 'https://other.example.com/']) assert.equal((await ask(u)).status, 404, u);

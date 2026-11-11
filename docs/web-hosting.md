@@ -43,3 +43,17 @@ Changing only the API (Render) needs no website deploy.
 
 ## Not done yet (later)
 A shop's own domain (Pro): `docs/custom-domain-plan.md` (Cloudflare for SaaS).
+
+## Public Terms and Privacy links (for Razorpay, the store listing, anybody)
+Every shop gets these pages, no login, with its own name filled in (the Worker asks the API's `/legal` pages, shop = first part of the address):
+- `https://<shop>.vivyaan.co.in/terms`
+- `https://<shop>.vivyaan.co.in/privacy`
+- `https://<shop>.vivyaan.co.in/about`
+- also `/legal/owner-terms`, `/legal/owner-privacy`, `/legal/rider-terms`, `/legal/rider-privacy`, `/legal/staff-terms`, `/legal/staff-privacy`
+
+Works once the Worker is deployed and `API_BASE` is set. Before the domain exists, the same pages are at `<API>/legal/terms?shop=<slug>` on the API itself.
+A text published in the superadmin legal editor shows on these pages within about a minute.
+
+## Addresses inside the website (mobile/src/navigation/webLinking.js)
+The website has real addresses, so refresh, bookmarks, shared links and the browser's Back button work: `/home /search /orders /cart /account /item/<id> /orders/<id> /checkout /terms /privacy`, owner `/owner /owner/orders /owner/menu /owner/coupons ...`, rider `/rider /rider/trip/<id>`, kitchen/waiter `/staff`. `/` itself keeps the old rule (logged in = tabs, logged out = Login).
+A link opened straight gets the tabs underneath it, so the Back arrow always has somewhere to go. Five screens have no address on purpose because a refresh could not rebuild them (OrderPlaced, CardDetails, OwnerPay, OwnerStub, Chat). A new screen needs one line in `SCREEN_PATHS`.

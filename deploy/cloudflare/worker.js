@@ -30,6 +30,7 @@ function cacheFor(pathname) {
     if (pathname.startsWith('/_expo/static/') || pathname.startsWith('/assets/')) return 'public, max-age=31536000, immutable';
     if (pathname.startsWith('/icons/')) return 'public, max-age=86400';
     if (pathname === '/manifest.webmanifest') return 'public, max-age=300';
+    if (pathname === '/legal') return 'public, max-age=60';   // the public Terms / Privacy pages: a published change shows within a minute
     return 'no-cache';   // /, /index.html, /sw.js and every page address
 }
 
@@ -55,6 +56,31 @@ async function manifest(shop, env) {
     return new Response(r.body, { status: 200, headers: { 'Content-Type': 'application/manifest+json; charset=utf-8' } });
 }
 
+// The public pages of a shop, with NO login, for Razorpay, the store listing and anybody:
+//   https://<shop>.vivyaan.co.in/terms   /privacy   /about      (short links)
+//   https://<shop>.vivyaan.co.in/legal/terms   /legal/privacy   /legal/about   /legal/owner-terms ...   (the API's list, backend/src/routes/publicLegalRouter.js)
+// The texts come from the API with the shop's name filled in; the shop is the first part of the address.
+const LEGAL_PAGES = new Set(['terms', 'privacy', 'about', 'owner-terms', 'owner-privacy', 'rider-terms', 'rider-privacy', 'staff-terms', 'staff-privacy']);
+const SHORT = new Set(['terms', 'privacy', 'about']);
+export function legalPageOf(pathname) {
+    const p = String(pathname || '').replace(/\/+$/, '').toLowerCase();
+    const m = p.match(/^\/legal\/([a-z-]+)$/) || p.match(/^\/([a-z]+)$/);
+    if (!m) return null;
+    const page = m[1];
+    if (p.startsWith('/legal/')) return LEGAL_PAGES.has(page) ? page : null;
+    return SHORT.has(page) ? page : null;
+}
+
+async function legal(shop, page, env) {
+    let r;
+    try {
+        const origin = new URL(env.API_BASE).origin;   // the /legal pages sit at the root of the API, not under /api
+        r = await fetch(`${origin}/legal/${page}?shop=${encodeURIComponent(shop)}`, { cf: { cacheTtl: 60, cacheEverything: true } });
+    } catch (e) { return text(502, 'Could not reach the shop'); }
+    if (!r.ok) return text(r.status === 404 ? 404 : 502, 'Could not load this page');
+    return new Response(r.body, { status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+}
+
 export default {
     async fetch(request, env) {
         const url = new URL(request.url);
@@ -63,6 +89,8 @@ export default {
         if (!shop) return text(404, 'Not found');
 
         if (url.pathname === '/manifest.webmanifest') return withHeaders(await manifest(shop, env), url.pathname);
+        const page = legalPageOf(url.pathname);
+        if (page) return withHeaders(await legal(shop, page, env), '/legal');
         // every other address: a file of the website, or (for a page address such as /orders) the app itself (assets > not_found_handling = single-page-application)
         return withHeaders(await env.ASSETS.fetch(request), url.pathname);
     },
