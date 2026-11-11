@@ -11,6 +11,8 @@ import { useDock, useCrowded } from '../../store/customers/useDock';
 import { useTableBill } from '../../store/customers/useTableBill';
 import { onNotification } from '../../api/common/socket';
 import { tr } from '../../i18n';
+import { useCustomerDesktop } from '../../utils/common/layout';
+import { useDeskBottom, DeskSlotReport } from './DeskSlot';
 
 const TAB_H = 62;
 const HIDE_ON = ['TableBill', 'Cart', 'Item', 'OrderPlaced'];
@@ -22,7 +24,10 @@ export default function TableBillStrip({ routeName, onOpen, onOpenCart }) {
     const cartCount = useCartStore((s) => s.lines.reduce((a, l) => a + l.quantity, 0));   // dishes in the cart: shown as a row of this card
     const cartTotal = useCartStore((s) => s.lines.reduce((a, l) => a + l.quantity * l.price, 0));
     const insets = useSafeAreaInsets();
-    const { primary, onPrimary, error } = useBrand();
+    const desk = useCustomerDesktop();   // the desktop website: a card in the bottom-left corner (false in the phone app)
+    const [cardH, setCardH] = useState(0);   // its real height, told to the stack so the cards above it rise
+    const stackBottom = useDeskBottom('table');
+    const { primary, primaryLight, primaryDark, onPrimary, error } = useBrand();
     const [hidden, setHidden] = useState(false);   // he hid the bar: a small chip stays to bring it back
     const [barH, setBarH] = useState(60);   // the round chip is as tall as the bar
     const away = useRef(new Animated.Value(0)).current;   // 0 = bar shown, 1 = hidden
@@ -49,15 +54,16 @@ export default function TableBillStrip({ routeName, onOpen, onOpenCart }) {
     if (!enabled || !bill?.open || HIDE_ON.includes(routeName) || crowded) return null;
     const asked = bill.status === 'bill_asked';
     const rounds = bill.rounds.length;
-    const bottom = insets.bottom + TAB_H + 18;
+    const bottom = desk ? stackBottom : insets.bottom + TAB_H + 18;
     return (
         <>
-        <Animated.View pointerEvents={hidden ? 'none' : 'auto'} style={{ position: 'absolute', left: 12, right: 12, bottom, opacity: away.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }), transform: [{ translateX: away.interpolate({ inputRange: [0, 1], outputRange: [0, Dimensions.get('window').width] }) }] }}>
-        <View style={{ borderRadius: 18, backgroundColor: asked ? error : primary, elevation: 8 }}>
+        {desk ? <DeskSlotReport k="table" h={hidden ? 56 : cardH} /> : null}
+        <Animated.View onLayout={(e) => { const h = Math.round(e.nativeEvent.layout.height); if (h && h !== cardH) setCardH(h); }} pointerEvents={hidden ? 'none' : 'auto'} style={{ position: 'absolute', ...(desk ? { left: 24, width: 400 } : { left: 12, right: 12 }), bottom, opacity: away.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }), transform: desk ? [{ scale: away.interpolate({ inputRange: [0, 1], outputRange: [1, 0.55] }) }] : [{ translateX: away.interpolate({ inputRange: [0, 1], outputRange: [0, Dimensions.get('window').width] }) }], ...(desk ? { transformOrigin: 'left bottom' } : null) }}>
+        <View style={[{ borderRadius: 18, backgroundColor: asked ? error : primary, elevation: 8 }, desk && { borderRadius: 22, backgroundImage: asked ? undefined : `linear-gradient(120deg, ${primaryLight || primary}, ${primaryDark || primary})`, boxShadow: `0 14px 36px ${asked ? error : primary}55`, overflow: 'hidden' }]}>
         <Pressable
             onPress={onOpen}
             onLayout={(e) => { const h = Math.round(e.nativeEvent.layout.height); if (h > 0 && h !== barH) setBarH(h); }}
-            style={{ paddingVertical: 12, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center' }}
+            style={({ hovered }) => [{ paddingVertical: 12, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center' }, desk && { paddingVertical: 16, paddingHorizontal: 18, cursor: 'pointer', backgroundColor: hovered ? 'rgba(255,255,255,0.14)' : 'transparent', transitionProperty: 'background-color', transitionDuration: '180ms' }]}
         >
             <Ionicons name={asked ? 'receipt' : 'restaurant'} size={20} color={onPrimary} />
             <View style={{ flex: 1, marginLeft: 10 }}>
@@ -74,7 +80,7 @@ export default function TableBillStrip({ routeName, onOpen, onOpenCart }) {
                 <Ionicons name="chevron-down" size={18} color={onPrimary} />
             </Pressable>
         </Pressable>
-        {cartCount > 0 ? (
+        {cartCount > 0 && !desk ? (
             <Pressable onPress={onOpenCart} accessibilityRole="button" accessibilityLabel={tr('View cart')}
                 style={{ marginHorizontal: 8, marginBottom: 8, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.22)', flexDirection: 'row', alignItems: 'center' }}>
                 <Ionicons name="bag-handle" size={18} color={onPrimary} />
@@ -85,10 +91,10 @@ export default function TableBillStrip({ routeName, onOpen, onOpenCart }) {
         ) : null}
         </View>
         </Animated.View>
-        <Animated.View pointerEvents={hidden ? 'auto' : 'none'} style={{ position: 'absolute', right: 12, bottom, opacity: away, transform: [{ translateX: away.interpolate({ inputRange: [0, 1], outputRange: [70, 0] }) }, { rotate: away.interpolate({ inputRange: [0, 1], outputRange: ['180deg', '0deg'] }) }] }}>
+        <Animated.View pointerEvents={hidden ? 'auto' : 'none'} style={{ position: 'absolute', ...(desk ? { left: 24 } : { right: 12 }), bottom, opacity: away, transform: desk ? [{ scale: away.interpolate({ inputRange: [0, 1], outputRange: [0.4, 1] }) }] : [{ translateX: away.interpolate({ inputRange: [0, 1], outputRange: [70, 0] }) }, { rotate: away.interpolate({ inputRange: [0, 1], outputRange: ['180deg', '0deg'] }) }], ...(desk ? { transformOrigin: 'left bottom' } : null) }}>
             <Pressable onPress={() => setHidden(false)} hitSlop={8} accessibilityRole="button" accessibilityLabel={tr('Show')}
-                style={{ width: barH, height: barH, borderRadius: barH / 2, backgroundColor: asked ? error : primary, alignItems: 'center', justifyContent: 'center', elevation: 8 }}>
-                <Ionicons name={asked ? 'receipt' : 'restaurant'} size={Math.round(barH * 0.42)} color={onPrimary} />
+                style={({ hovered }) => [{ width: barH, height: barH, borderRadius: barH / 2, backgroundColor: asked ? error : primary, alignItems: 'center', justifyContent: 'center', elevation: 8 }, desk && { width: 56, height: 56, minWidth: 56, borderRadius: 28, paddingHorizontal: 0, boxShadow: hovered ? '0 12px 30px rgba(0,0,0,0.5)' : '0 10px 28px rgba(0,0,0,0.4)', transform: [{ scale: hovered ? 1.08 : 1 }], cursor: 'pointer', transitionProperty: 'transform, box-shadow', transitionDuration: '170ms' }]}>
+                <Ionicons name={asked ? 'receipt' : 'restaurant'} size={desk ? 24 : Math.round(barH * 0.42)} color={onPrimary} />
                 {cartCount > 0 ? (
                     <View style={{ position: 'absolute', top: -2, right: -2, minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 5, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: asked ? error : primary }}>
                         <Text style={{ color: asked ? error : primary, fontWeight: '900', fontSize: 11 }}>{cartCount}</Text>

@@ -2,6 +2,7 @@
 // When two or more are there, none of them is drawn: the round dock (components/customers/BottomDock.jsx) is shown instead, with their icons on it.
 // entry = { icon, label, sub?, route, params? }. 'track' (the live delivery) and 'order' (an order in progress) are one place, 'track' first. 'track2' is a second delivery on its way.
 import { create } from 'zustand';
+import { useCustomerDesktop } from '../../utils/common/layout';
 
 export const useDock = create((set) => ({
     items: {},
@@ -16,4 +17,9 @@ export const useDock = create((set) => ({
 const ORDER = ['table', 'track', 'track2', 'order', 'booking', 'cart'];   // nearest to the round button first: the dine in table matters most
 export const dockList = (items) => ORDER.filter((k) => items[k] && !(k === 'order' && items.track)).map((k) => ({ key: k, ...items[k] }));
 // true for a card when it should not be drawn because the dock shows it
-export const useCrowded = (key) => useDock((s) => !!s.items[key] && dockList(s.items).length >= 2);
+// (the desktop website has no round dock: there every card is drawn in its own place, so none is ever crowded out)
+export function useCrowded(key) {
+    const desk = useCustomerDesktop();
+    const many = useDock((s) => !!s.items[key] && dockList(s.items).length >= 2);
+    return many && !desk;
+}

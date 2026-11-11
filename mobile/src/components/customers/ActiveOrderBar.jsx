@@ -20,6 +20,8 @@ import { queueText } from './QueueLine';
 import { useDock, useCrowded } from '../../store/customers/useDock';
 import { useBookingCard } from '../../store/customers/useBookingCard';
 import { tr } from '../../i18n';
+import { useCustomerDesktop } from '../../utils/common/layout';
+import { useDeskBottom, DeskSlotReport } from './DeskSlot';
 
 const HIDE_ON = ['Login', 'Cart', 'Item', 'OrderPlaced', 'OrderDetail', 'CardDetails', 'PaymentMethods', 'Orders', 'BulkOrderDetail'];
 const BULK_WORDS = { confirmed: 'accepted', preparing: 'preparing', ready: 'ready' };   // a bulk order's steps, in the words the bar already has
@@ -41,6 +43,9 @@ export default function ActiveOrderBar({ routeName, onOpen, onOpenAll }) {
     const liveOffset = useLiveTripStore((s) => s.liveOffset);   // room taken above the tabs by the delivery bar: this bar sits above it
     const [orders, setOrders] = useState([]);
     const insets = useSafeAreaInsets();
+    const desk = useCustomerDesktop();   // the desktop website: the card is a small card in the bottom-left corner (false in the phone app)
+    const [cardH, setCardH] = useState(0);   // its real height, told to the stack so the cards above it rise
+    const stackBottom = useDeskBottom('order');
     const { primary, text, muted, surface, border } = useBrand();
     const busy = useRef(false);
     const pulse = useRef(new Animated.Value(1)).current;
@@ -113,23 +118,26 @@ export default function ActiveOrderBar({ routeName, onOpen, onOpenAll }) {
     if (!enabled || !first || crowded) return null;
     const many = orders.length > 1;
     const [icon, words] = WORDS[first.status] || ['receipt-outline', 'In progress'];
-    const bottom = insets.bottom + TAB_H + 18;
+    const bottom = desk ? stackBottom : insets.bottom + TAB_H + 18;
 
     return (
         <>
+        {desk && show ? <DeskSlotReport k="order" h={hidden ? 56 : cardH} /> : null}
         <Animated.View
+            onLayout={(e) => { const h = Math.round(e.nativeEvent.layout.height); if (h && h !== cardH) setCardH(h); }}
             pointerEvents={show && !hidden ? 'box-none' : 'none'}
             style={{
-                position: 'absolute', left: 12, right: 12, bottom,
+                position: 'absolute', ...(desk ? { left: 24, width: 400 } : { left: 12, right: 12 }), bottom,
                 opacity: Animated.multiply(slide, away.interpolate({ inputRange: [0, 1], outputRange: [1, 0] })),
-                transform: [
+                transform: desk ? [{ scale: Animated.multiply(slide.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1] }), away.interpolate({ inputRange: [0, 1], outputRange: [1, 0.55] })) }] : [
                     { translateY: Animated.add(slide.interpolate({ inputRange: [0, 1], outputRange: [bottom + 90, 0] }), Animated.add(Animated.multiply(lift, -1), Animated.multiply(away, bottom + 90))) },
                 ],
+                ...(desk ? { transformOrigin: 'left bottom' } : null),
             }}
         >
             <Pressable
                 onPress={() => (many ? onOpenAll() : onOpen(String(first.id || first._id), first))}
-                style={[s.bar, { backgroundColor: surface, borderColor: border }]}
+                style={({ hovered }) => [s.bar, { backgroundColor: surface, borderColor: border }, desk && { borderRadius: 20, paddingVertical: 12, ...(hovered ? { borderColor: primary } : null), boxShadow: hovered ? `0 16px 40px ${primary}33, inset 0 0 0 1px ${primary}` : '0 10px 30px rgba(0,0,0,0.18)', transform: [{ translateY: hovered ? -3 : 0 }], cursor: 'pointer', transitionProperty: 'box-shadow, transform, border-color', transitionDuration: '200ms' }]}
                 accessibilityRole="button" accessibilityLabel={tr('View your active order')}
             >
                 <View style={[s.ic, { backgroundColor: tint(primary) }]}>
@@ -154,9 +162,9 @@ export default function ActiveOrderBar({ routeName, onOpen, onOpenAll }) {
         {/* hidden: a small chip stays, to bring the bar back */}
         <Animated.View
             pointerEvents={show && hidden ? 'auto' : 'none'}
-            style={{ position: 'absolute', right: 14, bottom, opacity: Animated.multiply(slide, away), transform: [{ translateY: Animated.add(Animated.multiply(lift, -1), away.interpolate({ inputRange: [0, 1], outputRange: [60, 0] })) }] }}
+            style={{ position: 'absolute', ...(desk ? { left: 24 } : { right: 14 }), bottom, opacity: Animated.multiply(slide, away), transform: desk ? [{ scale: away.interpolate({ inputRange: [0, 1], outputRange: [0.4, 1] }) }] : [{ translateY: Animated.add(Animated.multiply(lift, -1), away.interpolate({ inputRange: [0, 1], outputRange: [60, 0] })) }], ...(desk ? { transformOrigin: 'left bottom' } : null) }}
         >
-            <Pressable onPress={() => setHidden(false)} style={[s.chip, { backgroundColor: primary }]} accessibilityRole="button" accessibilityLabel={tr('Show your active order')}>
+            <Pressable onPress={() => setHidden(false)} style={({ hovered }) => [s.chip, { backgroundColor: primary }, desk && { width: 56, height: 56, minWidth: 56, borderRadius: 28, paddingHorizontal: 0, boxShadow: hovered ? '0 12px 30px rgba(0,0,0,0.5)' : '0 10px 28px rgba(0,0,0,0.4)', transform: [{ scale: hovered ? 1.08 : 1 }], cursor: 'pointer', transitionProperty: 'transform, box-shadow', transitionDuration: '170ms' }]} accessibilityRole="button" accessibilityLabel={tr('Show your active order')}>
                 <Ionicons name="receipt-outline" size={20} color="#FFFFFF" />
                 <Ionicons name="chevron-up" size={16} color="#FFFFFF" style={{ marginLeft: 2 }} />
             </Pressable>

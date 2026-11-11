@@ -31,6 +31,8 @@ import { useMenuStore } from '../../store/customers/shopStores';
 import { useHomeStore } from '../../store/customers/useHomeStore';
 import { playSfx, buzz } from '../../utils/common/sfx';
 import { tr } from '../../i18n';
+import { useCustomerDesktop } from '../../utils/common/layout';
+import { useDeskBottom, DeskSlotReport } from './DeskSlot';
 
 // screens where the bar would sit on top of something the customer is using
 const HIDE_ON = ['Login', 'Cart', 'Item', 'OrderPlaced', 'OrderDetail', 'CardDetails', 'PaymentMethods'];
@@ -101,7 +103,10 @@ export default function LiveOrderHost({ routeName, onOpenOrder }) {
     const mapStyle = useMapStyle();
     const spot = useStoreSpot();   // the shop's pin: the start of the way
     const insets = useSafeAreaInsets();
-    const { height: H } = useWindowDimensions();
+    const desk = useCustomerDesktop();   // the desktop website: the card is a small card in the bottom-left corner (false in the phone app)
+    const [cardH, setCardH] = useState(0);   // its real height, told to the stack so the cards above it rise
+    const stackBottom = useDeskBottom('track');
+    const { height: H, width: W } = useWindowDimensions();
     const now = useNow(20000);
 
     // the customer can slide the bar down out of the way; a small chip brings it back
@@ -150,11 +155,20 @@ export default function LiveOrderHost({ routeName, onOpenOrder }) {
         if (order[i] === sheetRef.current) snapTo(order[i]); else setSheet(order[i]);
     }, [VISIBLE, snapTo, setSheet]);
     const pan = useMemo(() => Gesture.Pan()
+        .enabled(!desk)
         .onStart(() => { 'worklet'; cancelAnimation(y); startY.value = y.value; })
         .onUpdate((e) => { 'worklet'; y.value = Math.min(SHEET_H, Math.max(SHEET_H - VISIBLE.full, startY.value + e.translationY)); })
         .onEnd((e) => { 'worklet'; runOnJS(settleDrag)(SHEET_H - y.value, e.velocityY / 1000); }),
-    [y, startY, SHEET_H, VISIBLE, settleDrag]);
+    [y, startY, SHEET_H, VISIBLE, settleDrag, desk]);
     const sheetMove = useAnimatedStyle(() => ({ transform: [{ translateY: y.value }] }));
+
+    // the website: Escape closes the map window
+    useEffect(() => {
+        if (!desk || sheet === 'bar' || typeof document === 'undefined') return undefined;
+        const k = (e) => { if (e.key === 'Escape') setSheet('bar'); };
+        document.addEventListener('keydown', k);
+        return () => document.removeEventListener('keydown', k);
+    }, [desk, sheet, setSheet]);
 
     // Back shrinks the sheet to the bar
     useEffect(() => {
@@ -198,19 +212,21 @@ export default function LiveOrderHost({ routeName, onOpenOrder }) {
     const estimate = e?.source && e.source !== 'google' && e.source !== 'route';
     const sub = [name, far && `${estimate ? 'about ' : ''}${far} away`].filter(Boolean).join(' · ') || `Order #${orderNo}`;
     const showBar = !HIDE_ON.includes(routeName) && sheet === 'bar' && !crowded;
-    const barBottom = insets.bottom + TAB_H + 18;
+    const barBottom = desk ? stackBottom : insets.bottom + TAB_H + 18;
 
     return (
         <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
             {showBar ? (
                 <>
+                    {desk ? <DeskSlotReport k="track" h={hidden ? 56 : cardH} /> : null}
                     <Animated.View
+                        onLayout={(e) => { const h = Math.round(e.nativeEvent.layout.height); if (h && h !== cardH) setCardH(h); }}
                         pointerEvents={hidden ? 'none' : 'auto'}
-                        style={{ position: 'absolute', left: 12, right: 12, bottom: barBottom, opacity: slide.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }), transform: [{ translateY: slide.interpolate({ inputRange: [0, 1], outputRange: [0, barBottom + 90] }) }] }}
+                        style={{ position: 'absolute', ...(desk ? { left: 24, width: 400 } : { left: 12, right: 12 }), bottom: barBottom, opacity: slide.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }), transform: desk ? [{ scale: slide.interpolate({ inputRange: [0, 1], outputRange: [1, 0.55] }) }] : [{ translateY: slide.interpolate({ inputRange: [0, 1], outputRange: [0, barBottom + 90] }) }], ...(desk ? { transformOrigin: 'left bottom' } : null) }}
                     >
                         <Pressable
                             onPress={() => setSheet('half')}
-                            style={[s.bar, { position: 'relative', left: undefined, right: undefined, flexDirection: 'column', alignItems: 'stretch', backgroundColor: surface, borderColor: border }]}
+                            style={({ hovered }) => [s.bar, { position: 'relative', left: undefined, right: undefined, flexDirection: 'column', alignItems: 'stretch', backgroundColor: surface, borderColor: border }, desk && { borderRadius: 20, padding: 14, ...(hovered ? { borderColor: primary } : null), boxShadow: hovered ? `0 16px 40px ${primary}33, inset 0 0 0 1px ${primary}` : '0 10px 30px rgba(0,0,0,0.18)', transform: [{ translateY: hovered ? -3 : 0 }], cursor: 'pointer', transitionProperty: 'box-shadow, transform, border-color', transitionDuration: '200ms' }]}
                             accessibilityRole="button" accessibilityLabel={tr('Open live delivery map')}
                         >
                             {/* ONE card for a delivery on its way: what is happening, then View order and Track, and Hide */}
@@ -240,9 +256,9 @@ export default function LiveOrderHost({ routeName, onOpenOrder }) {
                     </Animated.View>
                     <Animated.View
                         pointerEvents={hidden ? 'auto' : 'none'}
-                        style={{ position: 'absolute', right: 14, bottom: barBottom, opacity: slide, transform: [{ translateY: slide.interpolate({ inputRange: [0, 1], outputRange: [60, 0] }) }] }}
+                        style={{ position: 'absolute', ...(desk ? { left: 24 } : { right: 14 }), bottom: barBottom, opacity: slide, transform: desk ? [{ scale: slide.interpolate({ inputRange: [0, 1], outputRange: [0.4, 1] }) }] : [{ translateY: slide.interpolate({ inputRange: [0, 1], outputRange: [60, 0] }) }], ...(desk ? { transformOrigin: 'left bottom' } : null) }}
                     >
-                        <Pressable onPress={() => setHidden(false)} style={[s.chip, { backgroundColor: primary }]} accessibilityRole="button" accessibilityLabel={tr('Show live delivery')}>
+                        <Pressable onPress={() => setHidden(false)} style={({ hovered }) => [s.chip, { backgroundColor: primary }, desk && { width: 56, height: 56, minWidth: 56, borderRadius: 28, paddingHorizontal: 0, boxShadow: hovered ? '0 12px 30px rgba(0,0,0,0.5)' : '0 10px 28px rgba(0,0,0,0.4)', transform: [{ scale: hovered ? 1.08 : 1 }], cursor: 'pointer', transitionProperty: 'transform, box-shadow', transitionDuration: '170ms' }]} accessibilityRole="button" accessibilityLabel={tr('Show live delivery')}>
                             <Ionicons name="bicycle" size={20} color="#FFFFFF" />
                             <Ionicons name="chevron-up" size={16} color="#FFFFFF" style={{ marginLeft: 2 }} />
                         </Pressable>
@@ -250,17 +266,39 @@ export default function LiveOrderHost({ routeName, onOpenOrder }) {
                 </>
             ) : null}
 
+            {desk ? (
+                <Pressable
+                    onPress={() => setSheet('bar')}
+                    pointerEvents={sheet === 'bar' ? 'none' : 'auto'}
+                    accessibilityLabel={tr('Close')}
+                    style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.5)', opacity: sheet === 'bar' ? 0 : 1, transitionProperty: 'opacity', transitionDuration: '220ms' }]}
+                />
+            ) : null}
             <Reanimated.View
                 pointerEvents={sheet === 'bar' ? 'none' : 'auto'}
-                style={[s.sheet, { height: SHEET_H, backgroundColor: background, borderColor: border }, sheetMove]}
+                style={[s.sheet, { height: SHEET_H, backgroundColor: background, borderColor: border }, desk ? {
+                    left: '50%', right: undefined, bottom: undefined, top: '50%', width: Math.min(1000, W - 80), height: Math.min(680, H - 90), marginLeft: -Math.min(1000, W - 80) / 2, marginTop: -Math.min(680, H - 90) / 2,
+                    borderRadius: 26, borderBottomWidth: 1, boxShadow: '0 30px 90px rgba(0,0,0,0.45)', opacity: sheet === 'bar' ? 0 : 1, transform: [{ scale: sheet === 'bar' ? 0.96 : 1 }],
+                    transitionProperty: 'opacity, transform', transitionDuration: '220ms',
+                } : sheetMove]}
             >
                 <GestureDetector gesture={pan}>
-                <View style={s.grab}>
-                    <View style={[s.handle, { backgroundColor: border }]} />
+                <View style={[s.grab, desk && { alignItems: 'flex-start', paddingTop: 20, paddingBottom: 14, paddingRight: 70 }]}>
+                    {desk ? null : <View style={[s.handle, { backgroundColor: border }]} />}
                     <Text style={[s.sheetHead, { color: text }]} numberOfLines={1}>{quiet ? tr('Reconnecting to your delivery partner') : t.head}</Text>
                     <Text style={[s.sheetSub, { color: muted }]} numberOfLines={1}>{sub}</Text>
                 </View>
                 </GestureDetector>
+                {desk ? (
+                    <Pressable
+                        onPress={() => setSheet('bar')}
+                        accessibilityRole="button"
+                        accessibilityLabel={tr('Close')}
+                        style={({ hovered }) => ({ position: 'absolute', top: 16, right: 16, width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', zIndex: 5, backgroundColor: hovered ? primary : surface, borderWidth: 1, borderColor: hovered ? primary : border, cursor: 'pointer', transitionProperty: 'background-color, border-color', transitionDuration: '160ms' })}
+                    >
+                        {({ hovered }) => <Ionicons name="close" size={20} color={hovered ? '#FFFFFF' : text} />}
+                    </Pressable>
+                ) : null}
 
                 <View style={s.mapBox}>
                     {sheet !== 'bar' && (rider || dest) ? (
@@ -301,15 +339,15 @@ export default function LiveOrderHost({ routeName, onOpenOrder }) {
                     )}
                 </View>
 
-                <View style={[s.info, { paddingBottom: insets.bottom + 14 }]}>
+                <View style={[s.info, { paddingBottom: insets.bottom + 14 }, desk && { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 16, paddingHorizontal: 24, paddingTop: 16, paddingBottom: 20 }]}>
                     {quiet ? (
-                        <View style={[s.note, { backgroundColor: '#FEF3C7' }]}>
+                        <View style={[s.note, { backgroundColor: '#FEF3C7' }, desk && { width: '100%', marginBottom: 0 }]}>
                             <Ionicons name="cloud-offline-outline" size={18} color="#92400E" />
                             <Text style={s.noteText}>{tr('His phone has not reported for a moment. The pin will move again as soon as it does.')}</Text>
                         </View>
                     ) : null}
                     {track.rider ? (
-                        <View style={s.rider}>
+                        <View style={[s.rider, desk && { flex: 1, minWidth: 280 }]}>
                             <View style={[s.avatar, { backgroundColor: tint(primary), overflow: 'hidden' }]}>{track.rider.photo ? <Image source={{ uri: track.rider.photo }} style={{ width: 44, height: 44 }} contentFit="cover" /> : <Ionicons name="person" size={22} color={primary} />}</View>
                             <View style={{ flex: 1, marginLeft: 12 }}>
                                 <Text style={[s.rName, { color: text }]} numberOfLines={1}>{track.rider.name}</Text>
@@ -325,7 +363,7 @@ export default function LiveOrderHost({ routeName, onOpenOrder }) {
                         </View>
                     ) : null}
                     {track.deliveryPin ? (
-                        <View style={[s.pin, { backgroundColor: tint(primary) }]}>
+                        <View style={[s.pin, { backgroundColor: tint(primary) }, desk && { marginTop: 0, minWidth: 240 }]}>
                             <Text style={[s.barSub, { color: muted }]}>{tr('Delivery PIN. Tell it to the rider')}</Text>
                             <Text style={[s.pinNo, { color: primary }]}>{String(track.deliveryPin).split('').join(' ')}</Text>
                         </View>

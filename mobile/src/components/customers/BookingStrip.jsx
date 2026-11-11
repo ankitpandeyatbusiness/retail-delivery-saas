@@ -13,6 +13,8 @@ import { useBookingCard } from '../../store/customers/useBookingCard';
 import { useCartStore } from '../../store/customers/shopStores';
 import { onNotification } from '../../api/common/socket';
 import { tr } from '../../i18n';
+import { useCustomerDesktop } from '../../utils/common/layout';
+import { useDeskBottom, DeskSlotReport } from './DeskSlot';
 import { dayMonthShort } from '../../utils/common/dayNames';
 
 const TAB_H = 62;
@@ -40,7 +42,10 @@ export default function BookingStrip({ routeName, onOpen }) {
     useEffect(() => { Animated.timing(away, { toValue: hidden ? 1 : 0, duration: 380, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start(); }, [hidden, away]);
     const cartItems = useCartStore((s) => s.lines.length);
     const insets = useSafeAreaInsets();
-    const { primary, onPrimary } = useBrand();
+    const desk = useCustomerDesktop();   // the desktop website: a card in the bottom-left stack, above the other cards (false in the phone app)
+    const [cardH, setCardH] = useState(0);
+    const stackBottom = useDeskBottom('booking');
+    const { primary, primaryDark, onPrimary } = useBrand();
     const [now, setNow] = useState(Date.now());
 
     useEffect(() => {
@@ -61,11 +66,12 @@ export default function BookingStrip({ routeName, onOpen }) {
     const left = Math.round((new Date(card.startsAt).getTime() - now) / 60000);
     const soon = left <= 30 && left > 0;
     const on = left <= 0;
-    const bottom = insets.bottom + TAB_H + 18 + (orderBar ? ORDER_BAR_H : 0) + (cartItems > 0 && !dining && CART_SCREENS.includes(routeName) ? CART_BAR_H : 0);
+    const bottom = desk ? stackBottom : insets.bottom + TAB_H + 18 + (orderBar ? ORDER_BAR_H : 0) + (cartItems > 0 && !dining && CART_SCREENS.includes(routeName) ? CART_BAR_H : 0);
     return (
         <>
-        <Animated.View pointerEvents={hidden ? 'none' : 'box-none'} style={{ position: 'absolute', left: 12, right: 12, bottom, opacity: away.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }), transform: [{ translateX: away.interpolate({ inputRange: [0, 1], outputRange: [0, Dimensions.get('window').width] }) }] }}>
-            <Pressable onPress={onOpen} accessibilityRole="button" style={{ borderRadius: 18, backgroundColor: primary, elevation: 8, paddingVertical: 12, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center' }}>
+        {desk ? <DeskSlotReport k="booking" h={hidden ? 56 : cardH} /> : null}
+        <Animated.View onLayout={(e) => { const h = Math.round(e.nativeEvent.layout.height); if (h && h !== cardH) setCardH(h); }} pointerEvents={hidden ? 'none' : 'box-none'} style={{ position: 'absolute', ...(desk ? { left: 24, width: 400 } : { left: 12, right: 12 }), bottom, opacity: away.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }), transform: desk ? [{ scale: away.interpolate({ inputRange: [0, 1], outputRange: [1, 0.55] }) }] : [{ translateX: away.interpolate({ inputRange: [0, 1], outputRange: [0, Dimensions.get('window').width] }) }], ...(desk ? { transformOrigin: 'left bottom' } : null) }}>
+            <Pressable onPress={onOpen} accessibilityRole="button" style={({ hovered }) => [{ borderRadius: 18, backgroundColor: primary, elevation: 8, paddingVertical: 12, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center' }, desk && { borderRadius: 22, paddingVertical: 16, paddingHorizontal: 18, backgroundImage: `linear-gradient(120deg, ${primaryDark || primary}, ${primary})`, boxShadow: hovered ? `0 18px 44px ${primary}77` : `0 14px 36px ${primary}55`, transform: [{ translateY: hovered ? -3 : 0 }], cursor: 'pointer', transitionProperty: 'box-shadow, transform', transitionDuration: '200ms' }]}>
                 <Ionicons name="calendar" size={20} color={onPrimary} />
                 <View style={{ flex: 1, marginLeft: 10 }}>
                     <Text style={{ color: onPrimary, fontWeight: '900' }} numberOfLines={1}>{card.table ? tr('Table {n} · {d} {t}', { n: card.table, d: dayWord(card.date, now), t: card.time }) : tr('Your table · {d} {t}', { d: dayWord(card.date, now), t: card.time })}</Text>
@@ -80,10 +86,10 @@ export default function BookingStrip({ routeName, onOpen }) {
                 </Pressable>
             </Pressable>
         </Animated.View>
-        <Animated.View pointerEvents={hidden ? 'box-none' : 'none'} style={{ position: 'absolute', right: 12, bottom, opacity: away, transform: [{ translateX: away.interpolate({ inputRange: [0, 1], outputRange: [70, 0] }) }, { rotate: away.interpolate({ inputRange: [0, 1], outputRange: ['180deg', '0deg'] }) }] }}>
+        <Animated.View pointerEvents={hidden ? 'box-none' : 'none'} style={{ position: 'absolute', ...(desk ? { left: 24 } : { right: 12 }), bottom, opacity: away, transform: desk ? [{ scale: away.interpolate({ inputRange: [0, 1], outputRange: [0.4, 1] }) }] : [{ translateX: away.interpolate({ inputRange: [0, 1], outputRange: [70, 0] }) }, { rotate: away.interpolate({ inputRange: [0, 1], outputRange: ['180deg', '0deg'] }) }], ...(desk ? { transformOrigin: 'left bottom' } : null) }}>
             <Pressable onPress={() => useBookingCard.getState().setHidden(false)} hitSlop={8} accessibilityRole="button" accessibilityLabel={tr('Show table card')}
-                style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: primary, elevation: 8, alignItems: 'center', justifyContent: 'center' }}>
-                <Ionicons name="calendar" size={22} color={onPrimary} />
+                style={({ hovered }) => [{ width: 48, height: 48, borderRadius: 24, backgroundColor: primary, elevation: 8, alignItems: 'center', justifyContent: 'center' }, desk && { width: 56, height: 56, minWidth: 56, borderRadius: 28, paddingHorizontal: 0, boxShadow: hovered ? '0 12px 30px rgba(0,0,0,0.5)' : '0 10px 28px rgba(0,0,0,0.4)', transform: [{ scale: hovered ? 1.08 : 1 }], cursor: 'pointer', transitionProperty: 'transform, box-shadow', transitionDuration: '170ms' }]}>
+                <Ionicons name="calendar" size={desk ? 24 : 22} color={onPrimary} />
             </Pressable>
         </Animated.View>
         </>
