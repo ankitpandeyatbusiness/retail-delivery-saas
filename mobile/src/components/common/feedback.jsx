@@ -18,14 +18,17 @@ import { ask } from './dialog';
 import { tr } from '../../i18n';
 import KeyboardScroll from './KeyboardScroll';
 import { DragDown, Grip } from './DragDown';
+import { Sheet } from '../owners/ui';
+import { useIsDesktopWeb } from '../../utils/common/layout';
 
 const errMsg = (e) => e?.response?.data?.error || e?.message || 'Something went wrong';
 const rs = (paise) => `₹${+(paise / 100).toFixed(2)}`;
 
 function CardShell({ title, icon, children }) {
     const { primary, text, surface, border } = useBrand();
+    const desk = useIsDesktopWeb();   // the desktop website: a rounder, roomier card (false in the phone app)
     return (
-        <View style={[s.card, { backgroundColor: surface, borderColor: border }]}>
+        <View style={[s.card, { backgroundColor: surface, borderColor: border }, desk && { borderRadius: 22, padding: 22, boxShadow: '0 8px 26px rgba(0,0,0,0.08)' }]}>
             <View style={s.head}>
                 <Ionicons name={icon} size={17} color={primary} />
                 <Text style={[s.h, { color: text }]}>{title}</Text>
@@ -37,8 +40,13 @@ function CardShell({ title, icon, children }) {
 
 function Chip({ label, on, onPress }) {
     const { primary, text, border } = useBrand();
+    const desk = useIsDesktopWeb();   // the desktop website: a roomier chip with a hover (false in the phone app)
     return (
-        <Pressable onPress={onPress} style={[s.chip, { borderColor: on ? primary : border, backgroundColor: on ? tint(primary) : 'transparent' }]}>
+        <Pressable
+            onPress={onPress}
+            style={({ hovered }) => [s.chip, { borderColor: on ? primary : border, backgroundColor: on ? tint(primary) : 'transparent' },
+                desk && { paddingHorizontal: 18, paddingVertical: 10, borderRadius: 22, cursor: 'pointer', borderColor: on || hovered ? primary : border, backgroundColor: on ? tint(primary) : hovered ? `${primary}0F` : 'transparent', boxShadow: hovered && !on ? `0 4px 12px ${primary}26` : '0 0 0 rgba(0,0,0,0)', transform: [{ scale: hovered && !on ? 1.04 : 1 }], transitionProperty: 'background-color, border-color, box-shadow, transform, filter', transitionDuration: '170ms' }]}
+        >
             <Text style={[s.chipTxt, { color: on ? primary : text }]}>{label}</Text>
         </Pressable>
     );
@@ -156,6 +164,8 @@ function resolutionLine(c) {
 
 export function ComplaintCard({ orderId }) {
     const { primary, text, muted, border, background, surface, radius, error } = useBrand();
+    const desk = useIsDesktopWeb();   // the desktop website: the form is a centred window, buttons light up (false in the phone app)
+    const [focus, setFocus] = useState(false);
     const [data, setData] = useState(null);       // { items, canComplain, until }
     const closedStyle = useClosedStyle();   // the shop is closed: this popup turns grey
     const [open, setOpen] = useState(false);
@@ -284,14 +294,70 @@ export function ComplaintCard({ orderId }) {
         <>
             <CardShell title={tr('Something wrong with this order?')} icon="alert-circle-outline">
                 <Text style={[s.body, { color: muted }]}>{tr('Tell the shop what went wrong{v1}.', { v1: data.until ? ` (until ${new Date(data.until).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', hour12: true })})` : '' })}</Text>
-                <Pressable onPress={notReceived} disabled={busy} style={[s.ghost, { borderColor: error, borderRadius: radius, marginBottom: 8, opacity: busy ? 0.6 : 1 }]}>
+                <Pressable onPress={notReceived} disabled={busy} style={({ hovered }) => [s.ghost, { borderColor: error, borderRadius: radius, marginBottom: 8, opacity: busy ? 0.6 : 1 }, desk && { paddingVertical: 15, cursor: 'pointer', backgroundColor: hovered ? tint(error) : 'transparent', transitionProperty: 'background-color, border-color, box-shadow, transform, filter', transitionDuration: '170ms' }]}>
                     <Text style={[s.ghostTxt, { color: error }]}>{tr('I did not get this order')}</Text>
                 </Pressable>
-                <Pressable onPress={() => setOpen(true)} style={[s.ghost, { borderColor: primary, borderRadius: radius }]}>
+                <Pressable onPress={() => setOpen(true)} style={({ hovered }) => [s.ghost, { borderColor: primary, borderRadius: radius }, desk && { paddingVertical: 15, marginTop: 0, cursor: 'pointer', backgroundColor: hovered ? tint(primary) : 'transparent', boxShadow: hovered ? `0 8px 20px ${primary}33` : '0 0 0 rgba(0,0,0,0)', transform: [{ translateY: hovered ? -2 : 0 }], transitionProperty: 'background-color, border-color, box-shadow, transform, filter', transitionDuration: '170ms' }]}>
                     <Text style={[s.ghostTxt, { color: primary }]}>{tr('Report a problem')}</Text>
                 </Pressable>
             </CardShell>
 
+            {desk ? (
+                <Sheet visible={open} onClose={closeSheet} title={tr('Report a problem')}>
+                    <View>
+                            <Text style={[s.label, { color: muted }]}>{tr('WHAT WENT WRONG?')}</Text>
+                            <View style={s.chips}>
+                                {TYPES.map(([k, label]) => <Chip key={k} label={label} on={type === k} onPress={() => setType(k)} />)}
+                            </View>
+                            <Text style={[s.label, { color: muted }]}>{tr('TELL US MORE')}</Text>
+                            <TextInput
+                                value={body} onChangeText={setBody} multiline maxLength={500} onFocus={() => setFocus(true)} onBlur={() => setFocus(false)}
+                                placeholder={tr('What happened?')} placeholderTextColor={muted}
+                                style={[s.input, { color: text, borderColor: focus ? primary : border, backgroundColor: background, minHeight: 130, borderRadius: 16, paddingHorizontal: 16, paddingVertical: 14, fontSize: 15, lineHeight: 22, borderWidth: 1.5, outlineStyle: 'none', outlineWidth: 0, boxShadow: focus ? `0 0 0 4px ${primary}26` : '0 0 0 0 transparent', transitionProperty: 'border-color, box-shadow', transitionDuration: '160ms' }]}
+                            />
+                            <Text style={[s.count, { color: body.length >= 500 ? error : muted }]}>{body.length}/500</Text>
+
+                            <Text style={[s.label, { color: needPhoto && !photos.length ? error : muted }]}>
+                                {needPhoto ? tr('PHOTO OF THE FOOD (REQUIRED, UP TO {MAX_PHOTOS})', { MAX_PHOTOS: MAX_PHOTOS }) : tr('PHOTOS (OPTIONAL, UP TO {MAX_PHOTOS})', { MAX_PHOTOS: MAX_PHOTOS })}
+                            </Text>
+                            <View style={s.thumbs}>
+                                {photos.map((p) => (
+                                    <View key={p.key} style={[s.thumb, { borderColor: border }]}>
+                                        <Image source={{ uri: p.uri }} style={StyleSheet.absoluteFill} contentFit="cover" />
+                                        {p.status === 'uploading' ? (
+                                            <View style={s.thumbBusy}><ActivityIndicator color="#FFFFFF" /></View>
+                                        ) : (
+                                            <Pressable onPress={() => removePhoto(p)} hitSlop={6} style={s.thumbX}>
+                                                <Ionicons name="close" size={14} color="#FFFFFF" />
+                                            </Pressable>
+                                        )}
+                                    </View>
+                                ))}
+                                {photos.length < MAX_PHOTOS ? (
+                                    <>
+                                        <Pressable onPress={() => addPhoto('camera')} style={({ hovered }) => [s.thumb, s.add, { borderColor: primary, width: 92, height: 92, borderRadius: 16, cursor: 'pointer', backgroundColor: hovered ? tint(primary) : 'transparent', transitionProperty: 'background-color, border-color, box-shadow, transform, filter', transitionDuration: '170ms' }]}>
+                                            <Ionicons name="camera-outline" size={22} color={primary} />
+                                            <Text style={[s.addTxt, { color: primary }]}>{tr('Camera')}</Text>
+                                        </Pressable>
+                                        <Pressable onPress={() => addPhoto('gallery')} style={({ hovered }) => [s.thumb, s.add, { borderColor: primary, width: 92, height: 92, borderRadius: 16, cursor: 'pointer', backgroundColor: hovered ? tint(primary) : 'transparent', transitionProperty: 'background-color, border-color, box-shadow, transform, filter', transitionDuration: '170ms' }]}>
+                                            <Ionicons name="images-outline" size={22} color={primary} />
+                                            <Text style={[s.addTxt, { color: primary }]}>{tr('Gallery')}</Text>
+                                        </Pressable>
+                                    </>
+                                ) : null}
+                            </View>
+
+                            <View style={s.rowBtns}>
+                                <Pressable disabled={busy} onPress={closeSheet} style={({ hovered }) => [s.ghost, { flex: 1, marginRight: 10, borderColor: border, borderRadius: radius, paddingVertical: 15, cursor: 'pointer', backgroundColor: hovered ? `${border}66` : 'transparent', transitionProperty: 'background-color, border-color, box-shadow, transform, filter', transitionDuration: '170ms' }]}>
+                                    <Text style={[s.ghostTxt, { color: text }]}>{tr('Cancel')}</Text>
+                                </Pressable>
+                                <Pressable disabled={busy || uploading} onPress={submit} style={({ hovered }) => [s.btn, { flex: 1.4, marginTop: 0, backgroundColor: primary, borderRadius: radius, opacity: uploading ? 0.6 : 1, minHeight: 54, cursor: 'pointer', filter: hovered ? 'brightness(1.1)' : 'brightness(1)', boxShadow: hovered ? `0 10px 24px ${primary}55` : '0 0 0 rgba(0,0,0,0)', transitionProperty: 'background-color, border-color, box-shadow, transform, filter', transitionDuration: '170ms' }]}>
+                                    {busy ? <ActivityIndicator color="#FFFFFF" /> : <Text numberOfLines={1} style={s.btnTxt}>{tr('Send')}</Text>}
+                                </Pressable>
+                            </View>
+                    </View>
+                </Sheet>
+            ) : (
             <Modal visible={shown} transparent animationType="none" statusBarTranslucent onRequestClose={closeSheet}>
                 <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={[s.modalWrap, closedStyle]}>
                     <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.45)', opacity: anim }]} />
@@ -356,6 +422,7 @@ export function ComplaintCard({ orderId }) {
                     )}</DragDown>
                 </KeyboardAvoidingView>
             </Modal>
+            )}
         </>
     );
 }
