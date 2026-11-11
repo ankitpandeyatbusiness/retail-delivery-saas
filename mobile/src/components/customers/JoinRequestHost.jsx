@@ -10,9 +10,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { onNotification } from '../../api/common/socket';
 import { showToast } from './shop';
 import { tr } from '../../i18n';
+import { useIsDesktopWeb } from '../../utils/common/layout';
+import { PinShow } from './DeskPin';
 
 export default function JoinRequestHost() {
-    const { text, muted } = useBrand();
+    const { text, muted, primary, onPrimary } = useBrand();
+    const desk = useIsDesktopWeb();   // the desktop website: roomier, four PIN boxes (false in the phone app)
     const user = useAuthStore((s) => s.user);
     const on = !!user && user.role === 'customer';
     const [items, setItems] = useState([]);
@@ -51,11 +54,18 @@ export default function JoinRequestHost() {
         <Sheet visible={!!cur} onClose={() => cur && setHidden((h) => [...h, cur.joinId])} title={cur ? tr('{name} wants to join your table', { name: cur.who || tr('Someone') }) : ''}>
             {cur ? (
                 <View>
+                    {desk ? (
+                        <View style={{ alignItems: 'center', marginBottom: 14 }}>
+                            <View style={{ width: 76, height: 76, borderRadius: 38, backgroundColor: primary, alignItems: 'center', justifyContent: 'center' }}>
+                                <Text style={{ color: onPrimary, fontSize: 32, fontWeight: '900' }}>{String(cur.who || '?').trim().slice(0, 1).toUpperCase()}</Text>
+                            </View>
+                        </View>
+                    ) : null}
                     <Text style={{ color: muted, marginBottom: 6 }}>{tr('At table {n}. Are you together? If you say yes, their food goes on your bill.', { n: cur.table })}</Text>
                     <Text style={{ color: text, fontWeight: '700', marginBottom: 6 }}>{tr('If you do not know them, say no. They can take their own bill.')}</Text>
-                    <Button label={tr('Yes, we are together')} icon="checkmark-circle" busy={busy === 'yes'} disabled={!!busy} onPress={() => answer(true)} style={{ marginTop: 12 }} />
-                    <Button label={tr('No')} icon="close-circle" kind="ghost" busy={busy === 'no'} disabled={!!busy} onPress={() => answer(false)} style={{ marginTop: 8 }} />
-                    <Button label={tr('No, and block them')} icon="ban" kind="ghost" busy={busy === 'block'} disabled={!!busy} onPress={() => answer(false, true)} style={{ marginTop: 8 }} />
+                    <Button label={tr('Yes, we are together')} icon="checkmark-circle" busy={busy === 'yes'} disabled={!!busy} onPress={() => answer(true)} style={{ marginTop: 12, minHeight: desk ? 54 : undefined }} />
+                    <Button label={tr('No')} icon="close-circle" kind="ghost" busy={busy === 'no'} disabled={!!busy} onPress={() => answer(false)} style={{ marginTop: 10, minHeight: desk ? 54 : undefined }} />
+                    <Button label={tr('No, and block them')} icon="ban" kind="ghost" busy={busy === 'block'} disabled={!!busy} onPress={() => answer(false, true)} style={{ marginTop: 10, minHeight: desk ? 54 : undefined }} />
                 </View>
             ) : null}
         </Sheet>
@@ -63,8 +73,8 @@ export default function JoinRequestHost() {
                 {(pinFor || waitingPin) ? (
                     <View style={{ alignItems: 'center' }}>
                         <Text style={{ color: muted, textAlign: 'center', marginBottom: 10 }}>{tr('{name} types this PIN on their phone to join your bill. Only tell it to someone you know.', { name: (pinFor || waitingPin).who || tr('They') })}</Text>
-                        <Text style={{ color: text, fontWeight: '900', fontSize: 44, letterSpacing: 12 }}>{(pinFor || waitingPin).pin}</Text>
-                        <Button label={tr('Done')} icon="checkmark" onPress={() => { if (waitingPin) setHidden((h) => [...h, waitingPin.joinId]); setPinFor(null); }} style={{ alignSelf: 'stretch', marginTop: 16 }} />
+                        {desk ? <PinShow pin={(pinFor || waitingPin).pin} /> : <Text style={{ color: text, fontWeight: '900', fontSize: 44, letterSpacing: 12 }}>{(pinFor || waitingPin).pin}</Text>}
+                        <Button label={tr('Done')} icon="checkmark" onPress={() => { if (waitingPin) setHidden((h) => [...h, waitingPin.joinId]); setPinFor(null); }} style={{ alignSelf: 'stretch', marginTop: desk ? 24 : 16, minHeight: desk ? 54 : undefined }} />
                     </View>
                 ) : null}
             </Sheet>

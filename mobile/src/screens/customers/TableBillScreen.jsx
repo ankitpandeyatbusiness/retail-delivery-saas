@@ -20,6 +20,7 @@ import { whereOf } from '../../utils/common/where';
 import QueueLine from '../../components/customers/QueueLine';
 import StayOfferCard from '../../components/customers/StayOfferCard';
 import { tr } from '../../i18n';
+import { useCustomerDesktop } from '../../utils/common/layout';
 
 const STATE = { placed: 'Waiting for the shop', accepted: 'Accepted', preparing: 'Being prepared', ready: 'Coming to your table', delivered: 'Served' };
 const rs = (n) => `₹${Math.round(n * 100) / 100}`;
@@ -27,7 +28,8 @@ const clock = (d) => new Date(d).toLocaleTimeString('en-IN', { hour: 'numeric', 
 
 export default function TableBillScreen() {
     const nav = useNavigation();
-    const { background, text, muted, ok, warn, border, error } = useBrand();
+    const desk = useCustomerDesktop();   // the desktop website: the bill in two columns (false in the phone app)
+    const { background, text, muted, ok, warn, border, error, surface } = useBrand();
     const bill = useTableBill((s) => s.bill);
     const loading = useTableBill((s) => s.loading);
     const user = useAuthStore((s) => s.user);
@@ -83,12 +85,17 @@ export default function TableBillScreen() {
         return (
             <View style={{ flex: 1, backgroundColor: background }}>
                 <PageHeader title={bill.label ? tr('Table {n} · Bill {l}', { n: bill.table, l: bill.label }) : tr('Table bill')} />
-                <View style={{ alignItems: 'center', padding: 40 }}>
-                    <Ionicons name="checkmark-circle" size={64} color={ok} />
-                    <Text style={{ color: text, fontWeight: '900', fontSize: 20, marginTop: 12 }}>{tr('Nothing to pay')}</Text>
-                    <Text style={{ color: muted, textAlign: 'center', marginTop: 6 }}>{tr('You have no open table bill. Thank you for dining with us!')}</Text>
-                    <Text style={{ color: muted, textAlign: 'center', marginTop: 10, fontSize: 12.5 }}>{tr('A paid table is freed after 15 minutes, or when you tap "I am done". To order more, scan the QR code on the table, pick your table and order as before.')}</Text>
+                <View style={desk ? { alignItems: 'center', alignSelf: 'center', width: '100%', maxWidth: 520, marginTop: 36, padding: 44, borderRadius: 28, borderWidth: 1, borderColor: border, backgroundColor: surface, boxShadow: `0 20px 50px ${ok}1F` } : { alignItems: 'center', padding: 40 }}>
+                    {desk ? (
+                        <View style={{ width: 104, height: 104, borderRadius: 52, backgroundColor: `${ok}22`, alignItems: 'center', justifyContent: 'center' }}>
+                            <Ionicons name="checkmark-circle" size={68} color={ok} />
+                        </View>
+                    ) : <Ionicons name="checkmark-circle" size={64} color={ok} />}
+                    <Text style={{ color: text, fontWeight: '900', fontSize: desk ? 28 : 20, letterSpacing: desk ? -0.5 : 0, marginTop: desk ? 20 : 12 }}>{tr('Nothing to pay')}</Text>
+                    <Text style={{ color: muted, textAlign: 'center', marginTop: 6, fontSize: desk ? 16 : undefined, lineHeight: desk ? 24 : undefined }}>{tr('You have no open table bill. Thank you for dining with us!')}</Text>
+                    <Text style={{ color: muted, textAlign: 'center', marginTop: 10, fontSize: desk ? 13.5 : 12.5, lineHeight: desk ? 20 : undefined }}>{tr('A paid table is freed after 15 minutes, or when you tap "I am done". To order more, scan the QR code on the table, pick your table and order as before.')}</Text>
                     {bill.lastBill ? <Button label={tr('Download the bill (PDF)')} icon="document-text-outline" kind="ghost" busy={pdfBusy} onPress={() => shareTableBill(bill.lastBill.sessionId, bill.lastBill.table, setPdfBusy)} style={{ marginTop: 16, alignSelf: 'stretch' }} /> : null}
+                    {desk ? <Button label={tr('Back to menu')} icon="restaurant-outline" onPress={() => nav.navigate('MainTabs', { screen: 'Home' })} style={{ marginTop: 12, alignSelf: 'stretch', minHeight: 54 }} /> : null}
                     {bill.owed ? <Text style={{ color: warn, fontWeight: '900', textAlign: 'center', marginTop: 16 }}>{tr('You still owe {n} from {where}. Please pay it at the counter on your next visit.', { n: rs(bill.owed.amount), where: whereOf(bill.owed.table) })}</Text> : null}
                 </View>
             </View>
@@ -100,6 +107,169 @@ export default function TableBillScreen() {
     const live = bill.rounds.filter((r) => ['placed', 'accepted', 'preparing', 'ready'].includes(r.status));
     const oldest = live.length ? Math.min(...live.map((r) => new Date(r.times?.placed || r.at).getTime())) : 0;
     const cool = Math.max(oldest ? oldest + 3 * 60000 - tick : 0, bill.nudgeAt ? new Date(bill.nudgeAt).getTime() + 10 * 60000 - tick : 0);
+    if (desk) {
+        // the desktop website: the rounds and what was removed in the wide left column (it scrolls); the total, the tip, the split and the buttons in the right column
+        return (
+            <View style={{ flex: 1, backgroundColor: background }}>
+                <PageHeader title={tr('Table {t} bill', { t: bill.table })} />
+                <View style={{ flex: 1, flexDirection: 'row', width: '100%', maxWidth: 1180, alignSelf: 'center', paddingHorizontal: 8, gap: 24 }}>
+                    <ScrollView style={{ flex: 1, minWidth: 0 }} contentContainerStyle={{ paddingBottom: 60 }} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={busy} onRefresh={refresh} />}>
+                {asked ? (
+                    <Card tone={warn}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <Ionicons name="receipt" size={22} color={warn} />
+                            <View style={{ flex: 1, marginLeft: 10 }}>
+                                <Text style={{ color: text, fontWeight: '900' }}>{tr('You asked for the bill')}</Text>
+                                <Text style={{ color: muted, fontSize: 12.5, marginTop: 2 }}>{tr('The shop is on its way. You can pay in cash or UPI at the counter.')}</Text>
+                            </View>
+                        </View>
+                    </Card>
+                ) : null}
+
+                {live.length > 0 && !asked ? (
+                    <Card>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <Ionicons name="hourglass" size={22} color={warn} />
+                            <View style={{ flex: 1, marginLeft: 10 }}>
+                                <Text style={{ color: text, fontWeight: '900' }}>{tr('Taking too long?')}</Text>
+                                <Text style={{ color: muted, fontSize: 12.5, marginTop: 2 }}>{tr('Send the kitchen a gentle reminder.')}</Text>
+                            </View>
+                        </View>
+                        {cool > 0 ? (
+                            <View style={{ marginTop: 10, paddingVertical: 14, paddingHorizontal: 16, borderRadius: 14, backgroundColor: alpha(muted, 0.14), alignItems: 'center', justifyContent: 'center' }}>
+                                <Text style={{ color: text, fontWeight: '800', textAlign: 'center', lineHeight: 20 }}>{tr('You can remind again in {t}', { t: mmss(cool) })}</Text>
+                            </View>
+                        ) : <Button label={tr('Please bring it fast 🙏')} icon="notifications" kind="ghost" onPress={hurry} style={{ marginTop: 10 }} />}
+                    </Card>
+                ) : null}
+
+                {bill.rounds.map((r, i) => (
+                    <View key={r.id} style={[{ marginBottom: 14 }, r.paid ? { opacity: 0.5 } : null]}>
+                        <SectionTitle title={tr('Round {n} · {time}', { n: i + 1, time: clock(r.at) }) + (shared && r.by?.name ? ` · ${r.by.id === me ? tr('You') : r.by.name}` : '')} />
+                        <Card>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+                                <Pill label={tr(STATE[r.status] || r.status)} color={r.status === 'delivered' ? ok : warn} />
+                                {r.paid ? <View style={{ marginLeft: 6 }}><Pill label={shared && r.paidBy?.name ? `${tr('Paid')} · ${r.paidBy.id === me ? tr('You') : r.paidBy.name}` : tr('Paid')} color={ok} /></View> : <View style={{ marginLeft: 6 }}><Pill label={tr('Not paid')} color={warn} /></View>}
+                            </View>
+                            {r.status === 'delivered' ? <ServedIn times={r.times} style={{ marginBottom: 6 }} /> : r.status === 'cancelled' ? null : <><QueueLine q={r.queue} compact /><WaitTimer since={r.times?.placed || r.at} style={{ marginBottom: 6 }} /></>}
+                            {r.items.map((it, k) => (
+                                <View key={k} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 6 }}>
+                                    {it.image ? (
+                                        <Image source={{ uri: it.image }} style={{ width: 52, height: 52, borderRadius: 12, marginRight: 12, backgroundColor: alpha(muted, 0.12) }} contentFit="cover" transition={150} />
+                                    ) : (
+                                        <View style={{ width: 52, height: 52, borderRadius: 12, marginRight: 12, backgroundColor: alpha(muted, 0.12), alignItems: 'center', justifyContent: 'center' }}>
+                                            <Ionicons name="restaurant-outline" size={22} color={muted} />
+                                        </View>
+                                    )}
+                                    <View style={{ flex: 1, minWidth: 0 }}>
+                                        <Text style={{ color: text, fontWeight: '700' }} numberOfLines={2}>{it.name}</Text>
+                                        <Text style={{ color: muted, fontWeight: '600', fontSize: 12.5, marginTop: 1 }} numberOfLines={1}>{it.quantity}×{it.addons?.length ? `  ·  ${it.addons.join(', ')}` : ''}</Text>
+                                    </View>
+                                    <Text style={{ color: muted, fontWeight: '700', marginLeft: 8 }}>{rs(it.total)}</Text>
+                                </View>
+                            ))}
+                            <View style={{ flexDirection: 'row', paddingTop: 8, marginTop: 6, borderTopWidth: 1, borderTopColor: alpha(border, 0.7) }}>
+                                <Text style={{ flex: 1, color: muted, fontWeight: '700' }}>{tr('Round total')}</Text>
+                                <Text style={{ color: text, fontWeight: '900' }}>{rs(r.total)}</Text>
+                            </View>
+                            {!r.paid && (r.canCancel || r.canAsk) ? (
+                                <Pressable onPress={() => roundCancel(r)} hitSlop={8} style={{ marginTop: 10, alignSelf: 'flex-start' }}>
+                                    <Text style={{ color: warn, fontWeight: '800' }}>{r.canCancel ? tr('Ordered by mistake? Cancel this round') : tr('Ask the shop to cancel this round')}</Text>
+                                </Pressable>
+                            ) : r.asked && !r.paid ? <Text style={{ color: muted, fontSize: 12.5, marginTop: 10 }}>{tr('You asked the shop to cancel. Waiting for their reply.')}</Text> : null}
+                        </Card>
+                    </View>
+                ))}
+
+                {/* what was taken off the bill: shown clearly, with the dishes, so nothing disappears without a word */}
+                {(bill.removed || []).length ? (
+                    <View style={{ marginBottom: 14 }}>
+                        <SectionTitle title={tr('Removed from your bill')} />
+                        {bill.removed.map((r) => {
+                            const yours = r.by?.id === me;
+                            const who = r.removedBy === 'shop' ? tr('Removed by the shop') : r.removedBy === 'guest' ? (yours ? tr('Cancelled by you') : tr('Cancelled by {name}', { name: r.by?.name || tr('a guest') })) : tr('Cancelled');
+                            return (
+                                <Card key={r.id} tone={r.removedBy === 'shop' ? error : undefined} style={{ marginBottom: 10 }}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+                                        <Pill label={who} color={r.removedBy === 'shop' ? error : muted} />
+                                        <Text style={{ color: muted, fontSize: 12.5, marginLeft: 8, flex: 1 }} numberOfLines={1}>{clock(r.removedAt)}{shared && r.by?.name ? ` · ${yours ? tr('You') : r.by.name}` : ''}</Text>
+                                    </View>
+                                    {r.items.map((it, k) => (
+                                        <View key={k} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 4 }}>
+                                            <View style={{ flex: 1, minWidth: 0 }}>
+                                                <Text style={{ color: muted, fontWeight: '700', textDecorationLine: 'line-through' }} numberOfLines={2}>{it.quantity}× {it.name}</Text>
+                                                {it.addons?.length ? <Text style={{ color: muted, fontSize: 12, textDecorationLine: 'line-through' }} numberOfLines={1}>{it.addons.join(', ')}</Text> : null}
+                                            </View>
+                                            <Text style={{ color: muted, fontWeight: '700', marginLeft: 8, textDecorationLine: 'line-through' }}>{rs(it.total)}</Text>
+                                        </View>
+                                    ))}
+                                    {r.reason ? <Text style={{ color: muted, fontSize: 12.5, marginTop: 6 }}>{tr('Reason')}: {tr(r.reason.charAt(0).toUpperCase() + r.reason.slice(1))}</Text> : null}
+                                    <View style={{ flexDirection: 'row', paddingTop: 8, marginTop: 6, borderTopWidth: 1, borderTopColor: alpha(border, 0.7) }}>
+                                        <Text style={{ flex: 1, color: muted, fontWeight: '700' }}>{tr('Not charged')}</Text>
+                                        <Text style={{ color: muted, fontWeight: '900', textDecorationLine: 'line-through' }}>{rs(r.total)}</Text>
+                                    </View>
+                                </Card>
+                            );
+                        })}
+                    </View>
+                ) : null}
+                    </ScrollView>
+                    <ScrollView style={{ width: '38%', minWidth: 360, maxWidth: 440, flexGrow: 0 }} contentContainerStyle={{ paddingBottom: 50 }} showsVerticalScrollIndicator={false}>
+                <StayOfferCard style={{ marginHorizontal: 0, marginBottom: 14 }} />
+                <CallCard />
+                <TipCard bill={bill} />
+
+                <Card>
+                    <View style={{ flexDirection: 'row' }}>
+                        <Text style={{ flex: 1, color: muted, fontWeight: '700' }}>{tr('Total so far')}</Text>
+                        <Text style={{ color: text, fontWeight: '900' }}>{rs(bill.total)}</Text>
+                    </View>
+                    {bill.total !== bill.due ? (
+                        <View style={{ flexDirection: 'row', marginTop: 6 }}>
+                            <Text style={{ flex: 1, color: muted, fontWeight: '700' }}>{tr('Already paid')}</Text>
+                            <Text style={{ color: ok, fontWeight: '900' }}>- {rs(bill.total - bill.due)}</Text>
+                        </View>
+                    ) : null}
+                    {bill.tip > 0 ? (
+                        <View style={{ flexDirection: 'row', marginTop: 6 }}>
+                            <Text style={{ flex: 1, color: muted, fontWeight: '700' }}>{tr('Tip for the waiter')}</Text>
+                            <Text style={{ color: text, fontWeight: '900' }}>+ {rs(bill.tip)}</Text>
+                        </View>
+                    ) : null}
+                    {bill.credit?.applied > 0 ? (
+                        <View style={{ flexDirection: 'row', marginTop: 6 }}>
+                            <Text style={{ flex: 1, color: muted, fontWeight: '700' }}>{tr('Table booking amount paid earlier ({c})', { c: bill.credit.code })}</Text>
+                            <Text style={{ color: text, fontWeight: '900' }}>- {rs(bill.credit.applied)}</Text>
+                        </View>
+                    ) : null}
+                    <View style={{ flexDirection: 'row', marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: alpha(border, 0.7) }}>
+                        <Text style={{ flex: 1, color: text, fontWeight: '900', fontSize: 17 }}>{tr('To pay')}</Text>
+                        <Text style={{ color: text, fontWeight: '900', fontSize: 20 }}>{rs(bill.payable ?? bill.due)}</Text>
+                    </View>
+                    <Text style={{ color: muted, fontSize: 12.5, marginTop: 8 }}>{bill.payOnline && bill.due > 0 ? tr('Pay online from here, or in cash or UPI at the counter.') : tr('You pay once, at the end. Cash or UPI at the counter.')}</Text>
+                </Card>
+
+                <SplitCard bill={bill} />
+
+                {bill.isStarter && bill.rounds.length ? (
+                    <Card>
+                        <Text style={{ color: muted, fontSize: 12.5, marginBottom: 10 }}>{tr('You started this bill. Download it as a PDF to see who ordered and paid what, and share it.')}</Text>
+                        <Button label={tr('Download the bill (PDF)')} icon="document-text-outline" kind="ghost" busy={pdfBusy} onPress={() => shareTableBill(bill.id, bill.table, setPdfBusy)} />
+                    </Card>
+                ) : null}
+                        <View style={{ padding: 16, paddingTop: 4 }}>
+                {bill.payOnline && bill.due > 0 ? <Button label={tr('Pay {n} online', { n: rs(bill.due) })} icon="card" onPress={payNow} style={{ minHeight: 54, marginBottom: 10 }} /> : null}
+                <View style={{ flexDirection: 'column' }}>
+                    <Button label={tr('Order more')} icon="add" kind="ghost" onPress={() => nav.navigate('MainTabs', { screen: 'Home' })} style={{ minHeight: 54, marginBottom: 10 }} />
+                    {!(bill.due > 0) && live.length === 0 && bill.rounds.length > 0 ? <Button label={tr('I am done · Free the table')} icon="exit-outline" onPress={freeIt} style={{ minHeight: 54, marginBottom: 10, backgroundColor: ok, borderColor: ok }} /> : null}
+                    {!(bill.due > 0) ? null : <Button label={asked ? tr('Remind for Bill') : tr('Ask for the bill')} icon={asked ? 'notifications' : 'receipt'} kind={bill.payOnline && bill.due > 0 ? 'ghost' : undefined} busy={loading} onPress={askBill} style={{ minHeight: 54, marginBottom: 10 }} />}
+                </View>
+                        </View>
+                    </ScrollView>
+                </View>
+            </View>
+        );
+    }
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
             <PageHeader title={tr('Table {t} bill', { t: bill.table })} />
