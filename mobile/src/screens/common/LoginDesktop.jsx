@@ -11,6 +11,7 @@ import { useAuthStore } from '../../store/common/useAuthStore';
 import { useThemeStore } from '../../store/common/useThemeStore';
 import { ActivityIndicator } from '../../components/common/Loading';
 import PoweredBy from '../../components/common/PoweredBy';
+import IndiaFlag from '../../components/common/IndiaFlag';
 import { tr, LANGS, useLang } from '../../i18n';
 
 const MAIN_ROUTE = 'MainTabs';
@@ -32,26 +33,6 @@ const normalizePhone = (text) => {
 // The desktop login is always dark (the design asked for it), whatever the shop's own colours are.
 const D = { bg: '#121212', card: '#262626', input: '#171717', border: '#404040', text: '#FFFFFF', muted: '#A3A3A3', accent: '#B91C1C', accentText: '#F87171', error: '#F87171' };
 
-// The Indian flag drawn with shapes: Windows browsers cannot draw the flag emoji (they show the letters "IN").
-const FLAG_URI = (() => {   // the real flag: 3 bands and the 24-spoke Ashoka Chakra, as a small picture
-    let spokes = '';
-    for (let i = 0; i < 24; i += 1) {
-        const a = (i * 15 * Math.PI) / 180;
-        spokes += `<line x1='450' y1='300' x2='${(450 + 82 * Math.cos(a)).toFixed(1)}' y2='${(300 + 82 * Math.sin(a)).toFixed(1)}' stroke='#000080' stroke-width='5'/>`;
-        const b = a + (7.5 * Math.PI) / 180;   // the small notch on the rim between spokes
-        spokes += `<circle cx='${(450 + 76 * Math.cos(b)).toFixed(1)}' cy='${(300 + 76 * Math.sin(b)).toFixed(1)}' r='4.5' fill='#000080'/>`;
-    }
-    const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 900 600'><rect width='900' height='200' fill='#FF9933'/><rect y='200' width='900' height='200' fill='#fff'/><rect y='400' width='900' height='200' fill='#138808'/><circle cx='450' cy='300' r='88' fill='none' stroke='#000080' stroke-width='8'/><circle cx='450' cy='300' r='14' fill='#000080'/>${spokes}</svg>`;
-    return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
-})();
-
-function IndiaFlag() {
-    return (
-        <View style={s.flag}>
-            <Image source={{ uri: FLAG_URI }} style={{ width: '100%', height: '100%' }} contentFit="fill" />
-        </View>
-    );
-}
 
 // "Language" as a centred dark modal (the phone screens use a bottom sheet).
 function DesktopLanguageModal({ visible, onClose }) {
@@ -297,7 +278,7 @@ export default function LoginDesktop({ navigation }) {
                         {step === 'phone' ? (
                             <>
                                 <View style={[s.inputRow, { borderColor: phoneFocus ? D.accent : D.border }]}>
-                                    <IndiaFlag />
+                                    <IndiaFlag style={{ marginRight: 10 }} />
                                     <Text style={s.cc}>+91</Text>
                                     <View style={s.vline} />
                                     <TextInput
@@ -347,9 +328,9 @@ export default function LoginDesktop({ navigation }) {
 
                         <Text style={s.terms}>
                             {tr('By continuing, you agree to our')}{' '}
-                            <Text onPress={() => navigation.navigate('LegalDoc', { key: 'customer_terms', pub: true })} style={s.termsLink}>{tr('Terms of Service')}</Text>
+                            <Text onPress={() => navigation.navigate('Terms')} style={s.termsLink}>{tr('Terms of Service')}</Text>
                             {' & '}
-                            <Text onPress={() => navigation.navigate('LegalDoc', { key: 'privacy', pub: true })} style={s.termsLink}>{tr('Privacy Policy')}</Text>
+                            <Text onPress={() => navigation.navigate('Privacy')} style={s.termsLink}>{tr('Privacy Policy')}</Text>
                         </Text>
                     </View>
                 </ScrollView>
@@ -386,7 +367,6 @@ const s = StyleSheet.create({
     headText: { color: D.text, fontSize: 15, fontWeight: '700', marginHorizontal: 14 },
     sub: { color: D.muted, fontSize: 14.5, lineHeight: 21, textAlign: 'center', marginTop: -10, marginBottom: 24 },
     inputRow: { flexDirection: 'row', alignItems: 'center', borderWidth: 1.5, borderRadius: 12, paddingHorizontal: 16, height: 56, backgroundColor: D.input },
-    flag: { width: 30, height: 20, borderRadius: 3, overflow: 'hidden', marginRight: 10 },
     cc: { color: D.text, fontSize: 16, fontWeight: '700' },
     vline: { width: 1, height: 24, marginHorizontal: 12, backgroundColor: D.border },
     phoneInput: { flex: 1, fontSize: 16.5, fontWeight: '600', height: '100%', color: D.text },

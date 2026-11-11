@@ -34,6 +34,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LineShimmer } from '../../components/owners/shimmer';
 import { tr, LANGS, useLang } from '../../i18n';
 import LanguageSheet from '../../components/common/LanguageSheet';
+import IndiaFlag from '../../components/common/IndiaFlag';
 
 // Native SMS helper is optional
 let OtpVerify = null;
@@ -45,6 +46,8 @@ if (Platform.OS === 'android') {
 
 const MAIN_ROUTE = 'MainTabs';
 const OTP_LENGTH = 6;
+// The browser draws its own white focus box round a field; these fields draw their own border, so hide it (web only).
+const noOutline = Platform.OS === 'web' ? { outlineStyle: 'none', outlineWidth: 0 } : null;
 const EMPTY_DIGITS = Array.from({ length: OTP_LENGTH }, () => '');
 const RESEND_SECONDS = 30;
 const STEP_HEIGHT = 176;
@@ -158,6 +161,7 @@ function OtpBoxes({ digits, setDigits, inputRefs, hasError, dimmed, onEdit, colo
                     importantForAutofill={i === 0 ? 'yes' : 'no'}
                     style={[
                         styles.otpBox,
+                        noOutline,
                         { backgroundColor: colors.bg, borderColor: colors.border, color: colors.text },
                         !!digit && { borderColor: colors.ink },
                         focused === i && !hasError && { borderColor: colors.primary, borderWidth: 2 },
@@ -631,7 +635,7 @@ function LoginMobile({ navigation }) {
             </View>
 
             {/* LANGUAGE */}
-            <View style={[styles.skipWrap, { top: insets.top + 12, right: undefined, left: 16 }]}>
+            <View style={[styles.skipWrap, { top: insets.top + 12, right: 'auto', left: 16 }]}>
                 <Pressable onPress={() => setLangOpen(true)} style={[styles.skipButton, { flexDirection: 'row', alignItems: 'center' }]} hitSlop={10}>
                     <Ionicons name="language" size={15} color="#FFFFFF" style={{ marginRight: 6 }} />
                     <Text style={styles.skipText}>{LANGS.find((l) => l.code === lang)?.native}</Text>
@@ -642,7 +646,7 @@ function LoginMobile({ navigation }) {
             {/* SKIP */}
             <Animated.View
                 entering={FadeInDown.delay(500)}
-                style={[styles.skipWrap, { top: insets.top + 12 }]}
+                style={[styles.skipWrap, { top: insets.top + 12, zIndex: 11 }]}
             >
                 <Pressable onPress={handleSkip} style={styles.skipButton} hitSlop={10}>
                     <Text style={styles.skipText}>{tr('Skip')}</Text>
@@ -673,14 +677,14 @@ function LoginMobile({ navigation }) {
                                 ]}
                             >
                                 <View style={styles.countryCode}>
-                                    <Text style={styles.flag}>🇮🇳</Text>
+                                    <IndiaFlag width={27} height={18} style={{ marginRight: 8 }} />
                                     <Text style={[styles.countryCodeText, { color: brand.text }]}>+91</Text>
                                     <View style={[styles.verticalDivider, { backgroundColor: brand.border }]} />
                                 </View>
                                 <Animated.View style={[styles.phoneField, phoneTextStyle]}>
                                     <TextInput
                                         ref={phoneRef}
-                                        style={[styles.phoneInput, { color: brand.text }]}
+                                        style={[styles.phoneInput, noOutline, { color: brand.text }]}
                                         keyboardType="phone-pad"
                                         placeholder={tr('Enter phone number')}
                                         placeholderTextColor={brand.muted}
@@ -809,9 +813,9 @@ function LoginMobile({ navigation }) {
 
                     <Text style={[styles.terms, { color: brand.muted }]}>
                         {tr('By continuing, you agree to our')}{'\n'}
-                        <Text onPress={() => navigation.navigate('LegalDoc', { key: 'customer_terms', pub: true })} style={[styles.termsLink, { color: brand.text }]}>{tr('Terms of Service')}</Text>
+                        <Text onPress={() => navigation.navigate('Terms')} style={[styles.termsLink, { color: brand.text }]}>{tr('Terms of Service')}</Text>
                         {'   '}
-                        <Text onPress={() => navigation.navigate('LegalDoc', { key: 'privacy', pub: true })} style={[styles.termsLink, { color: brand.text }]}>{tr('Privacy Policy')}</Text>
+                        <Text onPress={() => navigation.navigate('Privacy')} style={[styles.termsLink, { color: brand.text }]}>{tr('Privacy Policy')}</Text>
                     </Text>
                     <PoweredBy />
                 </Animated.View>
