@@ -4,7 +4,7 @@
 //   - the customer is on a screen about an order / paying / logging in.
 // Mounted once in the navigator, next to LiveOrderHost.
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Animated, AppState, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, AppState, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBrand } from '../common/kit';
@@ -138,7 +138,7 @@ export default function ActiveOrderBar({ routeName, onOpen, onOpenAll }) {
             <Pressable
                 onPress={() => (many ? onOpenAll() : onOpen(String(first.id || first._id), first))}
                 style={({ hovered }) => [s.bar, { backgroundColor: surface, borderColor: border }, desk && { borderRadius: 20, paddingVertical: 12, ...(hovered ? { borderColor: primary } : null), boxShadow: hovered ? `0 16px 40px ${primary}33, inset 0 0 0 1px ${primary}` : '0 10px 30px rgba(0,0,0,0.18)', transform: [{ translateY: hovered ? -3 : 0 }], cursor: 'pointer', transitionProperty: 'box-shadow, transform, border-color', transitionDuration: '200ms' }]}
-                accessibilityRole="button" accessibilityLabel={tr('View your active order')}
+                accessibilityRole={Platform.OS === 'web' ? undefined : 'button'} accessibilityLabel={tr('View your active order')}   // (on the website the Hide button inside is a button too: no button inside a button)
             >
                 <View style={[s.ic, { backgroundColor: tint(primary) }]}>
                     <Ionicons name={many ? 'receipt-outline' : icon} size={22} color={primary} />

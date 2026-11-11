@@ -17,12 +17,14 @@ import { installTextTranslation } from './src/i18n/textPatch';
 import LockGate from './src/lock/LockUI';
 import { loadActive } from './src/utils/common/branch';
 import { hideWebScrollbars } from './src/utils/common/webScrollbars';
+import { quietWebConsole } from './src/utils/common/webQuiet';
 
 // The native splash screen (brand colour + logo) is the only loading screen. It stays up until the shop's look
 // and the saved login are ready, then fades out into the app: no black screen, no second spinner.
 // This must run at module level, before the first render.
 installTextTranslation();   // texts that are not wrapped in tr() are still translated when the language has them
 hideWebScrollbars();   // the desktop website shows no scrollbars (nothing happens in the phone app)
+quietWebConsole();   // the website's console does not print the few known harmless dev messages (nothing happens in the phone app)
 SplashScreen.preventAutoHideAsync().catch(() => { });
 try { SplashScreen.setOptions({ duration: 350, fade: true }); } catch (e) { /* older native build */ }
 

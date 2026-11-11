@@ -642,7 +642,8 @@ function AccountInner() {
                 ) : null}
 
                 <Group title={tr('MANAGE')} delay={200}>
-                    {getApp.show ? <Item icon="download-outline" label={getApp.kind === 'store' ? tr('Get the app') : tr('Install the app')} onPress={getApp.open} /> : null}   {/* the website only */}
+                    {/* the website only */}
+                    {getApp.show ? <Item icon="download-outline" label={getApp.kind === 'store' ? tr('Get the app') : tr('Install the app')} onPress={getApp.open} /> : null}
                     <Item icon="information-circle-outline" label={tr('About Us')} onPress={() => nav.navigate('AboutUs')} />
                     <Item icon="phone-portrait-outline" label={tr("Where you're logged in")} onPress={() => nav.navigate('Sessions')} />
                     <Item icon="log-out-outline" label={tr('Log out')} onPress={doLogout} />

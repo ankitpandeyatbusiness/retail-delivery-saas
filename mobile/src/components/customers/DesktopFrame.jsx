@@ -19,7 +19,8 @@ export default function DesktopFrame({ navRef, routeName, children }) {
     const bare = !desktop || routeName === 'Login';   // the login screen has its own full-width desktop layout
     return (
         <View style={{ flex: 1, backgroundColor: desktop ? brand.background : undefined }}>
-            <GetAppBanner />   {/* the website only: nothing is drawn in the phone app */}
+            {/* the website only: nothing is drawn in the phone app */}
+            <GetAppBanner />
             {bare ? null : <DesktopTopBar navRef={navRef} routeName={routeName} />}
             <View style={{ flex: 1, flexDirection: 'row', width: '100%', maxWidth: bare ? undefined : PAGE, alignSelf: 'center' }}>
                 <View style={{ flex: 1, overflow: bare ? undefined : 'hidden' }}>{children}</View>

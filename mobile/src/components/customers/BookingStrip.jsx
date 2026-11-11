@@ -2,7 +2,7 @@
 // "Your table · Today 8:00 PM", "4 guests · Code ABCDE". Tap it for My reservations (the ticket QR is there and works without internet). A small arrow hides it; a round chip brings it back. It steps aside while he is dining in (the table bill bar takes its place)
 // and sits above the active order bar when both are on screen.
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, Pressable, AppState, Animated, Easing, Dimensions } from 'react-native';
+import { View, Text, Pressable, AppState, Animated, Easing, Dimensions, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBrand } from '../common/kit';
@@ -71,7 +71,7 @@ export default function BookingStrip({ routeName, onOpen }) {
         <>
         {desk ? <DeskSlotReport k="booking" h={hidden ? 56 : cardH} /> : null}
         <Animated.View onLayout={(e) => { const h = Math.round(e.nativeEvent.layout.height); if (h && h !== cardH) setCardH(h); }} pointerEvents={hidden ? 'none' : 'box-none'} style={{ position: 'absolute', ...(desk ? { left: 24, width: 400 } : { left: 12, right: 12 }), bottom, opacity: away.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }), transform: desk ? [{ scale: away.interpolate({ inputRange: [0, 1], outputRange: [1, 0.55] }) }] : [{ translateX: away.interpolate({ inputRange: [0, 1], outputRange: [0, Dimensions.get('window').width] }) }], ...(desk ? { transformOrigin: 'left bottom' } : null) }}>
-            <Pressable onPress={onOpen} accessibilityRole="button" style={({ hovered }) => [{ borderRadius: 18, backgroundColor: primary, elevation: 8, paddingVertical: 12, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center' }, desk && { borderRadius: 22, paddingVertical: 16, paddingHorizontal: 18, backgroundImage: `linear-gradient(120deg, ${primaryDark || primary}, ${primary})`, boxShadow: hovered ? `0 18px 44px ${primary}77` : `0 14px 36px ${primary}55`, transform: [{ translateY: hovered ? -3 : 0 }], cursor: 'pointer', transitionProperty: 'box-shadow, transform', transitionDuration: '200ms' }]}>
+            <Pressable onPress={onOpen} accessibilityRole={Platform.OS === 'web' ? undefined : 'button'} style={({ hovered }) => [{ borderRadius: 18, backgroundColor: primary, elevation: 8, paddingVertical: 12, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center' }, desk && { borderRadius: 22, paddingVertical: 16, paddingHorizontal: 18, backgroundImage: `linear-gradient(120deg, ${primaryDark || primary}, ${primary})`, boxShadow: hovered ? `0 18px 44px ${primary}77` : `0 14px 36px ${primary}55`, transform: [{ translateY: hovered ? -3 : 0 }], cursor: 'pointer', transitionProperty: 'box-shadow, transform', transitionDuration: '200ms' }]}>
                 <Ionicons name="calendar" size={20} color={onPrimary} />
                 <View style={{ flex: 1, marginLeft: 10 }}>
                     <Text style={{ color: onPrimary, fontWeight: '900' }} numberOfLines={1}>{card.table ? tr('Table {n} · {d} {t}', { n: card.table, d: dayWord(card.date, now), t: card.time }) : tr('Your table · {d} {t}', { d: dayWord(card.date, now), t: card.time })}</Text>

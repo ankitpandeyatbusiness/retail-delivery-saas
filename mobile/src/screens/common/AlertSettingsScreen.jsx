@@ -71,7 +71,8 @@ export default function AlertSettingsScreen() {
                     right={<DeskBtn kind={changed ? 'primary' : 'ghost'} icon="sparkles" label={changed ? tr('Use recommended settings') : tr('You are on the recommended settings')} disabled={!changed} onPress={recommended} />}
                 />
                 <Text style={{ color: muted, fontSize: 14, lineHeight: 21, marginTop: 14, maxWidth: 780 }}>{intro}</Text>
-                <View style={{ marginHorizontal: -16, marginTop: 6 }}><BrowserPushCard /></View>   {/* the website only: "Also notify me on this browser" */}
+                {/* the website only: "Also notify me on this browser" */}
+                <View style={{ marginHorizontal: -16, marginTop: 6 }}><BrowserPushCard /></View>
                 {loaded && !voiceOk && !web ? <View style={{ marginHorizontal: -16 }}><UpgradeNote feature="soundboxVoice" text={tr('Soundbox voice announces every new order')} /></View> : null}
                 {!loaded ? <ListShimmer count={5} /> : null}
                 <View style={{ gap: 16, marginTop: 14 }}>
@@ -131,7 +132,8 @@ export default function AlertSettingsScreen() {
                     <Text style={{ color: muted, fontSize: 12.5, lineHeight: 18 }}>{web ? tr('Notification shows on this browser (switch it on below). Slider shows on the screen while the website is open.') : withVoice ? tr('Notification shows on the phone, even when the app is closed. Tone is its sound. Voice reads it out while the app is open. Slider is the box that slides up over the app.') : tr('Notification shows on the phone, even when the app is closed. Tone is its sound.')}</Text>
                     <Button label={changed ? tr('Use recommended settings') : tr('You are on the recommended settings')} icon="sparkles" kind={changed ? 'primary' : 'ghost'} disabled={!changed} onPress={recommended} style={{ marginTop: 10 }} />
                 </View>
-                <BrowserPushCard />   {/* the website only: "Also notify me on this browser" */}
+                {/* the website only: "Also notify me on this browser" */}
+                <BrowserPushCard />
                 {loaded && !voiceOk && !web ? <UpgradeNote feature="soundboxVoice" text={tr('Soundbox voice announces every new order')} /> : null}
                 {!loaded ? <ListShimmer count={5} /> : null}
                 {groups.map((g) => (

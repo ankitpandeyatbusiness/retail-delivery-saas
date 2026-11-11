@@ -227,7 +227,7 @@ export default function LiveOrderHost({ routeName, onOpenOrder }) {
                         <Pressable
                             onPress={() => setSheet('half')}
                             style={({ hovered }) => [s.bar, { position: 'relative', left: undefined, right: undefined, flexDirection: 'column', alignItems: 'stretch', backgroundColor: surface, borderColor: border }, desk && { borderRadius: 20, padding: 14, ...(hovered ? { borderColor: primary } : null), boxShadow: hovered ? `0 16px 40px ${primary}33, inset 0 0 0 1px ${primary}` : '0 10px 30px rgba(0,0,0,0.18)', transform: [{ translateY: hovered ? -3 : 0 }], cursor: 'pointer', transitionProperty: 'box-shadow, transform, border-color', transitionDuration: '200ms' }]}
-                            accessibilityRole="button" accessibilityLabel={tr('Open live delivery map')}
+                            accessibilityRole={Platform.OS === 'web' ? undefined : 'button'} accessibilityLabel={tr('Open live delivery map')}
                         >
                             {/* ONE card for a delivery on its way: what is happening, then View order and Track, and Hide */}
                             <View style={{ flexDirection: 'row', alignItems: 'center' }}>

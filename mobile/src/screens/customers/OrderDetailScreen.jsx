@@ -342,7 +342,8 @@ export default function OrderDetailScreen() {
                 </Appear>
 
                 {cancelled ? <StayOfferCard style={{ marginHorizontal: 0 }} /> : null}
-                {live && !cancelled ? <QueueLine q={o.queue} style={{ marginHorizontal: 0 }} /> : null}   {/* as wide as the delivery card below: the page already has its own side space */}
+                {/* as wide as the delivery card below: the page already has its own side space */}
+                {live && !cancelled ? <QueueLine q={o.queue} style={{ marginHorizontal: 0 }} /> : null}
 
                 {o.orderType === 'pickup' && o.pickupCode ? (
                     <View style={{ alignItems: 'center', marginHorizontal: 16, marginTop: 14, marginBottom: 12, padding: 16, borderRadius: 18, backgroundColor: tint(primary) }}>

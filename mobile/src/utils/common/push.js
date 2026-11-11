@@ -452,7 +452,7 @@ export function startNotifications() {
     });
 
     // the phone got a new token: tell the server
-    Notifications.addPushTokenListener(async ({ data }) => {
+    if (Platform.OS !== 'web') Notifications.addPushTokenListener(async ({ data }) => {   // (the website has no push token to follow)
         if (typeof data !== 'string' || !useAuthStore.getState().user) return;
         try { await registerDevice(data, 'android', await loudFlag()); await SecureStore.setItemAsync(TOKEN_KEY, data); } catch (e) { /* retried next login */ }
     });

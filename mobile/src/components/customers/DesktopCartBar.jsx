@@ -138,7 +138,6 @@ export default function DesktopCartBar({ navRef, routeName }) {
             <Pressable
                 onPress={open}
                 pointerEvents={showCard ? 'auto' : 'none'}
-                accessibilityRole="button"
                 accessibilityLabel={tr('View cart')}
                 style={({ hovered }) => ({
                     width: 400, flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: 16, backgroundColor: brand.surface,

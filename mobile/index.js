@@ -1,3 +1,4 @@
+import './src/utils/common/webQuietBoot';   // first: the website's console skips a few known harmless dev messages (nothing happens in the phone app)
 import { registerRootComponent } from 'expo';
 
 // The rider's live location while he delivers (foreground service). Same reason: defined at module scope.
