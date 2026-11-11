@@ -85,4 +85,14 @@ function describeClient(req, ip) {
     };
 }
 
-module.exports = { describeClient, platformOf, PLATFORMS };
+// For a session saved BEFORE the device name was kept: work the name out from the browser string that was stored with it.
+// { platform, deviceLabel } or null when there is nothing to go on.
+function describeFromUserAgent(userAgent) {
+    const ua = String(userAgent || '').trim();
+    if (!ua) return null;
+    const req = { headers: { 'user-agent': ua } };
+    const platform = platformOf(req);
+    return { platform, deviceLabel: labelOf(req, platform) };
+}
+
+module.exports = { describeClient, describeFromUserAgent, platformOf, PLATFORMS };

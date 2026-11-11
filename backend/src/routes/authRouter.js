@@ -31,12 +31,18 @@ router.post('/logout', authController.logout);
 const mongoose = require('mongoose');
 const Session = require('../models/Session');
 const realtime = require('../services/realtime');
+const { describeClient, describeFromUserAgent } = require('../services/clientInfo');
 
-const shape = (s, currentId) => ({
+// a session from before the device name was kept: the name is worked out from the browser string saved with it
+const shape = (s, currentId) => {
+    const old = s.deviceLabel ? null : describeFromUserAgent(s.userAgent);
+    return shapeRow(s, currentId, old);
+};
+const shapeRow = (s, currentId, old) => ({
     id: String(s._id),
     current: String(s._id) === String(currentId),
-    platform: s.platform || 'android',   // sessions from before this list existed were all phones
-    device: s.deviceLabel || 'Unknown device',
+    platform: s.platform || old?.platform || 'android',   // sessions from before this list existed were all phones
+    device: s.deviceLabel || old?.deviceLabel || 'Unknown device',
     city: s.city || '', region: s.region || '', country: s.country || '', place: s.place || '',
     loggedInAt: s.createdAt,
     lastActiveAt: s.lastUsedAt || s.createdAt,
@@ -45,6 +51,14 @@ const mine = (req) => ({ userId: req.auth.userId, tenantId: req.tenant._id, expi
 
 router.get('/sessions', authenticate, wrap(async (req, res) => {
     const rows = await Session.find(mine(req)).sort({ lastUsedAt: -1 }).limit(20).lean();
+    // THIS device is asking right now, so its name is known for certain: a session that never got one is given it (and keeps it from now on)
+    const here = rows.find((r) => String(r._id) === String(req.auth.sessionId));
+    if (here && !here.deviceLabel) {
+        const c = describeClient(req, req.ip);
+        const set = { deviceLabel: c.deviceLabel, platform: c.platform, ...(c.city ? { city: c.city } : {}), ...(c.region ? { region: c.region } : {}), ...(c.country ? { country: c.country } : {}), ...(c.place ? { place: c.place } : {}) };
+        Session.updateOne({ _id: here._id }, { $set: set }).catch(() => { /* the next time */ });
+        Object.assign(here, set);
+    }
     const items = rows.map((s) => shape(s, req.auth.sessionId));
     items.sort((a, b) => Number(b.current) - Number(a.current));
     res.json({ items });

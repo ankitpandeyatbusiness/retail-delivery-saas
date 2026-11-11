@@ -124,4 +124,36 @@ describe('where you are logged in', () => {
         const alive = (await Promise.all(heads.map((h) => list(h)))).filter((r) => r.status === 200).length;
         assert.equal(alive, 5);
     });
+
+    test('a session saved before the device name was kept still shows a name: this device is named from the request, the others from their saved browser string', async () => {
+        const w = await makeWorld('sess-old');
+        const here = await signIn(w.customer.user, w.tenant, { 'user-agent': CHROME_WIN, 'x-client-platform': 'web' });
+        const other = await signIn(w.customer.user, w.tenant, { 'user-agent': 'okhttp/4.12.0', 'x-client-platform': 'android' });
+        // make both look like sessions from before the name was kept: no name, no platform, only the browser string
+        await Session.updateMany({ userId: w.customer.user._id }, { $unset: { deviceLabel: 1, platform: 1 } });
+        const otherRow = await Session.findOne({ userAgent: 'okhttp/4.12.0', userId: w.customer.user._id });
+        const r = await list(here).set('user-agent', CHROME_WIN);
+        assert.equal(r.status, 200);
+        const cur = r.body.items.find((x) => x.current);
+        assert.equal(cur.device, 'Chrome on Windows');
+        assert.equal(cur.platform, 'web');
+        const old = r.body.items.find((x) => x.id === String(otherRow._id));
+        assert.equal(old.device, 'Android app');
+        assert.equal(old.platform, 'android');
+        // the current one was saved with its name, so it keeps it
+        const saved = await Session.findById(cur.id).lean();
+        assert.equal(saved.deviceLabel, 'Chrome on Windows');
+        void other;
+    });
+
+    test('a session with no name and no browser string is still listed (as an unknown device), not an error', async () => {
+        const w = await makeWorld('sess-blank');
+        const a = await signIn(w.customer.user, w.tenant, { 'x-client-platform': 'web' });
+        const b = await signIn(w.customer.user, w.tenant, { 'x-client-platform': 'web' });
+        await Session.updateMany({ userId: w.customer.user._id }, { $unset: { deviceLabel: 1, platform: 1, userAgent: 1 } });
+        const r = await list(a);
+        assert.equal(r.status, 200);
+        assert.ok(r.body.items.find((x) => !x.current).device);
+        void b;
+    });
 });
