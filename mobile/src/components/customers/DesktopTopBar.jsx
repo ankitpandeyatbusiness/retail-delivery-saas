@@ -23,7 +23,7 @@ import { useAddressStore } from '../../store/customers/useAddressStore';
 import { useMeStore } from '../../store/customers/useMeStore';
 import { useOrderMode, modesOf } from '../../store/customers/useOrderMode';
 import { ask } from '../common/dialog';
-import { showToast, useClosedStyle } from './shop';
+import { showToast } from './shop';
 import { AddressSheet } from './addresses';
 import TableSheet from './TableSheet';
 import { tr } from '../../i18n';
@@ -271,13 +271,12 @@ export default function DesktopTopBar({ navRef, routeName }) {
     const wordings = [sample ? tr('Search "{dish}"', { dish: sample }) : tr('Search for dishes'), tr('Search dishes'), tr('Search')];
     const placeholder = searchW ? (wordings.find((t) => t.length * 7.6 <= room) || wordings[wordings.length - 1]) : wordings[0];
     const roomy = width >= 1280;
-    const closedStyle = useClosedStyle();   // the shop is closed: the bar turns grey with the page (like the phone's tabs)
     const floating = theme.tabBarStyle === 'floating';   // the shop chose the floating bar: on the website it is a pill that floats above the page
     const logo = theme.icon || theme.logo;
     const initial = String(user?.name || user?.phone || '?').trim().slice(0, 1).toUpperCase();
 
     return (
-        <View style={[floating ? { backgroundColor: brand.background, paddingTop: 12, paddingBottom: 8, paddingHorizontal: 20, zIndex: 30 } : { backgroundColor: brand.surface, borderBottomWidth: 1, borderBottomColor: brand.border, zIndex: 30 }, closedStyle]}>
+        <View style={[floating ? { backgroundColor: brand.background, paddingTop: 12, paddingBottom: 8, paddingHorizontal: 20, zIndex: 30 } : { backgroundColor: brand.surface, borderBottomWidth: 1, borderBottomColor: brand.border, zIndex: 30 }]}>
             <View
                 style={[
                     { width: '100%', flexDirection: 'row', alignItems: 'center', height: HEIGHT, paddingHorizontal: 20 },
@@ -342,13 +341,12 @@ export default function DesktopTopBar({ navRef, routeName }) {
                 {modes.length > 1 ? <ModeSwitch modes={modes} value={effMode} onChange={onMode} brand={brand} compact={width < 1280} /> : null}
 
                 <View style={{ marginLeft: 6, flexDirection: 'row', alignItems: 'center' }}>
+                    <IconBtn brand={brand} icon={routeName === 'Home' ? 'home' : 'home-outline'} label={tr('Home')} onPress={() => goTab('Home')} active={routeName === 'Home'} />
                     {couponsOn ? <IconBtn brand={brand} icon="pricetags-outline" label={tr('Offers')} onPress={() => go('Offers')} active={routeName === 'Offers'} /> : null}
                     {hasOrders ? <IconBtn brand={brand} icon="receipt-outline" label={tr('Orders')} onPress={() => goTab('Orders')} active={routeName === 'Orders'} /> : null}
                     {user ? <IconBtn brand={brand} icon="notifications-outline" label={tr('Notifications')} onPress={() => go('Notifications')} badge={unread > 0 ? (unread > 9 ? '9+' : String(unread)) : null} active={routeName === 'Notifications'} /> : null}
-                    {/* the cart button grows in (and shrinks away) instead of popping, so the bar never jerks when the cart fills or empties */}
-                    <View pointerEvents={cartCount > 0 ? 'auto' : 'none'} style={{ width: cartCount > 0 ? 48 : 0, opacity: cartCount > 0 ? 1 : 0, transform: [{ scale: cartCount > 0 ? 1 : 0.6 }], transitionProperty: 'width, opacity, transform', transitionDuration: '320ms', transitionTimingFunction: 'cubic-bezier(0.22, 0.8, 0.2, 1)' }}>
-                        <IconBtn brand={brand} icon="bag-handle-outline" label={tr('Cart')} onPress={() => go('Cart')} badge={cartShown > 99 ? '99+' : String(cartShown)} active={routeName === 'Cart'} />
-                    </View>
+                    {/* the cart button is always in the bar; its number shows only while the cart has something in it */}
+                    <IconBtn brand={brand} icon={routeName === 'Cart' ? 'bag-handle' : 'bag-handle-outline'} label={tr('Cart')} onPress={() => go('Cart')} badge={cartCount > 0 ? (cartCount > 99 ? '99+' : String(cartCount)) : null} active={routeName === 'Cart'} />
                     {user ? (
                         <Pressable onPress={() => goTab('Account')} accessibilityLabel={tr('Account')} style={({ hovered }) => ({ width: 40, height: 40, borderRadius: 20, marginLeft: 8, backgroundColor: brand.primary, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', opacity: hovered ? 0.88 : 1, borderWidth: routeName === 'Account' ? 2 : 0, borderColor: brand.primary, cursor: 'pointer' })}>
                             {photo ? <Image source={{ uri: photo }} style={{ width: '100%', height: '100%' }} contentFit="cover" /> : <Text style={{ color: brand.onPrimary || '#FFFFFF', fontWeight: '900', fontSize: 15 }}>{initial}</Text>}

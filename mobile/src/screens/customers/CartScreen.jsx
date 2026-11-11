@@ -416,6 +416,32 @@ export default function CartScreen() {
         return ok ? q.lineTotal : +(l.price * l.quantity).toFixed(2);
     };
 
+    if (!lines.length && desk) {
+        // the desktop page: a card saying the cart is empty (with a button to the menu) and, when there are favourites, a grid of them beside it
+        return (
+            <View style={[s.flex, { backgroundColor: background }, closedStyle]}>
+                <BackHeader title={tr('Cart')} />
+                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 60 }}>
+                    <View style={{ width: '100%', maxWidth: 1180, alignSelf: 'center', paddingHorizontal: 24, paddingTop: 16, flexDirection: 'row', flexWrap: 'wrap', gap: 32, alignItems: 'flex-start', justifyContent: 'center' }}>
+                        <Appear style={{ width: 360, marginTop: hasFavs ? 4 : 40 }}>
+                            <View style={{ alignItems: 'center', padding: 36, borderRadius: 26, borderWidth: 1, borderColor: border, backgroundColor: surface }}>
+                                <View style={[s.iconCircle, { backgroundColor: background, borderColor: border }]}>
+                                    <Ionicons name="cart-outline" size={48} color={muted} />
+                                </View>
+                                <Text style={[s.big, { color: text, textAlign: 'center' }]}>{tr(full.labels.emptyCart)}</Text>
+                                <Text style={[s.lSub, { color: muted, marginTop: 6, textAlign: 'center' }]}>{tr('Good food is always cooking.')}</Text>
+                                <Press hover={{ filter: 'brightness(1.1)' }} onPress={() => nav.goBack()} style={[s.cta, { backgroundColor: primary, borderRadius: radius }]}>
+                                    <Text numberOfLines={1} style={s.ctaTxt}>{tr('Browse Menu')}</Text>
+                                </Press>
+                            </View>
+                        </Appear>
+                        {hasFavs ? <View style={{ flex: 1, minWidth: 420 }}><FavouriteDishes mode="list" /></View> : null}
+                    </View>
+                </ScrollView>
+            </View>
+        );
+    }
+
     if (!lines.length) {
         return (
             <View style={[s.flex, { backgroundColor: background }, closedStyle]}>

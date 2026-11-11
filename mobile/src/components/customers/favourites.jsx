@@ -16,9 +16,11 @@ import { useAuthStore } from '../../store/common/useAuthStore';
 import { useHomeStore } from '../../store/customers/useHomeStore';
 import { useCartStore, useFavStore } from '../../store/customers/shopStores';
 import { fetchFavourites } from '../../api/customers/shopApi';
+import { useIsDesktopWeb } from '../../utils/common/layout';
 
 export function FavouriteDishes({ mode = 'strip' }) {
     const { primary, text, muted } = useBrand();
+    const desk = useIsDesktopWeb();   // the desktop website: the list is a grid of cards, two across (false in the phone app)
     const user = useAuthStore((st) => st.user);
     const enabled = useHomeStore((st) => st.full.features.favourites);
     const lines = useCartStore((st) => st.lines);
@@ -64,6 +66,12 @@ export function FavouriteDishes({ mode = 'strip' }) {
                 ) : (
                     <View style={s.skelRow}>{[0, 1, 2].map((i) => <Skel key={i} width={148} height={190} radius={18} style={{ marginRight: 10 }} />)}</View>
                 )
+            ) : mode === 'list' && desk ? (
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 16, paddingTop: 16 }}>
+                    {list.slice(0, 8).map((it) => (
+                        <View key={it._id} style={{ flexGrow: 1, flexBasis: 320, maxWidth: '50%', minWidth: 300 }}><ItemCard item={it} variant="deskCompact" /></View>
+                    ))}
+                </View>
             ) : mode === 'list' ? (
                 <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingTop: 12, paddingBottom: 30 }} showsVerticalScrollIndicator={false}>
                     {list.slice(0, 8).map((it, i) => (

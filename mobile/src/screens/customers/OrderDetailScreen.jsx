@@ -744,7 +744,8 @@ function OrderDesktop({ c }) {
                             {o.pickupClaim?.kind ? note(o.pickupClaim.kind === 'collected' ? tr('You told the shop you collected it. They will confirm.') : tr('You told the shop you do not want it. They will decide about the refund and let you know.')) : null}
                             {o.cancelRequest?.at ? note(tr('You asked the shop to cancel this. Waiting for their reply.')) : null}
                             {delivery && live && track && track.state !== 'cancelled' ? <TrackingCard tracking={track} destination={o.address} /> : null}
-                            {dineIn && !cancelled && live ? <CallCard /> : null}
+                            {/* the card carries its own 16 px side margin and none above: a gap above it, and the side margin taken back, so it is as wide as the card above and does not touch it */}
+                            {dineIn && !cancelled && live ? <View style={{ marginTop: 16, marginHorizontal: -16 }}><CallCard /></View> : null}
 
                             {!cancelled ? (
                                 <Card title={tr('Order status')} icon="time-outline" delay={60}>

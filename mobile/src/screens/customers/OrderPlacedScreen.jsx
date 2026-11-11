@@ -14,6 +14,7 @@ import { useMotion } from '../../components/common/motion';
 import { Press, rs } from '../../components/customers/cartParts';
 import { tr } from '../../i18n';
 import { playSfx } from '../../utils/common/sfx';
+import { useIsDesktopWeb } from '../../utils/common/layout';
 
 const PIECES = 18;
 const HALO = 150;   // size of the area the confetti flies over
@@ -42,6 +43,7 @@ export default function OrderPlacedScreen() {
     const insets = useSafeAreaInsets();
     const { primary, primaryLight, primaryDark, onPrimary, accent, ok, text, muted, background, surface, border, radius } = useBrand();
     const motion = useMotion();
+    const desk = useIsDesktopWeb();   // the desktop website: the celebration on the left, the order card on the right (false in the phone app)
     const still = motion === 'off';
 
     const pop = useRef(new Animated.Value(still ? 1 : 0)).current;      // the disc and its tick
@@ -85,6 +87,103 @@ export default function OrderPlacedScreen() {
     if (total != null) rows.push(['Total', rs(total)]);
     rows.push(['Payment', paid ? 'Paid online' : (method || 'Pay on delivery')]);
     if (etaMin) rows.push([type === 'pickup' || type === 'dine_in' ? 'Ready in about' : 'Arriving in about', `${etaMin} min`]);
+
+    if (desk) {
+        // what happens next, in the order it happens, for each way of ordering
+        const STEPS = type === 'pickup' ? ['Placed', 'Preparing', 'Ready', 'Collected'] : type === 'dine_in' ? ['Placed', 'Preparing', 'Served'] : ['Placed', 'Preparing', 'On the way', 'Delivered'];
+        const KIND = type === 'pickup' ? ['bag-handle', 'Pickup'] : type === 'dine_in' ? ['restaurant', 'Dine in'] : ['bicycle', 'Delivery'];
+        const subTxt = type === 'pickup' ? tr('We will tell you when it is ready to collect.')
+            : type === 'dine_in' ? tr('The kitchen has it. We will bring it to your table.')
+                : (orderNo ? tr('Order #{orderNo} is on its way to the kitchen.', { orderNo }) : tr('Your order is on its way to the kitchen.'));
+        const slide = { opacity: rise, transform: [{ translateY: rise.interpolate({ inputRange: [0, 1], outputRange: [22, 0] }) }] };
+        return (
+            <View style={{ flex: 1, backgroundColor: background, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+                <View style={{ width: '100%', maxWidth: 1000, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: 56 }}>
+                    <View style={{ flex: 1, minWidth: 340, alignItems: 'center' }}>
+                <View style={s.stage}>
+                    {/* the ring */}
+                    <Animated.View
+                        pointerEvents="none"
+                        style={[s.ring, { borderColor: primary, opacity: ring.interpolate({ inputRange: [0, 0.2, 1], outputRange: [0, 0.5, 0] }), transform: [{ scale: ring.interpolate({ inputRange: [0, 1], outputRange: [0.8, 2.1] }) }] }]}
+                    />
+                    {/* confetti */}
+                    {motion === 'full' ? confetti.map((c, i) => (
+                        <Animated.View
+                            key={i}
+                            pointerEvents="none"
+                            style={{
+                                position: 'absolute',
+                                width: c.w, height: c.round ? c.w : c.h, borderRadius: c.round ? c.w / 2 : 2, backgroundColor: c.color,
+                                opacity: burst.interpolate({ inputRange: [0, 0.08, 0.75, 1], outputRange: [0, 1, 1, 0] }),
+                                transform: [
+                                    { translateX: burst.interpolate({ inputRange: [0, 1], outputRange: [0, c.dx] }) },
+                                    { translateY: burst.interpolate({ inputRange: [0, 0.4, 1], outputRange: [0, c.up, c.fall] }) },
+                                    { rotate: burst.interpolate({ inputRange: [0, 1], outputRange: ['0deg', `${c.spin}deg`] }) },
+                                ],
+                            }}
+                        />
+                    )) : null}
+                    {/* the disc and its tick */}
+                    <Animated.View style={{ transform: [{ scale: pop.interpolate({ inputRange: [0, 1], outputRange: [0.3, 1] }) }], opacity: pop.interpolate({ inputRange: [0, 0.4, 1], outputRange: [0, 1, 1] }) }}>
+                        <LinearGradient colors={[primaryLight, primaryDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.disc}>
+                            <Ionicons name="checkmark" size={58} color={onPrimary} />
+                        </LinearGradient>
+                    </Animated.View>
+                </View>
+                        <Animated.View style={[{ alignItems: 'center' }, slide]}>
+                            <Text style={{ color: text, fontSize: 38, fontWeight: '900', letterSpacing: -1, marginTop: 10 }}>{tr('Order placed!')}</Text>
+                            <Text style={{ color: muted, fontSize: 16, textAlign: 'center', marginTop: 10, lineHeight: 24, maxWidth: 380 }}>{subTxt}</Text>
+                        </Animated.View>
+                    </View>
+
+                    <Animated.View style={[{ width: 400, maxWidth: '100%', borderRadius: 28, borderWidth: 1, borderColor: border, backgroundColor: surface, padding: 28, boxShadow: `0 24px 60px ${primary}1F` }, slide]}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: `${primary}1F` }}>
+                                <Ionicons name={KIND[0]} size={15} color={primary} />
+                                <Text style={{ color: primary, fontSize: 13, fontWeight: '900', marginLeft: 6 }}>{tr(KIND[1])}</Text>
+                            </View>
+                            <View style={{ flex: 1 }} />
+                            {orderNo ? <Text style={{ color: text, fontSize: 18, fontWeight: '900' }}>{`#${orderNo}`}</Text> : null}
+                        </View>
+
+                        {/* the way ahead: the first step is done */}
+                        <View style={{ flexDirection: 'row', marginTop: 26, marginBottom: 8 }}>
+                            {STEPS.map((st, i) => {
+                                const done = i === 0;
+                                const next = i === 1;
+                                return (
+                                    <View key={st} style={{ flex: 1, alignItems: 'center' }}>
+                                        {i < STEPS.length - 1 ? <View style={{ position: 'absolute', top: 13, left: '50%', right: '-50%', height: 2, backgroundColor: done ? ok : border }} /> : null}
+                                        <View style={{ width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: done ? ok : surface, borderWidth: done ? 0 : 2, borderColor: next ? primary : border }}>
+                                            {done ? <Ionicons name="checkmark" size={16} color="#FFFFFF" /> : next ? <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: primary }} /> : null}
+                                        </View>
+                                        <Text numberOfLines={1} style={{ color: done || next ? text : muted, fontSize: 11.5, fontWeight: done || next ? '800' : '600', marginTop: 8 }}>{tr(st)}</Text>
+                                    </View>
+                                );
+                            })}
+                        </View>
+
+                        <View style={{ marginTop: 14 }}>
+                            {rows.map(([k, v], i) => (
+                                <View key={k} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, borderTopWidth: 1, borderTopColor: border }}>
+                                    <Text style={{ color: muted, fontSize: 14, fontWeight: '600' }}>{k}</Text>
+                                    <Text style={{ color: text, fontSize: 15, fontWeight: '800' }}>{v}</Text>
+                                </View>
+                            ))}
+                        </View>
+
+                        <Press hover={{ filter: 'brightness(1.1)' }} wrap={{ marginTop: 10 }} onPress={goOrder} style={[s.main, { backgroundColor: primary, borderRadius: radius }]}>
+                            <Ionicons name="navigate-outline" size={18} color={onPrimary} />
+                            <Text style={[s.mainTxt, { color: onPrimary }]}>{tr('Track order')}</Text>
+                        </Press>
+                        <Pressable onPress={goMenu} accessibilityRole="button" style={({ hovered }) => ({ alignSelf: 'stretch', alignItems: 'center', marginTop: 10, paddingVertical: 13, borderRadius: radius, backgroundColor: hovered ? `${primary}1A` : 'transparent', cursor: 'pointer', transitionProperty: 'background-color', transitionDuration: '150ms' })}>
+                            <Text style={[s.ghostTxt, { color: primary }]}>{tr('Back to menu')}</Text>
+                        </Pressable>
+                    </Animated.View>
+                </View>
+            </View>
+        );
+    }
 
     return (
         <View style={[s.root, { backgroundColor: background, paddingTop: insets.top + 24, paddingBottom: insets.bottom + 16 }]}>

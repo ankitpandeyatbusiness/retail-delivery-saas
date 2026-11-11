@@ -1,6 +1,6 @@
 // src/components/ui/cartParts.jsx
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, Pressable, StyleSheet, LayoutAnimation, Animated, Easing } from 'react-native';
+import { View, Text, Pressable, StyleSheet, LayoutAnimation, Animated, Easing, Platform } from 'react-native';
 import { ListShimmer } from '../owners/shimmer';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand } from '../common/kit';
@@ -132,7 +132,7 @@ export function Bill({ q, type, busy, baseDeliveryFee }) {
 // Free delivery bar: the fill slides, the colour fades, the text cross-fades. Nothing jumps.
 export function FreeDeliveryBar({ preview, freeAbove }) {
     const { errorText, errorSoft, ok, okSoft } = useBrand();
-    const desk = useIsDesktopWeb();   // the desktop website: a rounded card of its own (false in the phone app)
+    const desk = Platform.OS === 'web';   // the website (desktop and phone-sized browsers): a rounded card of its own, with room above and below (false in the phone app)
     const unlocked = preview >= freeAbove;
     const pct = Math.min(1, Math.max(0, preview / freeAbove));
 
@@ -158,7 +158,7 @@ export function FreeDeliveryBar({ preview, freeAbove }) {
 
     const fg = shown ? ok : errorText;
     return (
-        <View style={[s.tr, { backgroundColor: errorSoft, overflow: 'hidden' }, desk && { marginHorizontal: 16, marginTop: 12, borderRadius: 16 }]}>
+        <View style={[s.tr, { backgroundColor: errorSoft, overflow: 'hidden' }, desk && { marginHorizontal: 16, marginTop: 12, marginBottom: 4, borderRadius: 16 }]}>
             {/* the "unlocked" background fades in over the "keep going" one (no colour animation on the JS thread) */}
             <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: okSoft, opacity: col }]} />
             <Animated.View style={{ opacity: fade }}>

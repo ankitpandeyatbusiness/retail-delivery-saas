@@ -308,7 +308,7 @@ function VisitBar() {
                     accessibilityLabel={tr('Get directions')}
                     style={({ hovered }) => ({ width: 40, height: 40, borderRadius: 20, backgroundColor: primary, alignItems: 'center', justifyContent: 'center', transform: [{ scale: hovered ? 1.08 : 1 }], cursor: 'pointer' })}
                 >
-                    <Ionicons name="arrow-forward" size={19} color={onPrimary} />
+                    <Ionicons name="navigate" size={18} color={onPrimary} />
                 </Pressable>
             ) : null}
         </View>

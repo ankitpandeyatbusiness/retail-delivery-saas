@@ -17,6 +17,7 @@ import { onNotification } from '../../api/common/socket';
 import { fetchOrders, fetchTracking, rateOrder } from '../../api/customers/shopApi';
 import { showToast } from './shop';
 import { tr } from '../../i18n';
+import { useIsDesktopWeb } from '../../utils/common/layout';
 
 const LATER_KEY = 'review.later.v1';
 const MAX_LATER = 1;   // one "Later" and that order is never asked about again
@@ -29,11 +30,17 @@ const readLater = async () => { try { return JSON.parse((await AsyncStorage.getI
 const writeLater = async (m) => { try { await AsyncStorage.setItem(LATER_KEY, JSON.stringify(m)); } catch (e) { /* asked again next time */ } };
 
 function Stars({ value, onChange, size = 38 }) {
+    const desk = useIsDesktopWeb();   // the desktop website: stars light up under the mouse (false in the phone app)
+    const [hv, setHv] = useState(0);
+    const shown = desk && hv ? hv : value;
     return (
-        <View style={{ flexDirection: 'row', justifyContent: 'center', marginVertical: 6 }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'center', marginVertical: 6 }} onPointerLeave={desk ? () => setHv(0) : undefined}>
             {[1, 2, 3, 4, 5].map((k) => (
-                <Pressable key={k} onPress={() => onChange(k)} hitSlop={6}>
-                    <Ionicons name={value >= k ? 'star' : 'star-outline'} size={size} color={value >= k ? '#F5A623' : '#BBBBBB'} style={{ marginHorizontal: 5 }} />
+                <Pressable key={k} onPress={() => onChange(k)} hitSlop={6} onHoverIn={desk ? () => setHv(k) : undefined} style={desk ? { cursor: 'pointer' } : undefined}>
+                    <Ionicons
+                        name={shown >= k ? 'star' : 'star-outline'} size={desk ? 46 : size} color={shown >= k ? '#F5A623' : '#BBBBBB'}
+                        style={[{ marginHorizontal: desk ? 7 : 5 }, desk && { transform: [{ scale: hv === k ? 1.22 : 1 }], transitionProperty: 'transform', transitionDuration: '140ms' }]}
+                    />
                 </Pressable>
             ))}
         </View>
@@ -42,7 +49,9 @@ function Stars({ value, onChange, size = 38 }) {
 
 // the dishes: one star rating and a few words for the whole order
 function FoodForm({ order, onDone, onLater }) {
-    const { primary, text, muted, border, background, radius } = useBrand();
+    const { primary, text, muted, border, background, radius, surface } = useBrand();
+    const desk = useIsDesktopWeb();
+    const [focus, setFocus] = useState(false);
     const [stars, setStars] = useState(0);
     const [comment, setComment] = useState('');
     const [busy, setBusy] = useState(false);
@@ -66,18 +75,29 @@ function FoodForm({ order, onDone, onLater }) {
                 {`#${order.orderNo} · ${names.slice(0, 3).join(', ')}${names.length > 3 ? ` +${names.length - 3}` : ''}`}
             </Text>
             <Stars value={stars} onChange={setStars} />
-            <Text style={{ color: stars ? '#F5A623' : muted, textAlign: 'center', fontWeight: '800', marginBottom: 10 }}>{stars ? tr(WORDS[stars - 1]) : tr('Tap a star to rate')}</Text>
-            {stars ? (
+            <Text style={{ color: stars ? '#F5A623' : muted, textAlign: 'center', fontWeight: '800', marginBottom: 10 }}>{stars ? tr(WORDS[stars - 1]) : tr(desk ? 'Click a star to rate' : 'Tap a star to rate')}</Text>
+            {desk ? (
+                // the website: the box is always there and opens smoothly (its height and opacity change together), so the window does not jump when a star is clicked
+                <View style={{ overflow: 'hidden', maxHeight: stars ? 150 : 0, opacity: stars ? 1 : 0, padding: stars ? 5 : 0, margin: stars ? -5 : 0, transitionProperty: 'max-height, opacity, padding, margin', transitionDuration: '360ms', transitionTimingFunction: 'cubic-bezier(0.4, 0, 0.2, 1)' }} pointerEvents={stars ? 'auto' : 'none'}>
                 <TextInput
                     value={comment} onChangeText={setComment} multiline maxLength={300}
                     placeholder={tr('Tell us what you liked (optional)')} placeholderTextColor={muted}
-                    style={{ borderWidth: 1, borderColor: border, borderRadius: 12, padding: 12, minHeight: 70, color: text, backgroundColor: background, textAlignVertical: 'top', marginBottom: 10 }}
+                    onFocus={() => setFocus(true)} onBlur={() => setFocus(false)}
+                    style={[{ borderWidth: 1, borderColor: border, borderRadius: 12, padding: 12, minHeight: 70, color: text, backgroundColor: background, textAlignVertical: 'top', marginBottom: 10 }, desk && { minHeight: 104, borderRadius: 16, paddingHorizontal: 16, paddingVertical: 14, fontSize: 15, lineHeight: 22, borderWidth: 1.5, borderColor: focus ? primary : border, backgroundColor: surface, outlineStyle: 'none', outlineWidth: 0, boxShadow: focus ? `0 0 0 4px ${alpha(primary, 0.18)}` : '0 0 0 0 transparent', transitionProperty: 'border-color, box-shadow', transitionDuration: '160ms' }]}
+                />
+                </View>
+            ) : stars ? (
+                <TextInput
+                    value={comment} onChangeText={setComment} multiline maxLength={300}
+                    placeholder={tr('Tell us what you liked (optional)')} placeholderTextColor={muted}
+                    onFocus={() => setFocus(true)} onBlur={() => setFocus(false)}
+                    style={[{ borderWidth: 1, borderColor: border, borderRadius: 12, padding: 12, minHeight: 70, color: text, backgroundColor: background, textAlignVertical: 'top', marginBottom: 10 }, desk && { minHeight: 104, borderRadius: 16, paddingHorizontal: 16, paddingVertical: 14, fontSize: 15, lineHeight: 22, borderWidth: 1.5, borderColor: focus ? primary : border, backgroundColor: surface, outlineStyle: 'none', outlineWidth: 0, boxShadow: focus ? `0 0 0 4px ${alpha(primary, 0.18)}` : '0 0 0 0 transparent', transitionProperty: 'border-color, box-shadow', transitionDuration: '160ms' }]}
                 />
             ) : null}
-            <Pressable disabled={!stars || busy} onPress={submit} style={{ backgroundColor: primary, borderRadius: radius, paddingVertical: 14, alignItems: 'center', opacity: stars ? 1 : 0.5 }}>
+            <Pressable disabled={!stars || busy} onPress={submit} style={({ hovered }) => [{ backgroundColor: primary, borderRadius: radius, paddingVertical: 14, alignItems: 'center', opacity: stars ? 1 : 0.5 }, desk && { paddingVertical: 16, cursor: stars ? 'pointer' : 'not-allowed', filter: hovered && stars ? 'brightness(1.1)' : 'brightness(1)', boxShadow: hovered && stars ? `0 12px 28px ${primary}55` : '0 0 0 rgba(0,0,0,0)', transform: [{ translateY: hovered && stars ? -2 : 0 }], transitionProperty: 'filter, box-shadow, transform', transitionDuration: '170ms' }]}>
                 <Text style={{ color: '#FFFFFF', fontWeight: '900', fontSize: 15 }}>{busy ? '…' : tr('Submit review')}</Text>
             </Pressable>
-            <Pressable onPress={onLater} hitSlop={8} style={{ alignItems: 'center', paddingVertical: 14 }}>
+            <Pressable onPress={onLater} hitSlop={8} style={({ hovered }) => [{ alignItems: 'center', paddingVertical: 14 }, desk && { marginTop: 8, paddingVertical: 12, borderRadius: radius, cursor: 'pointer', backgroundColor: hovered ? alpha(muted, 0.14) : 'transparent', transitionProperty: 'background-color', transitionDuration: '150ms' }]}>
                 <Text style={{ color: muted, fontWeight: '800' }}>{tr('Later')}</Text>
             </Pressable>
         </View>
@@ -86,24 +106,35 @@ function FoodForm({ order, onDone, onLater }) {
 
 // a glowing thank-you for a moment
 function ThankYou({ stars, onClose }) {
-    const { surface, text, muted, primary } = useBrand();
+    const { surface, text, muted, primary, onPrimary, radius } = useBrand();
+    const desk = useIsDesktopWeb();   // the desktop website: a card of its own size that grows in, with a bar that runs down while it waits (false in the phone app)
+    const [run, setRun] = useState(false);
+    useEffect(() => { const t = setTimeout(() => setRun(true), 40); return () => clearTimeout(t); }, []);
     const shop = useThemeStore((s) => s.theme?.name) || '';
     useEffect(() => { const t = setTimeout(onClose, 3000); return () => clearTimeout(t); }, [onClose]);
     const glad = stars >= 4;
     return (
         <Modal visible transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
             <Pressable onPress={onClose} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center', padding: 28 }}>
-                <GlowBorder active radius={26} width={3} colors={['#34D399', '#FBBF24', '#F472B6']} style={{ alignSelf: 'stretch' }}>
-                    <View style={{ backgroundColor: surface, borderRadius: 26, padding: 26, alignItems: 'center' }}>
-                        <View style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: alpha(primary, 0.14), alignItems: 'center', justifyContent: 'center' }}>
-                            <Ionicons name={glad ? 'heart' : 'chatbubble-ellipses'} size={36} color={glad ? '#EF4444' : primary} />
+                <GlowBorder active radius={26} width={3} colors={['#34D399', '#FBBF24', '#F472B6']} style={desk ? { width: 460, maxWidth: '100%', opacity: run ? 1 : 0, transform: [{ scale: run ? 1 : 0.9 }], transitionProperty: 'opacity, transform', transitionDuration: '320ms', transitionTimingFunction: 'cubic-bezier(0.2, 0.8, 0.2, 1)' } : { alignSelf: 'stretch' }}>
+                    <View style={{ backgroundColor: surface, borderRadius: 26, padding: desk ? 40 : 26, paddingBottom: desk ? 34 : 26, alignItems: 'center', overflow: 'hidden' }}>
+                        <View style={{ width: desk ? 96 : 72, height: desk ? 96 : 72, borderRadius: desk ? 48 : 36, backgroundColor: alpha(primary, 0.14), alignItems: 'center', justifyContent: 'center', ...(desk ? { transform: [{ scale: run ? 1 : 0.4 }], transitionProperty: 'transform', transitionDuration: '520ms', transitionTimingFunction: 'cubic-bezier(0.34, 1.56, 0.64, 1)', transitionDelay: '120ms' } : null) }}>
+                            <Ionicons name={glad ? 'heart' : 'chatbubble-ellipses'} size={desk ? 48 : 36} color={glad ? '#EF4444' : primary} />
                         </View>
-                        <Text style={{ color: text, fontSize: 24, fontWeight: '900', marginTop: 14 }}>{tr('Thank you!')}</Text>
-                        <Text style={{ color: muted, fontSize: 14.5, textAlign: 'center', marginTop: 8, lineHeight: 21 }}>
+                        <Text style={{ color: text, fontSize: desk ? 30 : 24, fontWeight: '900', marginTop: desk ? 20 : 14, letterSpacing: desk ? -0.5 : 0 }}>{tr('Thank you!')}</Text>
+                        <Text style={{ color: muted, fontSize: desk ? 16 : 14.5, textAlign: 'center', marginTop: 8, lineHeight: desk ? 24 : 21, maxWidth: desk ? 340 : undefined }}>
                             {glad
                                 ? tr('So glad you enjoyed it. Your words make our day{shop}.', { shop: shop ? ` at ${shop}` : '' })
                                 : tr('Thanks for telling us. We will work on it and make your next order better.')}
                         </Text>
+                        {desk ? (
+                            <>
+                                <Pressable onPress={onClose} accessibilityRole="button" style={({ hovered }) => ({ marginTop: 26, minWidth: 160, paddingVertical: 14, paddingHorizontal: 28, borderRadius: radius, alignItems: 'center', backgroundColor: primary, cursor: 'pointer', filter: hovered ? 'brightness(1.1)' : 'brightness(1)', boxShadow: hovered ? `0 12px 28px ${primary}55` : '0 0 0 rgba(0,0,0,0)', transform: [{ translateY: hovered ? -2 : 0 }], transitionProperty: 'filter, box-shadow, transform', transitionDuration: '170ms' })}>
+                                    <Text style={{ color: onPrimary || '#FFFFFF', fontWeight: '900', fontSize: 15 }}>{tr('Done')}</Text>
+                                </Pressable>
+                                <View pointerEvents="none" style={{ position: 'absolute', left: 0, bottom: 0, height: 4, width: run ? '0%' : '100%', backgroundColor: primary, transitionProperty: 'width', transitionDuration: '3000ms', transitionTimingFunction: 'linear' }} />
+                            </>
+                        ) : null}
                     </View>
                 </GlowBorder>
             </Pressable>
