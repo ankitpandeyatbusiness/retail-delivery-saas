@@ -133,10 +133,6 @@ function writeQuestionsPdf(file, files) {
             doc.font('Helvetica').fontSize(9.5).fillColor('#1f2933').text(what, L + 220, y, { width: W - 220 });
             doc.y = Math.max(doc.y, y + 12) + 4;
         }
-        need(70);
-        doc.moveDown(0.8);
-        doc.font('Helvetica-Bold').fontSize(11).fillColor('#111827').text('Also for a lawyer (not the CA)', L, doc.y);
-        doc.font('Helvetica').fontSize(10).fillColor('#1f2933').text('The Terms of Service and the Privacy Policy, the "no refund" wording, and the agreement between Ankit and Vivek.', L, doc.y + 2, { width: W });
         doc.end();
     });
 }
