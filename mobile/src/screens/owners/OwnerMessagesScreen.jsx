@@ -17,6 +17,7 @@ import { tr, tl } from '../../i18n';
 import { UpgradeNote } from '../../components/owners/PlanLock';
 
 function Compose({ visible, onClose, onSent }) {
+    const pushOk = usePlanHas('customPush');   // messages to customers are the custom push (Pro); riders can always be messaged
     const [title, setTitle] = useState('');
     const [body, setBody] = useState('');
     const [audience, setAudience] = useState(pushOk ? 'customers' : 'riders');
