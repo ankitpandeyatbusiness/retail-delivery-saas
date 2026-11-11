@@ -155,6 +155,8 @@ import OwnerMonthScreen from '../screens/owners/OwnerMonthScreen';
 import { FloatingTabBar, slideScenes, TabGlyph, gate, holdGate, releaseGate, bindGateNavigation } from './tabKit';
 import { tr } from '../i18n';
 
+import { webLinking } from './webLinking';
+
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 const navigationRef = createNavigationContainerRef();
@@ -349,7 +351,7 @@ export default function AppNavigator() {
 
     return (
         <MaintenanceFrame background={background}>
-            <NavigationContainer ref={navigationRef} onReady={() => { navigationReady(); setRouteName(navigationRef.getCurrentRoute()?.name); }} onStateChange={() => setRouteName(navigationRef.getCurrentRoute()?.name)} theme={navTheme}
+            <NavigationContainer ref={navigationRef} onReady={() => { navigationReady(); setRouteName(navigationRef.getCurrentRoute()?.name); }} onStateChange={() => setRouteName(navigationRef.getCurrentRoute()?.name)} theme={navTheme} linking={webLinking}
                 documentTitle={{ formatter: () => useThemeStore.getState().theme?.name || 'Shop' }}>   {/* the website's tab title is the shop name on every screen (the phone app ignores this) */}
                 <DesktopFrame navRef={navigationRef} routeName={routeName}>
                 <Stack.Navigator
@@ -396,6 +398,9 @@ export default function AppNavigator() {
                     <Stack.Screen name="ReferFriend" component={ReferFriendScreen} />
                     <Stack.Screen name="ScanTable" component={ScanTableScreen} />
                     <Stack.Screen name="LegalDoc" component={LegalDocScreen} />
+                    {/* the customer's two documents have their own addresses on the website: /terms and /privacy (navigation/webLinking.js) */}
+                    <Stack.Screen name="Terms" component={LegalDocScreen} initialParams={{ key: 'customer_terms' }} />
+                    <Stack.Screen name="Privacy" component={LegalDocScreen} initialParams={{ key: 'privacy' }} />
 
                     {/* owner pages (role "admin"); the owner's tabs are MainTabs -> Landing -> OwnerTabs */}
                     <Stack.Screen name="ShopHub" component={ShopHubScreen} />
