@@ -34,6 +34,21 @@
         flex: 1;
       }
     </style>
+    <!-- The desktop website (a window at least 1024 px wide) shows no scrollbars anywhere: every list and page still scrolls with the wheel, the trackpad,
+         the keyboard and by dragging; only the bar itself is hidden. Phones and narrow windows are not touched. -->
+    <style id="no-scrollbars">
+      @media (min-width: 1024px) {
+        * {
+          scrollbar-width: none;
+          -ms-overflow-style: none;
+        }
+        *::-webkit-scrollbar {
+          display: none;
+          width: 0;
+          height: 0;
+        }
+      }
+    </style>
   </head>
 
   <body>
