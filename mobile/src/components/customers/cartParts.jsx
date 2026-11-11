@@ -5,17 +5,28 @@ import { ListShimmer } from '../owners/shimmer';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand } from '../common/kit';
 import { tint } from './shop';
+import { useIsDesktopWeb } from '../../utils/common/layout';
 import { tr } from '../../i18n';
 
 export const rs = (n) => `₹${+Number(n || 0).toFixed(2)}`;
 export const ease = () => LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
 
-export function Press({ onPress, style, children, disabled, hitSlop, wrap }) {
+// hover: only on the desktop website, and only when asked for. true = a card lifts a little and gets a soft shadow while the mouse is on it;
+// an object = just that look while the mouse is on it (a row that tints, say), no lift.
+const HOVER_BASE = { cursor: 'pointer', transitionProperty: 'box-shadow, border-color', transitionDuration: '180ms' };
+const HOVER_ON = { boxShadow: '0 14px 34px rgba(0,0,0,0.28)' };
+export function Press({ onPress, style, children, disabled, hitSlop, wrap, hover }) {
     const v = useRef(new Animated.Value(1)).current;
+    const desk = useIsDesktopWeb();
+    const [hov, setHov] = useState(false);
+    const live = !!hover && desk;
     const to = (x) => Animated.spring(v, { toValue: x, friction: 6, tension: 220, useNativeDriver: true }).start();
     return (
-        <Pressable onPress={onPress} disabled={disabled} hitSlop={hitSlop} style={wrap} onPressIn={() => to(0.96)} onPressOut={() => to(1)}>
-            <Animated.View style={[style, { transform: [{ scale: v }] }]}>{children}</Animated.View>
+        <Pressable
+            onPress={onPress} disabled={disabled} hitSlop={hitSlop} style={wrap} onPressIn={() => to(0.96)} onPressOut={() => to(1)}
+            onHoverIn={live ? () => setHov(true) : undefined} onHoverOut={live ? () => setHov(false) : undefined}
+        >
+            <Animated.View style={[style, live && HOVER_BASE, live && hov && (typeof hover === 'object' ? hover : HOVER_ON), { transform: live && hov && hover === true ? [{ scale: v }, { translateY: -3 }] : [{ scale: v }] }]}>{children}</Animated.View>
         </Pressable>
     );
 }
