@@ -16,6 +16,8 @@ import { useAuthStore } from '../../store/common/useAuthStore';
 import { useCartStore, useFavStore, cartHooks } from '../../store/customers/shopStores';
 import { useTableBill } from '../../store/customers/useTableBill';
 import SlideNum from '../common/SlideNum';
+import { SheetPortal } from '../common/SheetPortal';
+import { useIsDesktopWeb } from '../../utils/common/layout';
 import { tr } from '../../i18n';
 
 // What the shop chose when it switched a dish off: "Sold out today" (until tomorrow morning), "Back in 2 h" (a set time), or just "Sold out".
@@ -49,6 +51,7 @@ export function ToastHost() {
     const downAt = useRef(0);
     const [on, setOn] = useState(false);
     const insets = useSafeAreaInsets();
+    const deskWeb = useIsDesktopWeb();   // false in the phone app and on phone-sized browsers
     const slide = useRef(new Animated.Value(0)).current;   // 0 = off screen (to the right), 1 = in place
     const drag = useRef(new Animated.Value(0)).current;    // how far a finger has pulled it to the right
     const timer = useRef(null);
@@ -91,10 +94,37 @@ export function ToastHost() {
     })).current;
     const { dark, primary, surface, text, border } = useBrand();
     if (!on) return null;
+    // the desktop website's cross button: slide away now
+    const closeNow = () => {
+        clearTimeout(timer.current);
+        slide.stopAnimation();
+        Animated.timing(slide, { toValue: 0, duration: 200, useNativeDriver: true }).start(({ finished }) => { if (finished) setOn(false); });
+    };
     const bad = /could not|can ?not|fail|cancel|error|not |max |only /i.test(String(msg));
     const accent = bad ? '#E5484D' : '#16A34A';
     // a card in the top right corner: coloured edge, round icon, slides in from the right and back out
-    return (
+    const card = (
+            <View {...pan.panHandlers} style={[s.toastCard, { backgroundColor: dark ? surface : '#FFFFFF', borderColor: border }]}>
+                <View style={[s.toastEdge, { backgroundColor: accent }]} />
+                <View style={[s.toastIcon, { backgroundColor: accent + '22' }]}>
+                    <Ionicons name={bad ? 'alert' : 'checkmark'} size={16} color={accent} />
+                </View>
+                <Text numberOfLines={3} style={[s.toastMsg, { color: dark ? text : '#1B1B1F' }, deskWeb && { paddingRight: 20 }]}>{tr(msg)}</Text>
+                {onPress ? <Ionicons name="chevron-forward" size={18} color={accent} style={{ marginLeft: 6 }} /> : null}
+                {deskWeb ? (
+                    <Pressable
+                        onPress={closeNow}
+                        hitSlop={6}
+                        accessibilityRole="button"
+                        accessibilityLabel={tr('Close')}
+                        style={({ hovered }) => ({ position: 'absolute', top: 5, right: 5, width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: hovered ? (dark ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.09)') : 'transparent', cursor: 'pointer', transitionProperty: 'background-color', transitionDuration: '140ms' })}
+                    >
+                        <Ionicons name="close" size={14} color={dark ? text : '#555555'} />
+                    </Pressable>
+                ) : null}
+            </View>
+    );
+    const node = (
         <Animated.View
             pointerEvents="box-none"
             style={[s.toastWrap, {
@@ -102,16 +132,14 @@ export function ToastHost() {
                 transform: [{ translateX: Animated.add(slide.interpolate({ inputRange: [0, 1], outputRange: [120, 0] }), drag) }],
             }]}
         >
-            <View {...pan.panHandlers} style={[s.toastCard, { backgroundColor: dark ? surface : '#FFFFFF', borderColor: border }]}>
-                <View style={[s.toastEdge, { backgroundColor: accent }]} />
-                <View style={[s.toastIcon, { backgroundColor: accent + '22' }]}>
-                    <Ionicons name={bad ? 'alert' : 'checkmark'} size={16} color={accent} />
-                </View>
-                <Text numberOfLines={3} style={[s.toastMsg, { color: dark ? text : '#1B1B1F' }]}>{tr(msg)}</Text>
-                {onPress ? <Ionicons name="chevron-forward" size={18} color={accent} style={{ marginLeft: 6 }} /> : null}
-            </View>
+            {/* the desktop website: the mouse over the toast keeps it (the hide clock stops); when the mouse leaves, the clock starts again */}
+            {deskWeb ? (
+                <Pressable onHoverIn={() => clearTimeout(timer.current)} onHoverOut={startClock} style={{ alignSelf: 'flex-end' }}>{card}</Pressable>
+            ) : card}
         </Animated.View>
     );
+    // the desktop website draws it in the sheet layer (which is drawn after the whole app), so it also shows over a modal such as the address picker
+    return deskWeb ? <SheetPortal>{node}</SheetPortal> : node;
 }
 
 // "until 9:18 PM" when the shop paused orders for a while
