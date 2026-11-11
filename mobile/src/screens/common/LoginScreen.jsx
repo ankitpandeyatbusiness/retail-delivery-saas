@@ -635,7 +635,7 @@ function LoginMobile({ navigation }) {
             </View>
 
             {/* LANGUAGE */}
-            <View style={[styles.skipWrap, { top: insets.top + 12, right: 'auto', left: 16 }]}>
+            <View style={[styles.skipWrap, { top: insets.top + 12, right: Platform.OS === 'web' ? 'auto' : undefined, left: 16 }]}>
                 <Pressable onPress={() => setLangOpen(true)} style={[styles.skipButton, { flexDirection: 'row', alignItems: 'center' }]} hitSlop={10}>
                     <Ionicons name="language" size={15} color="#FFFFFF" style={{ marginRight: 6 }} />
                     <Text style={styles.skipText}>{LANGS.find((l) => l.code === lang)?.native}</Text>
@@ -646,7 +646,7 @@ function LoginMobile({ navigation }) {
             {/* SKIP */}
             <Animated.View
                 entering={FadeInDown.delay(500)}
-                style={[styles.skipWrap, { top: insets.top + 12, zIndex: 11 }]}
+                style={[styles.skipWrap, { top: insets.top + 12, ...(Platform.OS === 'web' ? { zIndex: 11 } : null) }]}
             >
                 <Pressable onPress={handleSkip} style={styles.skipButton} hitSlop={10}>
                     <Text style={styles.skipText}>{tr('Skip')}</Text>
@@ -677,7 +677,7 @@ function LoginMobile({ navigation }) {
                                 ]}
                             >
                                 <View style={styles.countryCode}>
-                                    <IndiaFlag width={27} height={18} style={{ marginRight: 8 }} />
+                                    <IndiaFlag width={27} height={18} style={{ marginRight: 6 }} />
                                     <Text style={[styles.countryCodeText, { color: brand.text }]}>+91</Text>
                                     <View style={[styles.verticalDivider, { backgroundColor: brand.border }]} />
                                 </View>

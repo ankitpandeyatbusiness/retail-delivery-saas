@@ -1,7 +1,7 @@
 // The Indian flag as a small picture (3 bands + the 24-spoke Ashoka Chakra). Windows browsers cannot draw the flag emoji (they show "IN" or
 // nothing), so the login screens use this instead. No package needed: an inline SVG shown by expo-image.
 import React from 'react';
-import { View } from 'react-native';
+import { View, Text, Platform } from 'react-native';
 import { Image } from 'expo-image';
 
 const FLAG_URI = (() => {
@@ -17,6 +17,8 @@ const FLAG_URI = (() => {
 })();
 
 export default function IndiaFlag({ width = 30, height = 20, style }) {
+    // phones draw the flag emoji themselves, exactly as before: only the website needs the picture
+    if (Platform.OS !== 'web') return <Text style={[{ fontSize: 20 }, style]}>🇮🇳</Text>;
     return (
         <View style={[{ width, height, borderRadius: 3, overflow: 'hidden' }, style]}>
             <Image source={{ uri: FLAG_URI }} style={{ width: '100%', height: '100%' }} contentFit="fill" />
