@@ -20,6 +20,7 @@ import { useHomeStore } from '../../store/customers/useHomeStore';
 import { useMenuStore, useCartStore } from '../../store/customers/shopStores';
 import { useFilterStore } from '../../store/customers/useFilterStore';
 import { useAddressStore } from '../../store/customers/useAddressStore';
+import { useMeStore } from '../../store/customers/useMeStore';
 import { useOrderMode, modesOf } from '../../store/customers/useOrderMode';
 import { ask } from '../common/dialog';
 import { showToast } from './shop';
@@ -227,6 +228,9 @@ export default function DesktopTopBar({ navRef, routeName }) {
     const setMode = useOrderMode((s) => s.setMode);
     const table = useOrderMode((s) => s.table);
     const addr = useAddressStore((s) => s.selected);
+    const photo = useMeStore((s) => s.me?.avatarUrl) || user?.avatarUrl || null;   // the profile picture (set on the Account page)
+    const userKey = user?.id || user?._id || null;
+    useEffect(() => { if (userKey) useMeStore.getState().refresh(); }, [userKey]);   // so the picture is here even if the Account page was never opened
     const preview = useViewMode((s) => s.customerView);   // an owner previewing the shop has the customer tabs inside CustomerPreview
     const [addrOpen, setAddrOpen] = useState(false);
     const [tableOpen, setTableOpen] = useState(false);
@@ -336,8 +340,8 @@ export default function DesktopTopBar({ navRef, routeName }) {
                         <IconBtn brand={brand} icon="bag-handle-outline" label={tr('Cart')} onPress={() => go('Cart')} badge={cartShown > 99 ? '99+' : String(cartShown)} active={routeName === 'Cart'} />
                     </View>
                     {user ? (
-                        <Pressable onPress={() => goTab('Account')} accessibilityLabel={tr('Account')} style={({ hovered }) => ({ width: 40, height: 40, borderRadius: 20, marginLeft: 8, backgroundColor: brand.primary, alignItems: 'center', justifyContent: 'center', opacity: hovered ? 0.88 : 1, cursor: 'pointer' })}>
-                            <Text style={{ color: brand.onPrimary || '#FFFFFF', fontWeight: '900', fontSize: 15 }}>{initial}</Text>
+                        <Pressable onPress={() => goTab('Account')} accessibilityLabel={tr('Account')} style={({ hovered }) => ({ width: 40, height: 40, borderRadius: 20, marginLeft: 8, backgroundColor: brand.primary, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', opacity: hovered ? 0.88 : 1, borderWidth: routeName === 'Account' ? 2 : 0, borderColor: brand.primary, cursor: 'pointer' })}>
+                            {photo ? <Image source={{ uri: photo }} style={{ width: '100%', height: '100%' }} contentFit="cover" /> : <Text style={{ color: brand.onPrimary || '#FFFFFF', fontWeight: '900', fontSize: 15 }}>{initial}</Text>}
                         </Pressable>
                     ) : (
                         <Pressable onPress={() => go('Login')} style={({ hovered }) => ({ height: 40, paddingHorizontal: 20, borderRadius: 20, marginLeft: 10, backgroundColor: brand.primary, alignItems: 'center', justifyContent: 'center', opacity: hovered ? 0.88 : 1, cursor: 'pointer' })}>

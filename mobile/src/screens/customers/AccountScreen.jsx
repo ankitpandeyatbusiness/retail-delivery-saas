@@ -33,6 +33,7 @@ import OwedStrip from '../../components/customers/OwedStrip';
 import { tr, LANGS, useLang } from '../../i18n';
 import LanguageSheet from '../../components/common/LanguageSheet';
 import { useBottomSpace } from '../../store/customers/useLiveTripStore';
+import { useCustomerDesktop } from '../../utils/common/layout';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
@@ -97,7 +98,7 @@ function Item({ icon, label, sub, onPress, danger, last, badge }) {
     const { primary, text, muted, error, border } = useBrand();
     const c = danger ? error : primary;
     return (
-        <Press onPress={onPress} style={[s.row, !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: border }]}>
+        <Press hover={{ backgroundColor: tint(c) }} onPress={onPress} style={[s.row, !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: border }]}>
             <View style={[s.rowIc, { backgroundColor: tint(c) }]}><Ionicons name={icon} size={18} color={c} /></View>
             <View style={{ flex: 1 }}>
                 <Text style={[s.rowTxt, { color: danger ? error : text }]}>{label}</Text>
@@ -113,7 +114,7 @@ function Item({ icon, label, sub, onPress, danger, last, badge }) {
 function AccountTile({ icon, label, sub, onPress, badge }) {
     const { primary, text, muted, surface, border } = useBrand();
     return (
-        <Press onPress={onPress} style={[s.tile, { backgroundColor: surface, borderColor: border }]}>
+        <Press hover onPress={onPress} style={[s.tile, { backgroundColor: surface, borderColor: border }]}>
             <CardGlow radius={18} />
             <View style={[s.tileIc, { backgroundColor: tint(primary) }]}>
                 <Ionicons name={icon} size={22} color={primary} />
@@ -222,6 +223,8 @@ function Group({ title, delay, children }) {
 }
 
 function AccountInner() {
+    const desk = useCustomerDesktop();   // the desktop website (a wide browser): a roomy two-column page. False in the phone app.
+    const getApp = useGetApp();   // the website only: "Get the app" / "Install the app" (false elsewhere: nothing shows in the phone app)
     const space = useBottomSpace();   // room for the floating order bar, only while it is on screen
     const nav = useNavigation();
     const insets = useSafeAreaInsets();
@@ -365,6 +368,114 @@ function AccountInner() {
     const shopDigits = String(shopPhone || '').replace(/\D/g, '').slice(-10);
     const callShop = () => Linking.openURL(`tel:+91${shopDigits}`).catch(() => showToast(tr('Could not open the dialer')));
 
+    if (desk) {
+        // ---- the desktop page: the person on the left, everything to open and change on the right ----
+        const tiles = [
+            <AccountTile key="o" icon="receipt-outline" label={tr('Orders')} sub={tr('Track and reorder')} onPress={() => nav.navigate('Orders')} />,
+            <AccountTile key="a" icon="location-outline" label={tr('Addresses')} sub={tr('Where we deliver')} onPress={() => setAddrSheet(true)} />,
+            favOn
+                ? <AccountTile key="f" icon="heart-outline" label={tr('Favourites')} sub={favCount ? tr('{favCount} saved', { favCount: favCount }) : tr('Dishes you love')} onPress={() => nav.navigate('Favourites')} />
+                : <AccountTile key="f" icon="pricetags-outline" label={tr('Offers')} sub={tr('Coupons for you')} onPress={() => nav.navigate('Offers')} />,
+            <AccountTile key="n" icon="notifications-outline" label={tr('Notifications')} sub={unread > 0 ? tr('{unread} unread', { unread: unread }) : tr('All caught up')} badge={unread} onPress={() => nav.navigate('Notifications')} />,
+            <AccountTile key="s" icon="volume-high-outline" label={tr('Alert sounds')} sub={tr('Choose what rings')} onPress={() => nav.navigate('AlertSettings')} />,
+            ...(referOn ? [<AccountTile key="r" icon="gift-outline" label={tr('Refer a friend')} sub={tr('Share your code')} onPress={() => nav.navigate('ReferFriend')} />] : []),
+        ];
+        const rowsOf = [];
+        for (let i = 0; i < tiles.length; i += 3) rowsOf.push(tiles.slice(i, i + 3));
+        return (
+            <View style={{ flex: 1, backgroundColor: background }}>
+                {/* the page itself does not scroll: the title stays, the person's card is centred, only the right column scrolls */}
+                <View style={{ flex: 1, width: '100%', maxWidth: 1180, alignSelf: 'center', paddingHorizontal: 24, paddingTop: 26 }}>
+                    <View style={{ flex: 1 }}>
+                        <Text style={{ color: text, fontSize: 30, fontWeight: '900', letterSpacing: -0.6, marginBottom: 6 }}>{tr('Account')}</Text>
+                        <OwedStrip style={{ marginHorizontal: 0, marginTop: 10 }} />
+                        <View style={{ flex: 1, flexDirection: 'row', gap: 28, marginTop: 8 }}>
+                            {/* LEFT: the person, centred in the height that is left */}
+                            <View style={{ width: 340, justifyContent: 'center', paddingBottom: 50 }}>
+                                <Appear>
+                                    <LinearGradient colors={[primaryLight, primaryDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ borderRadius: 24, padding: 26, overflow: 'hidden', marginTop: 12, alignItems: 'center' }}>
+                                        <View style={[s.blob, { top: -50, right: -30, width: 180, height: 180 }]} />
+                                        <View style={[s.blob, { bottom: -60, left: 20, width: 130, height: 130, opacity: 0.6 }]} />
+                                        <Pressable onPress={avatarMenu} disabled={avatarBusy} accessibilityLabel={tr('Profile photo')} style={({ hovered }) => ({ cursor: 'pointer', transform: [{ scale: hovered ? 1.04 : 1 }], transitionProperty: 'transform', transitionDuration: '170ms' })}>
+                                            <View style={[s.avatarRing, { padding: 4, borderRadius: 64 }]}>
+                                                <View style={{ width: 112, height: 112, borderRadius: 56, backgroundColor: 'rgba(255,255,255,0.22)', overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }}>
+                                                    {p.avatarUrl
+                                                        ? <Image source={{ uri: p.avatarUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
+                                                        : <Text style={{ color: onPrimary, fontSize: 44, fontWeight: '800' }}>{initial}</Text>}
+                                                    {avatarBusy || !me ? <View style={StyleSheet.absoluteFill}><Skel width="100%" height="100%" radius={999} /></View> : null}
+                                                </View>
+                                            </View>
+                                            <View style={[s.camBadge, { backgroundColor: surface, borderColor: border, width: 32, height: 32, borderRadius: 16, right: 2, bottom: 2 }]}>
+                                                <Ionicons name="camera" size={16} color={primary} />
+                                            </View>
+                                        </Pressable>
+                                        <Text style={{ color: onPrimary, fontSize: 24, fontWeight: '900', letterSpacing: -0.4, marginTop: 16, textAlign: 'center' }} numberOfLines={2}>{name || tr('Add your name')}</Text>
+                                        {phone ? <Text style={{ color: onPrimary, fontSize: 14, marginTop: 4, opacity: 0.9 }}>{phone}</Text> : null}
+                                        {p.email ? <Text style={{ color: onPrimary, fontSize: 13.5, marginTop: 2, opacity: 0.88 }} numberOfLines={1}>{p.email}</Text> : null}
+                                        <Pressable
+                                            onPress={() => setEdit(true)}
+                                            accessibilityRole="button"
+                                            style={({ hovered }) => ({ flexDirection: 'row', alignItems: 'center', marginTop: 20, height: 42, paddingHorizontal: 22, borderRadius: 21, backgroundColor: hovered ? 'rgba(255,255,255,0.34)' : 'rgba(255,255,255,0.2)', cursor: 'pointer', transitionProperty: 'background-color', transitionDuration: '170ms' })}
+                                        >
+                                            <Ionicons name="create-outline" size={17} color={onPrimary} />
+                                            <Text style={{ color: onPrimary, fontSize: 14, fontWeight: '800', marginLeft: 8 }}>{tr('Edit profile')}</Text>
+                                        </Pressable>
+                                    </LinearGradient>
+                                </Appear>
+                                {!name ? (
+                                    <Pressable onPress={() => setEdit(true)} style={({ hovered }) => ({ flexDirection: 'row', alignItems: 'center', marginTop: 16, padding: 14, borderRadius: 14, borderWidth: 1, borderColor: primary, backgroundColor: hovered ? `${primary}26` : tint(primary), cursor: 'pointer', transitionProperty: 'background-color', transitionDuration: '170ms' })}>
+                                        <Ionicons name="person-circle-outline" size={22} color={primary} />
+                                        <Text style={{ flex: 1, color: text, fontSize: 13.5, fontWeight: '700', marginLeft: 10 }}>{tr('Add your name so the shop knows who is ordering')}</Text>
+                                    </Pressable>
+                                ) : null}
+                            </View>
+
+                            {/* RIGHT: tiles and settings: this is the part that scrolls */}
+                            <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 90 }}>
+                                <View style={{ marginTop: 12, gap: 14 }}>
+                                    {rowsOf.map((r, ri) => (
+                                        <View key={ri} style={{ flexDirection: 'row', gap: 14 }}>
+                                            {[0, 1, 2].map((ci) => <View key={ci} style={{ flex: 1 }}>{r[ci] || null}</View>)}
+                                        </View>
+                                    ))}
+                                </View>
+                                <View style={{ marginHorizontal: -16 }}>
+                                    {serviceCount || bookingOn || bulkOn ? (
+                                        <Group title={tr('SERVICES')} delay={90}>
+                                            {bookingOn ? <Item icon="calendar-outline" label={tr('Reserve a table')} sub={live.next ? tr('Your next table: {d}', { d: live.next }) : tr('Book a table. Your reservations are inside')} badge={live.tables ? tr('{n} active', { n: live.tables }) : ''} onPress={() => nav.navigate('BookTable')} last={!bulkOn && !serviceCount} /> : null}
+                                            {bulkOn ? <Item icon="cube-outline" label={tr('Bulk order')} sub={bulkPaused ? tr('Temporarily unavailable') : live.quote ? tr('A quote is waiting for you') : tr('Pick dishes and quantities for an office, a function or a party. The shop sends you a quote.')} badge={live.bulk ? tr('{n} active', { n: live.bulk }) : ''} onPress={() => nav.navigate('BulkOrder')} last={!serviceCount} /> : null}
+                                            {serviceCount === 1 && onlyService
+                                                ? <Item icon={onlyService.icon} label={tr(onlyService.name)} sub={onlyService.paused ? tr('Temporarily unavailable') : live.replied ? tr('The shop replied to you') : tr('Ask the shop. Your inquiries are inside')} badge={live.inq ? tr('{n} active', { n: live.inq }) : ''} onPress={() => nav.navigate('ServiceForm', { id: onlyService.id })} last />
+                                                : serviceCount ? <Item icon="briefcase-outline" label={tr('Services')} sub={live.replied ? tr('The shop replied to you') : tr('Tiffin, party booking and more')} badge={live.inq ? tr('{n} active', { n: live.inq }) : ''} onPress={() => nav.navigate('Services')} last /> : null}
+                                        </Group>
+                                    ) : null}
+                                    {pointsOn ? <Group title={tr('REWARDS')} delay={100}><Item icon="gift-outline" label={tr('My points')} sub={tr('Earn points and get money off')} onPress={() => nav.navigate('MyPoints')} last /></Group> : null}
+                                    <Group title={tr('PREFERENCES')} delay={110}>
+                                        <LanguageRow />
+                                        <AppearanceRow />
+                                        <ToggleItem icon="megaphone-outline" label={tr('Offers and promotions')} sub={tr('Order updates always reach you, even when this is off')} value={promos} onValueChange={setPromos} disabled={!me || promoBusy} last />
+                                    </Group>
+                                    {shopPhone ? <Group title={tr('HELP')} delay={140}><Item icon="call-outline" label={tr('Contact {v1}', { v1: shop || 'the shop' })} sub={tr('Call +91 {shopDigits}', { shopDigits: shopDigits })} onPress={callShop} last /></Group> : null}
+                                    <Group title={tr('MANAGE')} delay={200}>
+                                        {getApp.show ? <Item icon="download-outline" label={getApp.kind === 'store' ? tr('Get the app') : tr('Install the app')} onPress={getApp.open} /> : null}
+                                        <Item icon="information-circle-outline" label={tr('About Us')} onPress={() => nav.navigate('AboutUs')} />
+                                        <Item icon="phone-portrait-outline" label={tr("Where you're logged in")} onPress={() => nav.navigate('Sessions')} />
+                                        <Item icon="log-out-outline" label={tr('Log out')} onPress={doLogout} />
+                                        <Item icon="trash-outline" label={tr('Delete account')} onPress={doDelete} danger last />
+                                    </Group>
+                                </View>
+                                <Text style={[s.ver, { color: muted }]}>{tr('{shop} · v{v2}', { shop: shop, v2: Constants.expoConfig?.version || '1.0' })}</Text>
+                            </ScrollView>
+                        </View>
+                    </View>
+                </View>
+                <EditDialog visible={edit} me={p} onClose={() => setEdit(false)} onSaved={saved} />
+                <AddressSheet visible={addrSheet} onClose={() => setAddrSheet(false)} onChanged={(L) => useAddressStore.getState().sync(L)} manage />
+                {busy ? <View style={s.busy}><ActivityIndicator color="#FFFFFF" size="large" /></View> : null}
+            </View>
+        );
+    }
+
     return (
         <View style={{ flex: 1, paddingTop: insets.top, backgroundColor: background }}>
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: space }}>
@@ -490,7 +601,6 @@ function AccountInner() {
 }
 
 export default function AccountScreen() {
-    const getApp = useGetApp();   // the website only: "Get the app" / "Install the app"
     return <GuestGate title={tr('Account')}><AccountInner /></GuestGate>;
 }
 
