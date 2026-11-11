@@ -18,6 +18,7 @@ import { showToast, tint } from './shop';
 import { fetchAddresses, saveAddress, deleteAddress, checkServiceable } from '../../api/customers/shopApi';
 import MapPicker from './MapPicker';
 import { useAuthStore } from '../../store/common/useAuthStore';
+import { useIsDesktopWeb } from '../../utils/common/layout';
 import { tr } from '../../i18n';
 
 export const addrLine = (a) => [a.line1, a.line2, a.landmark, a.city, a.pincode].filter(Boolean).join(', ');
@@ -37,12 +38,19 @@ const LABELS = ['Home', 'Work', 'Other'];   // the three names (translated when 
 const ICON = { Home: 'home-outline', Work: 'briefcase-outline', Other: 'location-outline' };
 
 // ---------- small animated helpers ----------
-function Press({ onPress, style, children, disabled, hitSlop }) {
+// hoverStyle: how the button looks while the mouse is over it (the desktop website only; a plain brightening if none is given)
+const HOVER_ON = { cursor: 'pointer', transitionProperty: 'background-color, border-color, box-shadow, filter', transitionDuration: '180ms' };
+function Press({ onPress, style, hoverStyle, children, disabled, hitSlop }) {
     const v = useRef(new Animated.Value(1)).current;
+    const desk = useIsDesktopWeb();
+    const [hov, setHov] = useState(false);
     const to = (x) => Animated.spring(v, { toValue: x, friction: 6, tension: 220, useNativeDriver: true }).start();
     return (
-        <Pressable onPress={onPress} disabled={disabled} hitSlop={hitSlop} onPressIn={() => to(0.985)} onPressOut={() => to(1)}>
-            <Animated.View style={[style, { transform: [{ scale: v }] }]}>{children}</Animated.View>
+        <Pressable
+            onPress={onPress} disabled={disabled} hitSlop={hitSlop} onPressIn={() => to(0.985)} onPressOut={() => to(1)}
+            onHoverIn={desk ? () => setHov(true) : undefined} onHoverOut={desk ? () => setHov(false) : undefined}
+        >
+            <Animated.View style={[style, desk && !disabled && HOVER_ON, desk && !disabled && hov && (hoverStyle || { filter: 'brightness(1.12)' }), { transform: [{ scale: v }] }]}>{children}</Animated.View>
         </Pressable>
     );
 }
@@ -62,7 +70,7 @@ function Appear({ children, delay = 0, style }) {
 function Pill({ on, label, onPress }) {
     const { primary, text, surface, border } = useBrand();
     return (
-        <Press onPress={onPress} style={[s.pill, { backgroundColor: on ? tint(primary) : surface, borderColor: on ? primary : border }]}>
+        <Press onPress={onPress} hoverStyle={{ borderColor: primary, backgroundColor: tint(primary) }} style={[s.pill, { backgroundColor: on ? tint(primary) : surface, borderColor: on ? primary : border }]}>
             <Ionicons name={ICON[label]} size={14} color={on ? primary : text} style={{ marginRight: 6 }} />
             <Text style={[s.pillTxt, { color: on ? primary : text }]}>{label}</Text>
         </Press>
@@ -107,7 +115,7 @@ function GpsCard({ locating, geo, hasPin, onPress }) {
                 : tr('Fastest way to set a precise delivery spot');
 
     return (
-        <Press onPress={onPress} disabled={locating} style={[s.gps, { borderColor: accent, backgroundColor: tint(accent), borderRadius: radius }]}>
+        <Press onPress={onPress} disabled={locating} hoverStyle={{ filter: 'brightness(1.1)', boxShadow: '0 6px 18px rgba(0,0,0,0.25)' }} style={[s.gps, { borderColor: accent, backgroundColor: tint(accent), borderRadius: radius }]}>
             <View style={s.gpsIconWrap}>
                 {locating ? (
                     <Animated.View style={[s.ring, { borderColor: accent, opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.6, 0] }), transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 2.1] }) }] }]} />
@@ -137,6 +145,7 @@ export function AddressSheet({ visible, onClose, selectedId, onSelect, onChanged
     const [saving, setSaving] = useState(false);
     const [locating, setLocating] = useState(false);
     const { height: H } = useWindowDimensions();
+    const desk = useIsDesktopWeb();   // a browser at least 1024 px wide: a centred modal instead of the phone's bottom sheet (false in the phone app)
     const [mapOpen, setMapOpen] = useState(false);
     const insets = useSafeAreaInsets();
     const autoFilled = useRef({ line1: '', line2: '' });
@@ -191,6 +200,14 @@ export function AddressSheet({ visible, onClose, selectedId, onSelect, onChanged
         onClose();
     };
     useEffect(() => { if (visible) setLeaving(false); }, [visible]);
+
+    // the desktop modal: Escape closes it
+    useEffect(() => {
+        if (!visible || !desk || typeof window === 'undefined') return undefined;
+        const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [visible, desk, onClose]);
 
     // phone back button closes the sheet
     useEffect(() => {
@@ -328,6 +345,10 @@ export function AddressSheet({ visible, onClose, selectedId, onSelect, onChanged
     ]);
 
     const inForm = mode === 'form';
+    const deskCard = [s.deskCard, {
+        backgroundColor: surface, borderColor: border, opacity: prog, maxHeight: Math.min(H * 0.88, 780),
+        transform: [{ scale: prog.interpolate({ inputRange: [0, 1], outputRange: [0.95, 1] }) }, { translateY: prog.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) }],
+    }];
     const renderField = (k, style) => {
         const row = FIELDS.find((f) => f[0] === k);
         if (!row) return null;
@@ -339,38 +360,32 @@ export function AddressSheet({ visible, onClose, selectedId, onSelect, onChanged
 
     if (!show) return null;
 
-    return (
-        <>
-            <SheetPortal>
-                <View style={s.backdropWrap} pointerEvents={leaving ? 'none' : 'auto'}>
-                    <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, s.backdrop, { opacity: prog }]} />
-                    <Pressable style={{ flex: 1 }} onPress={onClose} />
-                    <View style={{ paddingBottom: kb }}>
-                        <DragDown visible={visible} onClose={closeNow} onCloseStart={fadeAway}>{(scroll) => (
-                        <Animated.View style={[s.sheet, {
+    // the sheet itself: shared by the phone (a bottom sheet you can pull down) and the desktop website (a centred modal)
+    const renderSheet = (scroll) => (
+                        <Animated.View style={desk ? deskCard : [s.sheet, {
                             backgroundColor: background,
                             maxHeight: Math.min(H * 0.9, H - kb - insets.top - 12),
                             paddingBottom: kb ? 12 : 18 + insets.bottom,
                             transform: [{ translateY: prog.interpolate({ inputRange: [0, 1], outputRange: [H, 0] }) }],
                         }]}>
-                            <View style={s.grabHit}><View style={[s.handle, { backgroundColor: border }]} /></View>
+                            {desk ? null : <View style={s.grabHit}><View style={[s.handle, { backgroundColor: border }]} /></View>}
                             <View style={s.top}>
                                 <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
                                     {canBack ? (
-                                        <Pressable onPress={() => setMode('list')} hitSlop={12} style={[s.roundBtn, { backgroundColor: surface, borderColor: border }]}>
+                                        <Pressable onPress={() => setMode('list')} hitSlop={12} style={({ hovered }) => [s.roundBtn, { backgroundColor: surface, borderColor: border }, desk && { cursor: 'pointer', transitionProperty: 'background-color, border-color', transitionDuration: '160ms' }, desk && hovered && { backgroundColor: border, borderColor: muted }]}>
                                             <Ionicons name="chevron-back" size={18} color={text} />
                                         </Pressable>
                                     ) : null}
                                     <View style={{ marginLeft: canBack ? 10 : 0, flex: 1 }}>
-                                        <Text style={[s.title, { color: text }]}>
+                                        <Text style={[s.title, desk && s.deskTitle, { color: text }]}>
                                             {inForm ? (editId ? tr('Edit address') : tr('New address')) : (manage ? tr('Saved addresses') : tr('Deliver to'))}
                                         </Text>
-                                        <Text style={[s.subTitle, { color: muted }]}>
+                                        <Text style={[s.subTitle, desk && s.deskSub, { color: muted }]}>
                                             {inForm ? tr('Add the details the rider needs') : (manage ? tr('Add, edit or remove addresses') : tr('Pick where this order should go'))}
                                         </Text>
                                     </View>
                                 </View>
-                                <Pressable onPress={onClose} hitSlop={12} style={[s.roundBtn, { backgroundColor: surface, borderColor: border }]}>
+                                <Pressable onPress={onClose} hitSlop={12} style={({ hovered }) => [s.roundBtn, { backgroundColor: surface, borderColor: border }, desk && { cursor: 'pointer', transitionProperty: 'background-color, border-color', transitionDuration: '160ms' }, desk && hovered && { backgroundColor: border, borderColor: muted }]}>
                                     <Ionicons name="close" size={18} color={text} />
                                 </Pressable>
                             </View>
@@ -398,26 +413,27 @@ export function AddressSheet({ visible, onClose, selectedId, onSelect, onChanged
                                             return (
                                                 <Appear key={a._id} delay={Math.min(i, 6) * 50}>
                                                     <Press
+                                                        hoverStyle={on ? { boxShadow: `0 0 0 1px ${primary}66, 0 14px 38px ${primary}38` } : { borderColor: `${primary}99`, backgroundColor: tint(primary), boxShadow: `0 8px 24px ${primary}1F` }}
                                                         onPress={() => (manage ? openForm(a) : (onSelect(a), onClose()))}
-                                                        style={[s.row, { backgroundColor: surface, borderColor: on ? primary : border, borderWidth: on ? 2 : 1 }]}
+                                                        style={[s.row, { backgroundColor: surface, borderColor: on ? primary : border, borderWidth: on ? 2 : 1 }, desk && { backgroundColor: on ? tint(primary) : background, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: on ? `${primary}99` : border, boxShadow: on ? `0 0 0 1px ${primary}33, 0 10px 30px ${primary}24` : 'none', cursor: 'pointer' }]}
                                                     >
                                                         <CardGlow radius={16} />
-                                                        <View style={[s.rowIcon, { backgroundColor: on ? primary : tint(primary) }]}>
+                                                        <View style={[s.rowIcon, { backgroundColor: on ? primary : tint(primary) }, desk && { width: 50, height: 50, borderRadius: 13 }]}>
                                                             <Ionicons name={ICON[a.label] || 'location-outline'} size={20} color={on ? onPrimary : primary} />
                                                         </View>
                                                         <View style={{ flex: 1, marginLeft: 12 }}>
                                                             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                                                <Text style={[s.rowTitle, { color: text }]}>{tr(a.label)}</Text>
+                                                                <Text style={[s.rowTitle, desk && { fontSize: 17 }, { color: text }]}>{tr(a.label)}</Text>
                                                                 {a.isDefault ? <View style={[s.badge, { backgroundColor: tint(primary) }]}><Text style={[s.badgeTxt, { color: primary }]}>{tr('DEFAULT')}</Text></View> : null}
                                                             </View>
                                                             {a.name || a.phone ? <Text style={[s.rowSub, { color: text, opacity: 0.8 }]}>{[a.name, a.phone].filter(Boolean).join(' · ')}</Text> : null}
                                                             <Text style={[s.rowSub, { color: muted }]} numberOfLines={2}>{addrLine(a)}</Text>
                                                         </View>
                                                         {on ? (
-                                                            <View style={[s.check, { backgroundColor: primary }]}><Ionicons name="checkmark" size={14} color={onPrimary} /></View>
+                                                            <View style={[s.check, { backgroundColor: primary }, desk && { width: 28, height: 28, borderRadius: 14, marginLeft: 12 }]}><Ionicons name="checkmark" size={desk ? 17 : 14} color={onPrimary} /></View>
                                                         ) : null}
                                                         {!manage ? (
-                                                            <Pressable onPress={() => openForm(a)} hitSlop={12} style={[s.editPill, { borderColor: border }]}>
+                                                            <Pressable onPress={() => openForm(a)} hitSlop={12} style={({ hovered }) => [s.editPill, { borderColor: border }, desk && { marginLeft: 12, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12, cursor: 'pointer', transitionProperty: 'background-color, border-color', transitionDuration: '160ms' }, desk && hovered && { backgroundColor: tint(primary), borderColor: primary }]}>
                                                                 <Ionicons name="create-outline" size={13} color={primary} />
                                                                 <Text style={[s.link, { color: primary, marginLeft: 4 }]}>{tr('Edit')}</Text>
                                                             </Pressable>
@@ -426,7 +442,7 @@ export function AddressSheet({ visible, onClose, selectedId, onSelect, onChanged
                                                 </Appear>
                                             );
                                         })}
-                                        <Press onPress={() => openForm(null)} style={[s.addBtn, { borderColor: primary, borderRadius: radius, backgroundColor: tint(primary) }]}>
+                                        <Press onPress={() => openForm(null)} hoverStyle={{ backgroundColor: `${primary}14`, borderColor: primary }} style={[s.addBtn, { borderColor: primary, borderRadius: radius, backgroundColor: tint(primary) }, desk && { borderColor: `${primary}66`, backgroundColor: 'transparent', borderRadius: 16, paddingVertical: 18, cursor: 'pointer' }]}>
                                             <Ionicons name="add-circle" size={20} color={primary} />
                                             <Text style={[s.addTxt, { color: primary }]}>{tr('Add new address')}</Text>
                                         </Press>
@@ -446,11 +462,11 @@ export function AddressSheet({ visible, onClose, selectedId, onSelect, onChanged
                                             {!forOther ? <GpsCard locating={locating} geo={geo} hasPin={form.lat !== null} onPress={here} /> : null}
 
                                             {geo && !geo.serviceable && !forOther ? (
-                                                <Pressable onPress={() => toggleOther(true)} style={{ marginTop: 8 }}>
+                                                <Pressable onPress={() => toggleOther(true)} style={({ hovered }) => ({ marginTop: 8, opacity: desk && hovered ? 0.7 : 1, cursor: desk ? 'pointer' : undefined })}>
                                                     <Text style={[s.link, { color: primary }]}>{tr('Sending to someone nearby? Pin their location instead')}</Text>
                                                 </Pressable>
                                             ) : null}
-                                            <Press onPress={() => setMapOpen(true)} style={[s.addBtn, { borderColor: primary, borderRadius: radius, marginTop: 10, paddingVertical: 11, backgroundColor: tint(primary) }]}>
+                                            <Press onPress={() => setMapOpen(true)} hoverStyle={{ backgroundColor: `${primary}26`, boxShadow: `0 6px 18px ${primary}26` }} style={[s.addBtn, { borderColor: primary, borderRadius: radius, marginTop: 10, paddingVertical: 11, backgroundColor: tint(primary) }]}>
                                                 <Ionicons name="map-outline" size={17} color={primary} />
                                                 <Text style={[s.addTxt, { color: primary }]}>{form.lat !== null ? tr('Adjust pin on map') : tr('Pin location on map')}</Text>
                                             </Press>
@@ -490,11 +506,11 @@ export function AddressSheet({ visible, onClose, selectedId, onSelect, onChanged
 
                                     {/* the Save button stays in view while the form scrolls */}
                                     <View style={[s.footer, { borderTopColor: border }]}>
-                                        <Press onPress={save} disabled={saving} style={[s.save, { backgroundColor: primary, borderRadius: radius }]}>
+                                        <Press onPress={save} disabled={saving} hoverStyle={{ filter: 'brightness(1.12)', boxShadow: `0 10px 28px ${primary}55` }} style={[s.save, { backgroundColor: primary, borderRadius: radius }]}>
                                             {saving ? <ActivityIndicator color={onPrimary} /> : <Text style={[s.saveTxt, { color: onPrimary }]}>{tr('Save address')}</Text>}
                                         </Press>
                                         {editId ? (
-                                            <Pressable onPress={remove} style={{ alignItems: 'center', paddingTop: 12 }}>
+                                            <Pressable onPress={remove} style={({ hovered }) => ({ alignItems: 'center', paddingTop: 12, opacity: desk && hovered ? 0.7 : 1, cursor: desk ? 'pointer' : undefined })}>
                                                 <Text style={{ color: error, fontWeight: '700' }}>{tr('Delete address')}</Text>
                                             </Pressable>
                                         ) : null}
@@ -502,7 +518,18 @@ export function AddressSheet({ visible, onClose, selectedId, onSelect, onChanged
                                 </>
                             )}
                         </Animated.View>
-                        )}</DragDown>
+    );
+
+    return (
+        <>
+            <SheetPortal>
+                <View style={[s.backdropWrap, desk && s.deskWrap]} pointerEvents={leaving ? 'none' : 'auto'}>
+                    <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, s.backdrop, desk && s.deskBackdrop, { opacity: prog }]} />
+                    <Pressable style={desk ? StyleSheet.absoluteFill : { flex: 1 }} onPress={onClose} />
+                    <View style={desk ? s.deskCenter : { paddingBottom: kb }} pointerEvents={desk ? 'box-none' : 'auto'}>
+                        {desk ? renderSheet({}) : (
+                            <DragDown visible={visible} onClose={closeNow} onCloseStart={fadeAway}>{renderSheet}</DragDown>
+                        )}
                     </View>
                 </View>
             </SheetPortal>
@@ -520,6 +547,13 @@ export function AddressSheet({ visible, onClose, selectedId, onSelect, onChanged
 
 const s = StyleSheet.create({
     backdropWrap: { flex: 1, justifyContent: 'flex-end' },
+    // the desktop modal
+    deskWrap: { justifyContent: 'center', alignItems: 'center' },
+    deskBackdrop: { backgroundColor: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)' },
+    deskCenter: { width: '100%', alignItems: 'center', paddingHorizontal: 24 },
+    deskCard: { width: '100%', maxWidth: 640, borderRadius: 24, borderWidth: 1, padding: 28, boxShadow: '0 30px 80px rgba(0,0,0,0.6)' },
+    deskTitle: { fontSize: 26, letterSpacing: -0.4 },
+    deskSub: { fontSize: 14, marginTop: 4 },
     backdrop: { backgroundColor: 'rgba(0,0,0,0.5)' },
     sheet: { borderTopLeftRadius: 26, borderTopRightRadius: 26, paddingHorizontal: 18, paddingTop: 10 },
     grabHit: { alignSelf: 'stretch', alignItems: 'center', paddingTop: 2, paddingBottom: 10 },
