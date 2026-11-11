@@ -1,7 +1,7 @@
 // Terms, privacy and About Us: read-only pages. The terms and privacy texts come from the server (public, the same pages as /legal/terms ...), nothing to agree to:
 // using the app means accepting them. About Us is written right here in the app, so it appears at once.
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, Pressable } from 'react-native';
+import { View, Text, ScrollView, Pressable, Platform } from 'react-native';
 import { ListShimmer } from '../../components/owners/shimmer';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -24,7 +24,8 @@ export function LegalDocScreen() {
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
             <PageHeader title={doc?.title ? tr(doc.title) : tr('Terms')} />
-            <ScrollView contentContainerStyle={{ padding: 18, paddingBottom: 32 }}>
+            {/* the website hides the browser's own scrollbar here (the page still scrolls); phones are untouched */}
+            <ScrollView contentContainerStyle={{ padding: 18, paddingBottom: 32 }} showsVerticalScrollIndicator={Platform.OS === 'web' ? false : undefined}>
                 {!doc && !err ? <ListShimmer count={2} /> : null}
                 {err ? <Text style={{ color: error }}>{err}</Text> : null}
                 {doc ? <LegalText text={doc.body} title={doc.title} /> : null}
