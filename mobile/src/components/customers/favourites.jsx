@@ -77,7 +77,7 @@ export function FavouriteDishes({ mode = 'strip' }) {
                     style={s.stripBleed}
                     contentContainerStyle={s.strip}
                     ItemSeparatorComponent={() => <View style={{ width: 10 }} />}
-                    renderItem={({ item }) => <Tile item={item} push />}
+                    renderItem={({ item }) => <Tile item={item} push hoverFx />}
                 />
             )}
         </FadeIn>

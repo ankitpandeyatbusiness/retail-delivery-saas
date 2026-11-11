@@ -36,6 +36,7 @@ import { useOwedPrompt } from '../../store/customers/useOwedPrompt';
 import { tr } from '../../i18n';
 import { onMenuChanged } from '../../api/common/socket';
 import KeyboardScroll from '../../components/common/KeyboardScroll';
+import { useCustomerDesktop } from '../../utils/common/layout';
 
 const errMsg = (e) => e?.response?.data?.error
     || (e?.response ? 'Something went wrong. Try again.' : 'Network problem. Check your connection.');
@@ -57,7 +58,53 @@ function makeSlots(prepMin) {
     return out;
 }
 
+// ---- the desktop cart: a choice section (kitchen notes, delivery notes, tip...) as a card with a round icon, a heading and a line under it ----
+const DESK_INPUT = { borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14, fontSize: 14.5, outlineStyle: 'none', outlineWidth: 0 };
+function DeskSection({ icon, title, sub, children }) {
+    const { primary, text, muted, surface, border } = useBrand();
+    return (
+        <View style={{ marginTop: 20, padding: 20, borderRadius: 20, borderWidth: 1, borderColor: border, backgroundColor: surface }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+                <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: tint(primary), alignItems: 'center', justifyContent: 'center' }}>
+                    <Ionicons name={icon} size={20} color={primary} />
+                </View>
+                <View style={{ flex: 1, marginLeft: 14 }}>
+                    <Text style={{ color: text, fontSize: 16.5, fontWeight: '900', letterSpacing: -0.2 }}>{title}</Text>
+                    {sub ? <Text style={{ color: muted, fontSize: 12.5, marginTop: 2 }}>{sub}</Text> : null}
+                </View>
+            </View>
+            {children}
+        </View>
+    );
+}
+
+// ---- the desktop cart: a card that reacts to the mouse. Under it: a red ring and a soft glow INSIDE the edge, a tint, a bar that grows down the left side, and
+// a small arrow that slides in. Pressing it does the card's job (change the address, switch points on or off) ----
+function HoverCard({ onPress, disabled, children, style }) {
+    const flat = StyleSheet.flatten(style) || {};
+    const { primary } = useBrand();
+    return (
+        <Pressable
+            onPress={onPress} disabled={disabled} accessibilityRole="button"
+            style={({ hovered, pressed }) => [style, {
+                overflow: 'hidden', cursor: disabled || !onPress ? 'default' : 'pointer', opacity: pressed ? 0.94 : 1,
+                borderColor: hovered && !disabled ? primary : flat.borderColor, backgroundColor: hovered && !disabled ? tint(primary) : flat.backgroundColor,
+                boxShadow: hovered && !disabled ? `inset 0 0 0 1px ${primary}, inset 0 0 34px ${primary}26` : 'inset 0 0 0 0 transparent',
+                transitionProperty: 'background-color, border-color, box-shadow, opacity', transitionDuration: '220ms',
+            }]}
+        >
+            {({ hovered }) => (
+                <>
+                    <View pointerEvents="none" style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 4, backgroundColor: primary, opacity: hovered && !disabled ? 1 : 0, transform: [{ scaleY: hovered && !disabled ? 1 : 0.3 }], transitionProperty: 'opacity, transform', transitionDuration: '220ms' }} />
+                    {children}
+                </>
+            )}
+        </Pressable>
+    );
+}
+
 export default function CartScreen() {
+    const desk = useCustomerDesktop();   // the desktop website (a wide browser): two columns with the bill beside the items. False in the phone app.
     const nav = useNavigation();
     const route = useRoute();
     const insets = useSafeAreaInsets();
@@ -407,6 +454,364 @@ export default function CartScreen() {
     const shopAddr = full.restaurant?.address;
     const showSchedule = f.scheduleOrder && type === 'delivery';
 
+    if (desk) {
+        // ---- the desktop page: what you are ordering on the left, the bill and the Place order button (sticky) on the right.
+        //      Built from the very same pieces as the phone page above, so every rule (closed shop, order type, coupons, address, points...) is identical. ----
+        return (
+            <View style={[s.flex, { backgroundColor: background }, closedStyle]}>
+                <BackHeader title={full.restaurant?.name || tr('Your Cart')} />
+                {/* the page itself does not scroll: all the cards (banners, order type, items...) are in the LEFT column, which scrolls; the bill and the
+                    Place order box are in the RIGHT column, which stays where it is, centred in the height there is */}
+                <View style={{ flex: 1, flexDirection: 'row', width: '100%', maxWidth: 1180, alignSelf: 'center', paddingHorizontal: 8, gap: 20 }}>
+                    <ScrollView style={{ flex: 1, minWidth: 0 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 60 }}>
+                {closed ? <ClosedBanner message={quote?.problem || closedMsg} /> : null}
+
+                {type === 'delivery' && freeAbove > 0 ? <FreeDeliveryBar preview={preview} freeAbove={freeAbove} /> : null}
+
+                {offerLeft > 0 ? (
+                    <View style={{ marginHorizontal: 16, marginTop: 12, borderRadius: 16, paddingVertical: 12, paddingHorizontal: 16, backgroundColor: tint(primary), borderWidth: 1.5, borderColor: primary, flexDirection: 'row', alignItems: 'center' }}>
+                        <Ionicons name="time" size={26} color={primary} />
+                        <View style={{ marginLeft: 12, flex: 1 }}>
+                            <Text style={{ color: primary, fontWeight: '900', fontSize: 16 }}>{tr('The shop\'s offer ends in {t}', { t: `${Math.floor(offerLeft / 60)}:${String(offerLeft % 60).padStart(2, '0')}` })}</Text>
+                            <Text style={{ color: muted, fontSize: 12.5, marginTop: 2 }}>{tr('Order now and the code is applied for you.')}</Text>
+                        </View>
+                    </View>
+                ) : null}
+
+                {/* what kind of order this is, so nobody orders the wrong one. With only ONE way to order (just delivery, just pickup or just dine-in) there is nothing to choose or to mix up, so the big card is not shown */}
+                {types.length + (dineOn ? 1 : 0) > 1 ? (
+                <View style={{ marginHorizontal: 16, marginTop: 12, borderRadius: 16, paddingVertical: 14, paddingHorizontal: 16, backgroundColor: tint(primary), borderWidth: 1.5, borderColor: primary }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <Ionicons name={type === 'delivery' ? 'bicycle' : type === 'pickup' ? 'bag-handle' : 'restaurant'} size={32} color={primary} />
+                        <View style={{ marginLeft: 12, flex: 1 }}>
+                            <Text style={{ color: primary, fontWeight: '900', fontSize: 22 }}>{type === 'delivery' ? tr('DELIVERY order') : type === 'pickup' ? tr('PICKUP order') : tr('DINE IN order')}</Text>
+                            <Text style={{ color: muted, fontSize: 13, fontWeight: '600', marginTop: 2 }}>{type === 'delivery' ? tr('We bring it to your address') : type === 'pickup' ? tr('You collect it from the shop') : tr('Served at your table')}</Text>
+                        </View>
+                    </View>
+                    {type === 'pickup' ? <Text style={{ color: text, fontSize: 12.5, fontWeight: '700', marginTop: 10 }}>{tr('A pickup order cannot be returned or refunded once you have collected it. Please check it at the shop.')}</Text> : null}
+                </View>
+                ) : (type === 'pickup' ? <Text style={{ color: text, fontSize: 12.5, fontWeight: '700', marginHorizontal: 16, marginTop: 12 }}>{tr('A pickup order cannot be returned or refunded once you have collected it. Please check it at the shop.')}</Text> : null)}
+
+                                <View style={s.pad}>
+                    <Appear style={[s.card, { backgroundColor: surface, borderColor: border, marginTop: 12 }]}>
+                        <CardGlow radius={16} />
+                        {lines.map((l, i) => (
+                            <Appear key={l.key} style={[s.lineRow, i === lines.length - 1 && { borderBottomWidth: 0 }, { borderBottomColor: border }]}>
+                                <View style={s.itemVisuals}>
+                                    <View style={[s.itemImgWrap, { backgroundColor: border }]}>
+                                        {l.image ? <Image source={{ uri: l.image }} style={s.itemImg} contentFit="cover" transition={200} /> : <Ionicons name="fast-food-outline" size={20} color={muted} style={{ alignSelf: 'center', marginTop: 12 }} />}
+                                    </View>
+                                    {showDot ? <View style={[s.itemDot, { backgroundColor: surface }]}><VegDot isVeg={l.isVeg} /></View> : null}
+                                </View>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={[s.lName, { color: text }]} numberOfLines={2}>{l.name}</Text>
+                                    {l.optionsText ? <Text style={[s.lSub, { color: muted }]}>{l.optionsText}</Text> : null}
+                                    {l.note ? <Text style={[s.lSub, { color: primary }]}>✎ {l.note}</Text> : null}
+                                </View>
+                                <View style={{ alignItems: 'flex-end', marginLeft: 12 }}>
+                                    {l.measureQty ? (
+                                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                            <Pressable onPress={() => nav.navigate('Item', { id: l.productId })} hitSlop={8} style={[s.qs, { borderColor: tint(primary), backgroundColor: tint(primary), paddingHorizontal: 10 }]}>
+                                                <Text style={[s.qNum, { color: primary }]}>{amountLabel(l.sellBy, l.measureQty)}</Text>
+                                            </Pressable>
+                                            <Pressable hitSlop={12} onPress={() => setQty(l.key, 0)} style={{ marginLeft: 8 }}>
+                                                <Ionicons name="trash-outline" size={18} color={muted} />
+                                            </Pressable>
+                                        </View>
+                                    ) : (
+                                        <View style={[s.qs, { borderColor: tint(primary), backgroundColor: tint(primary) }]}>
+                                            <Pressable hitSlop={12} onPress={() => setQty(l.key, l.quantity - 1)}><Text style={[s.qBtn, { color: primary }]}>−</Text></Pressable>
+                                            <Text style={[s.qNum, { color: primary }]}>{l.quantity}</Text>
+                                            <Pressable hitSlop={12} onPress={() => setQty(l.key, l.quantity + 1)}><Text style={[s.qBtn, { color: primary }]}>+</Text></Pressable>
+                                        </View>
+                                    )}
+                                    <Text style={[s.lPrice, { color: text }]}>{rs(linePrice(l, i))}</Text>
+                                </View>
+                            </Appear>
+                        ))}
+                        <Pressable onPress={() => nav.goBack()} style={s.addMoreRow}>
+                            <Ionicons name="add-circle-outline" size={16} color={primary} />
+                            <Text style={[s.addMoreTxt, { color: primary }]}>{tr('Add more items')}</Text>
+                        </Pressable>
+                    </Appear>
+
+                    <FavouriteDishes mode="strip" />
+
+                    {user && type !== 'dine_in' ? (
+                        <Appear delay={50}>
+                          <DeskSection icon="restaurant-outline" title={tr('Instructions for the kitchen')} sub={tr('The cook hears this before your food is made.')}>
+                            <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                                {foodTagList.map((n) => <Chip key={n} label={tr(n)} on={foodTags.includes(n)} onPress={() => toggleFoodTag(n)} />)}
+                            </View>
+                            <TextInput value={foodNote} onChangeText={setFoodNote} maxLength={200} placeholder={tr('E.g., less spicy, no onion, extra crispy...')}
+                                placeholderTextColor={muted} style={[s.customNoteInput, DESK_INPUT, { color: text, borderColor: border, backgroundColor: background, marginTop: 4 }]} />
+                          </DeskSection>
+                        </Appear>
+                    ) : null}
+
+                    {user && type === 'delivery' ? (
+                        <Appear delay={60}>
+                          <DeskSection icon="bicycle-outline" title={tr('Delivery Instructions')} sub={tr('Tell the delivery partner how to find you')}>
+                            <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                                {QUICK_NOTES.map((n) => <Chip key={n} label={tr(n)} on={delNotes.includes(n)} onPress={() => toggleNote(n)} />)}
+                            </View>
+                            <TextInput value={customNote} onChangeText={setCustomNote} placeholder={tr('E.g., Any specific landmark or instructions...')}
+                                placeholderTextColor={muted} style={[s.customNoteInput, DESK_INPUT, { color: text, borderColor: border, backgroundColor: background }]} />
+                          </DeskSection>
+                        </Appear>
+                    ) : null}
+
+                    {user && type === 'dine_in' ? (
+                        <Appear delay={80}>
+                          <DeskSection icon="restaurant" title={tr('How should we make it?')} sub={tr('The kitchen sees this before your food is made.')}>
+                            <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                                {prefList.map((n) => <Chip key={n} label={tr(n)} on={prefs.includes(n)} onPress={() => togglePref(n)} />)}
+                            </View>
+                            <TextInput value={prefNote} onChangeText={setPrefNote} maxLength={120} placeholder={tr('Or write it yourself: extra hot, no ice...')}
+                                placeholderTextColor={muted} style={[s.customNoteInput, DESK_INPUT, { color: text, borderColor: border, backgroundColor: background, marginTop: prefList.length ? 4 : 0 }]} />
+                          </DeskSection>
+                        </Appear>
+                    ) : null}
+
+                    {user && couponOn ? (
+                        <Appear delay={100} style={{ marginTop: 20 }}>
+                            {/* the shop's sorry-offer comes first, with its clock, so one tap applies it */}
+                            {offerInfo && offerLeft > 0 && !applied ? (
+                                <Pressable onPress={() => pickOffer(offerInfo.code)} style={{ marginBottom: 12, borderRadius: 16, borderWidth: 1.5, borderColor: primary, backgroundColor: tint(primary), padding: 14, flexDirection: 'row', alignItems: 'center' }} accessibilityRole="button">
+                                    <Ionicons name="gift" size={28} color={primary} />
+                                    <View style={{ flex: 1, marginLeft: 12 }}>
+                                        <Text style={{ color: primary, fontWeight: '900', fontSize: 16 }}>{offerInfo.percent ? tr('{n}% off from the shop', { n: offerInfo.percent }) : tr('A special offer from the shop')}</Text>
+                                        <Text style={{ color: text, fontWeight: '800', marginTop: 2 }}>{offerInfo.code}{offerInfo.min ? ` · ${tr('order above ₹{n}', { n: offerInfo.min })}` : ''}</Text>
+                                        <Text style={{ color: muted, fontSize: 12.5, marginTop: 2 }}>{tr('Ends in {t}', { t: `${Math.floor(offerLeft / 60)}:${String(offerLeft % 60).padStart(2, '0')}` })}</Text>
+                                    </View>
+                                    <View style={{ backgroundColor: primary, borderRadius: 99, paddingHorizontal: 14, paddingVertical: 8 }}><Text style={{ color: onPrimary, fontWeight: '900' }}>{tr('Apply')}</Text></View>
+                                </Pressable>
+                            ) : null}
+                            {shownOffers.length > 0 && !applied ? (
+                                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+                                    {shownOffers.map((o) => (
+                                        <CouponTicket key={o._id} o={o} size="mini" hint={couponBusy === o.code ? tr('Applying…') : undefined} onPress={() => pickOffer(o.code)} style={{ marginRight: 10, opacity: couponBusy && couponBusy !== o.code ? 0.5 : 1 }} />
+                                    ))}
+                                </ScrollView>
+                            ) : null}
+                            {applied ? (
+                                <Appear style={[s.applied, { borderColor: primary, backgroundColor: tint(primary) }]}>
+                                    <View style={s.cRow}>
+                                        <Ionicons name="checkmark-circle" size={20} color={primary} style={{ marginRight: 8 }} />
+                                        <Text style={{ color: primary, fontWeight: '800', fontSize: 14 }}>{tr('\'{applied}\' applied', { applied: applied })}</Text>
+                                    </View>
+                                    <Pressable hitSlop={8} onPress={() => { ease(); setApplied(''); setCouponErr(''); }}>
+                                        <Text style={[s.link, { color: primary }]}>{tr('Remove')}</Text>
+                                    </Pressable>
+                                </Appear>
+                            ) : (
+                                <View style={s.cRow}>
+                                    <View style={[s.inputWrap, { borderColor: border, backgroundColor: surface }]}>
+                                        <Ionicons name="pricetag-outline" size={16} color={muted} style={{ marginRight: 8 }} />
+                                        <TextInput value={couponIn} onChangeText={setCouponIn} placeholder={tr('Apply coupon')} placeholderTextColor={muted}
+                                            autoCapitalize="characters" maxLength={30} style={[s.input, { color: text }]} onSubmitEditing={apply} />
+                                    </View>
+                                    <Press onPress={apply} style={[s.apply, { backgroundColor: surface, borderColor: border, borderRadius: radius }]}>
+                                        {tryCode ? <ActivityIndicator size="small" color={primary} /> : <Text style={[s.link, { color: primary }]}>{tr('Apply')}</Text>}
+                                    </Press>
+                                </View>
+                            )}
+                            {couponErr ? <Appear><Text style={[s.err, { color: error }]}>{tr(couponErr)}</Text></Appear> : null}
+                        </Appear>
+                    ) : null}
+
+                    {user && type === 'dine_in' ? (
+                        <Appear delay={140} style={{ marginTop: 20 }}>
+                            <Text style={[s.cap, { color: text, marginBottom: 8 }]}>{tr('Dining at')}</Text>
+                            <Pressable onPress={() => setTableOpen(true)} style={[s.card, { backgroundColor: surface, borderColor: border, flexDirection: 'row', alignItems: 'center', marginHorizontal: 0 }]}>
+                                <Ionicons name="restaurant" size={22} color={primary} />
+                                <Text style={[s.lName, { color: text, flex: 1, marginLeft: 10 }]}>{table ? tr('Table {n}', { n: table }) : tr('Choose your table')}</Text>
+                                <Text style={{ color: primary, fontWeight: '800' }}>{tr('Change')}</Text>
+                            </Pressable>
+                            <DineBusyNote />
+                        </Appear>
+                    ) : null}
+
+                    {user && type !== 'dine_in' && showSchedule ? (
+                        <Appear delay={140} style={{ marginTop: 20 }}>
+                            <View style={s.chipsRow}>
+                                <Chip icon="flash-outline" label={tr('Now')} on={when === 'now'} onPress={() => setWhen('now')} />
+                                {slots.today ? <Chip icon="time-outline" label={slots.today.label} on={when === 'today'} onPress={() => setWhen('today')} /> : null}
+                                <Chip icon="calendar-outline" label={slots.tomorrow.label} on={when === 'tomorrow'} onPress={() => setWhen('tomorrow')} />
+                            </View>
+                        </Appear>
+                    ) : null}
+
+                    {user && type === 'pickup' ? (
+                        <Appear style={{ marginTop: 20 }}>
+                            <Text style={[s.cap, { color: text }]}>{tr('Pickup time')}</Text>
+                            <Text style={[s.lSub, { color: muted, marginTop: 2, marginBottom: 12 }]}>{tr('Choose a time window to collect your order')}</Text>
+                            <PickupSlots res={slotRes} picked={pickedSlot} onPick={(v) => { ease(); setPickedSlot(v); }} />
+                        </Appear>
+                    ) : null}
+
+                    {user && f.tips && type === 'delivery' && (full.orders.tipOptions || []).length ? (
+                        <Appear>
+                          <DeskSection icon="heart-outline" title={tr('Tip your delivery partner')} sub={tr('100% of it goes to them')}>
+                            <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                                <Chip label={tr('No tip')} icon="close" on={tip === 0} onPress={() => setTip(0)} />
+                                {full.orders.tipOptions.map((n) => <Chip key={n} icon="heart-outline" label={rs(n)} on={tip === n} onPress={() => setTip(n)} />)}
+                            </View>
+                          </DeskSection>
+                        </Appear>
+                    ) : null}
+
+                    {user && type === 'delivery' ? (
+                        <Appear>
+                          <HoverCard onPress={() => setSheet(true)} style={[s.card, { backgroundColor: surface, borderColor: border }]}>
+                            <CardGlow radius={16} />
+                            <View style={s.cardHead}>
+                                <Ionicons name="location-outline" size={18} color={primary} />
+                                <Text style={[s.cap, { color: muted, marginLeft: 6 }]}>{tr('Deliver to')}</Text>
+                            </View>
+                            {addr ? (
+                                <View style={{ marginTop: 8 }}>
+                                    <Text style={[s.lName, { color: text }]}>{tr(addr.label)}{addr.name ? ` · ${addr.name}` : ''}{addr.phone ? ` · ${addr.phone}` : ''}</Text>
+                                    <Text style={[s.lSub, { color: muted }]}>{addrLine(addr)}</Text>
+                                </View>
+                            ) : <Text style={[s.lSub, { color: muted, marginTop: 8 }]}>{tr('No address selected')}</Text>}
+                            <View style={{ marginTop: 12, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center' }}>
+                                <Text style={[s.link, { color: primary }]}>{addr ? tr('Change Address') : tr('Add Address')}</Text>
+                                <Ionicons name="arrow-forward" size={14} color={primary} style={{ marginLeft: 4 }} />
+                            </View>
+                          </HoverCard>
+                        </Appear>
+                    ) : null}
+                    {user && type === 'pickup' && shopAddr?.line ? (
+                        <Appear style={[s.card, { backgroundColor: surface, borderColor: border }]}>
+                            <CardGlow radius={16} />
+                            <View style={s.cardHead}>
+                                <Ionicons name="storefront-outline" size={18} color={primary} />
+                                <Text style={[s.cap, { color: muted, marginLeft: 6 }]}>{tr('Pick up from')}</Text>
+                            </View>
+                            <Text style={[s.lSub, { color: muted, marginTop: 8 }]}>{[shopAddr.line, shopAddr.city, shopAddr.pincode].filter(Boolean).join(', ')}</Text>
+                        </Appear>
+                    ) : null}
+
+                    {codBlocked && paymentMethodValue === 'cod' ? (
+                        <Pressable onPress={() => nav.navigate('PaymentMethods', { current: paymentMethodValue, currentApp: upiApp?.pkg, codBlocked })} style={[s.card, { backgroundColor: surface, borderColor: error, flexDirection: 'row', alignItems: 'center' }]}>
+                            <Ionicons name="cash-outline" size={22} color={error} />
+                            <Text style={[s.lSub, { color: text, flex: 1, marginLeft: 10, fontWeight: '700' }]}>{codBlocked}</Text>
+                            <Ionicons name="chevron-forward" size={18} color={muted} />
+                        </Pressable>
+                    ) : null}
+
+                    {user && quote?.points?.enabled && (quote.points.balance > 0 || quote.points.pendingPoints > 0) ? (
+                        <Appear>
+                          <HoverCard style={[s.card, { backgroundColor: surface, borderColor: border }]}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                <Ionicons name="gift" size={22} color={primary} />
+                                <View style={{ flex: 1, marginLeft: 10, marginRight: 8 }}>
+                                    <Text style={[s.lName, { color: text }]}>{tr('Use my points')}</Text>
+                                    <Text style={[s.lSub, { color: muted, marginTop: 2 }]}>
+                                        {quote.points.canUse
+                                            ? tr('Use {p} points and save ₹{r}', { p: quote.points.maxPoints, r: quote.points.maxRupees })
+                                            : tr('You have {b} points. You can use them from {m} points.', { b: quote.points.balance, m: quote.points.minRedeem })}
+                                    </Text>
+                                    {quote.points.pendingPoints > 0 ? <Text style={[s.lSub, { color: muted, marginTop: 2 }]}>{tr('{n} more points are on the way', { n: quote.points.pendingPoints })}</Text> : null}
+                                </View>
+                                <Switch value={usePts && quote.points.canUse} disabled={!quote.points.canUse && !usePts} onValueChange={setUsePts} trackColor={{ true: primary }} />
+                            </View>
+                          </HoverCard>
+                        </Appear>
+                    ) : null}
+
+                                </View>
+                    </ScrollView>
+                    {/* RIGHT: one summary card, in a fixed order: the bill, how you pay, a notice when the shop is closed or the order cannot be placed, and the button.
+                        Fixed spacing between its parts, so nothing can overlap; the column is 36% of the page, never narrower than 360 px or wider than 440 px */}
+                    <ScrollView style={{ width: '36%', minWidth: 360, maxWidth: 440, flexGrow: 0 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', paddingTop: 14, paddingBottom: 50 }}>
+                        <View style={{ borderRadius: 20, borderWidth: 1, borderColor: border, backgroundColor: surface, padding: 20, overflow: 'hidden' }}>
+                            <CardGlow radius={20} />
+                            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 14 }}>
+                                <Ionicons name="receipt-outline" size={19} color={text} />
+                                <Text style={[s.lName, { color: text, marginLeft: 8, flex: 1, fontSize: 16 }]}>{tr('Bill details')}</Text>
+                                {busy ? <LineShimmer width={56} height={12} /> : null}
+                            </View>
+                            {user && quote ? <Bill q={quote} type={type} busy={busy} baseDeliveryFee={feeConfig.amount} />
+                                : user && qErr ? (
+                                    <View style={{ paddingVertical: 6 }}>
+                                        <Text style={[s.err, { color: error, marginTop: 0 }]}>{qErr}</Text>
+                                        <Pressable hitSlop={8} onPress={() => setTick((x) => x + 1)}><Text style={[s.link, { color: primary, marginTop: 8 }]}>{tr('Try again')}</Text></Pressable>
+                                    </View>
+                                ) : user ? <ListShimmer count={2} />
+                                    : <Bill q={{ pricing: { subtotal: preview, total: preview } }} type={type} busy={false} />}
+
+                            <View style={{ height: 1, backgroundColor: border, marginTop: 18, marginBottom: 16 }} />
+
+                            <Pressable
+                                onPress={() => nav.navigate('PaymentMethods', { current: paymentMethodValue, currentApp: upiApp?.pkg, codBlocked, dineIn: type === 'dine_in' })}
+                                accessibilityRole="button"
+                                style={({ hovered }) => ({ flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: 14, borderWidth: 1, borderColor: hovered ? primary : border, backgroundColor: hovered ? tint(primary) : 'transparent', cursor: 'pointer', transitionProperty: 'background-color, border-color', transitionDuration: '170ms' })}
+                            >
+                                <View style={s.dockIcon}><Ionicons name="wallet-outline" size={18} color={primary} /></View>
+                                <View style={{ flex: 1, minWidth: 0 }}>
+                                    <Text style={[s.dockLabel, { color: text }]} numberOfLines={1}>{/^cash on delivery$/i.test(selectedPaymentMethod) ? (type === 'dine_in' ? tr('Pay at the end') : tr('COD')) : selectedPaymentMethod}</Text>
+                                    <Text style={[s.dockSub, { color: muted }]} numberOfLines={1}>{tr('Click to change')}</Text>
+                                </View>
+                                <Ionicons name="chevron-forward" size={18} color={muted} />
+                            </Pressable>
+
+                            {closed ? (
+                                <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginTop: 14, padding: 12, borderRadius: 12, borderWidth: 1, borderColor: error, backgroundColor: tint(error) }}>
+                                    <Ionicons name="time-outline" size={18} color={error} style={{ marginTop: 1 }} />
+                                    <View style={{ flex: 1, minWidth: 0, marginLeft: 10 }}>
+                                        <Text style={{ color: error, fontSize: 13.5, fontWeight: '900' }}>{tr('Shop is closed')}</Text>
+                                        <Text style={{ color: error, fontSize: 12, lineHeight: 17, marginTop: 2 }}>{tr('{message}. You cannot place orders right now.', { message: quote?.problem || closedMsg })}</Text>
+                                    </View>
+                                </View>
+                            ) : note ? (
+                                <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginTop: 14, padding: 12, borderRadius: 12, backgroundColor: tint(error) }}>
+                                    <Ionicons name="information-circle-outline" size={18} color={error} style={{ marginTop: 1 }} />
+                                    <Text style={{ flex: 1, minWidth: 0, marginLeft: 8, color: error, fontSize: 12.5, lineHeight: 17, fontWeight: '700' }}>{tr(note)}</Text>
+                                </View>
+                            ) : null}
+                            {/unpaid bill/i.test(note) ? (
+                                <Pressable onPress={() => useOwedPrompt.getState().show()} style={({ hovered }) => ({ alignItems: 'center', paddingVertical: 12, borderRadius: 12, backgroundColor: primary, marginTop: 10, filter: hovered ? 'brightness(1.1)' : 'brightness(1)', cursor: 'pointer' })}>
+                                    <Text style={{ color: onPrimary, fontWeight: '900' }}>{tr('View bill and pay')}</Text>
+                                </Pressable>
+                            ) : null}
+
+                            <Press hover={{ filter: 'brightness(1.1)' }} wrap={{ marginTop: 16 }} onPress={btnOn ? onBtn : undefined} style={[s.dockBtn, { flex: 0, alignSelf: 'stretch', backgroundColor: btnOn ? primary : muted, borderRadius: radius }]}>
+                                {placing ? <ActivityIndicator color="#FFFFFF" /> : (
+                                    <View style={[s.btnRow, !(quote && !closed) && { justifyContent: 'center' }]}>
+                                        <View style={!(quote && !closed) ? { alignItems: 'center' } : undefined}>
+                                            {quote && !closed ? <Text numberOfLines={1} style={s.btnTotal}>{rs(quote.pricing.total)}</Text> : null}
+                                            <Text style={s.btnLabel} numberOfLines={1}>{btnText}</Text>
+                                        </View>
+                                        {quote && !closed ? <Ionicons name="caret-forward-outline" size={14} color="#FFFFFF" style={{ marginLeft: 8 }} /> : null}
+                                    </View>
+                                )}
+                            </Press>
+                        </View>
+                        <View style={[s.policyBox, { backgroundColor: neutralSoft, marginTop: 14 }]}>
+                            <Text style={[s.policy, { color: muted }]}>{tr('Orders cannot be cancelled once preparation begins at the restaurant.')}</Text>
+                        </View>
+                    </ScrollView>
+                </View>
+
+            <AddressSheet
+                visible={sheet}
+                onClose={() => setSheet(false)}
+                selectedId={addr?._id}
+                onSelect={setAddr}
+                onChanged={(L) => useAddressStore.getState().sync(L)}
+            />
+
+            {/* online order: our own screen appears the moment "Place order" is tapped, like Zomato / Blinkit,
+                instead of a dead pause before the payment app opens */}
+            <TableSheet visible={tableOpen} onClose={() => setTableOpen(false)} />
+            <ChoosePartySheet visible={partyOpen} table={table} onClose={() => setPartyOpen(false)} onChosen={() => { setPartyOpen(false); setTick((x) => x + 1); }} />
+            {placing && paymentMethodValue !== 'cod' ? <PayShimmer appName={upiApp?.label} /> : null}
+            </View>
+        );
+    }
+
     return (
         <View style={[s.flex, { backgroundColor: background }, closedStyle]}>
             <BackHeader title={full.restaurant?.name || tr('Your Cart')} />
@@ -534,7 +939,9 @@ export default function CartScreen() {
                                 </Pressable>
                             ) : null}
                             {shownOffers.length > 0 && !applied ? (
-                                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+                                // room above and below the tickets: a hovered ticket lifts, casts a shadow and shows its notches outside its own box, and a scrolling row cuts off
+                                // anything outside it. The negative margin gives the same room back, so the page does not move.
+                                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: -10, marginBottom: 2 }} contentContainerStyle={{ paddingTop: 14, paddingBottom: 22, paddingHorizontal: 4 }}>
                                     {shownOffers.map((o) => (
                                         <CouponTicket key={o._id} o={o} size="mini" hint={couponBusy === o.code ? tr('Applying…') : undefined} onPress={() => pickOffer(o.code)} style={{ marginRight: 10, opacity: couponBusy && couponBusy !== o.code ? 0.5 : 1 }} />
                                     ))}

@@ -604,15 +604,18 @@ export const ItemCard = React.memo(ItemCardBase);
 /* ---------------- small tile for the horizontal strips ---------------- */
 // push: open the dish as a NEW page on top of the current one (used by the suggestions on a dish page),
 // so Back returns to the dish you came from and the new page starts clean.
-export function Tile({ item, push }) {
+export function Tile({ item, push, hoverFx }) {
     const nav = useNavigation();
-    const { text, muted, surface, border } = useBrand();
+    const { text, muted, surface, border, primary } = useBrand();
+    const fx = useIsDesktopWeb() && hoverFx;   // the cart's favourites strip on the desktop website only
     const showDot = useHomeStore((st) => st.config.showVegDot);
     const off = item.isAvailable === false;
     return (
         <Pressable
             onPress={() => (push ? nav.dispatch(StackActions.push('Item', { id: item._id })) : nav.navigate('Item', { id: item._id }))}
-            style={({ pressed }) => [s.tile, { backgroundColor: surface, borderColor: border }, off && s.dim, pressed && { transform: [{ scale: 0.97 }] }]}
+            style={({ pressed, hovered }) => [s.tile, { backgroundColor: surface, borderColor: border }, off && s.dim, pressed && { transform: [{ scale: 0.97 }] },
+                fx && { cursor: 'pointer', transitionProperty: 'border-color, box-shadow, background-color', transitionDuration: '200ms' },
+                fx && hovered && { borderColor: primary, backgroundColor: tint(primary), boxShadow: `inset 0 0 0 1px ${primary}, inset 0 0 26px ${primary}30` }]}
         >
             <CardGlow radius={18} />
             <View>

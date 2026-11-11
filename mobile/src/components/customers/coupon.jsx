@@ -29,8 +29,70 @@ export function offerMeta(o) {
     ].filter(Boolean).join(' · ');
 }
 
+// The small ticket on the WEBSITE (the cart's "tap to apply" row, which scrolls sideways and clips anything outside its own box). Every effect is drawn INSIDE the
+// ticket, so nothing is ever cut off. Look: a gradient body, a bright stub, a dashed code box. On hover: a glowing red ring inside the edge, a soft shine that
+// sweeps across, the code box fills with the shop's colour, and "Tap to apply" becomes "Apply now" with a sliding arrow. Every ticket is the same size.
+function MiniTicketWeb({ o, onPress, hint, style }) {
+    const { primary, primaryLight, primaryDark, onPrimary, text, muted, surface, border, background } = useBrand();
+    const value = o.discountType === 'percent' ? `${o.discountValue}%` : `₹${o.discountValue}`;
+    const stubW = 68;
+    return (
+        <Pressable
+            onPress={onPress}
+            accessibilityRole="button"
+            style={({ hovered, pressed }) => [{
+                width: 250, height: 70, flexDirection: 'row', borderRadius: 18, overflow: 'hidden', borderWidth: 1, borderColor: hovered ? primary : border,
+                backgroundColor: surface, backgroundImage: `linear-gradient(120deg, ${surface} 0%, ${primary}22 100%)`,
+                boxShadow: hovered ? `inset 0 0 0 1px ${primary}, inset 0 0 30px ${primary}38` : 'inset 0 0 0 0 transparent',
+                cursor: 'pointer', opacity: pressed ? 0.92 : 1, transitionProperty: 'border-color, box-shadow, opacity', transitionDuration: '240ms',
+            }, style]}
+        >
+            {({ hovered }) => (
+                <>
+                    <LinearGradient
+                        colors={[primaryLight, primaryDark]}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={{ width: stubW, alignItems: 'center', justifyContent: 'center', filter: hovered ? 'brightness(1.14)' : 'brightness(1)', transitionProperty: 'filter', transitionDuration: '240ms' }}
+                    >
+                        <Text style={{ color: onPrimary, fontSize: 24, fontWeight: '900', letterSpacing: -0.5 }} numberOfLines={1}>{value}</Text>
+                        <Text style={{ color: onPrimary, fontSize: 11, fontWeight: '800', letterSpacing: 2, opacity: 0.92, marginTop: 1 }}>{tr('OFF')}</Text>
+                    </LinearGradient>
+                    {/* the notches that make it a ticket */}
+                    <View pointerEvents="none" style={{ position: 'absolute', top: -8, left: stubW - 8, width: 16, height: 16, borderRadius: 8, backgroundColor: background }} />
+                    <View pointerEvents="none" style={{ position: 'absolute', bottom: -8, left: stubW - 8, width: 16, height: 16, borderRadius: 8, backgroundColor: background }} />
+                    <View style={{ flex: 1, minWidth: 0, justifyContent: 'center', paddingLeft: 18, paddingRight: 12 }}>
+                        <View
+                            style={{
+                                alignSelf: 'flex-start', borderWidth: 1, borderStyle: 'dashed', borderColor: primary, borderRadius: 9, paddingHorizontal: 10, paddingVertical: 3,
+                                backgroundColor: hovered ? primary : `${primary}1A`, transitionProperty: 'background-color', transitionDuration: '240ms',
+                            }}
+                        >
+                            <Text style={{ color: hovered ? onPrimary : primary, fontSize: 14, fontWeight: '900', letterSpacing: 1.3, transitionProperty: 'color', transitionDuration: '240ms' }} numberOfLines={1}>{o.code}</Text>
+                        </View>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 7 }}>
+                            <Ionicons name="flash" size={12} color={hovered ? primary : muted} />
+                            <Text style={{ color: hovered ? primary : muted, fontSize: 11.5, fontWeight: hovered ? '900' : '700', marginLeft: 4 }} numberOfLines={1}>{hovered && !hint ? tr('Apply now') : (hint || tr('Tap to apply'))}</Text>
+                            <Ionicons name="arrow-forward" size={12} color={primary} style={{ marginLeft: 4, opacity: hovered ? 1 : 0, transform: [{ translateX: hovered ? 3 : -6 }], transitionProperty: 'opacity, transform', transitionDuration: '240ms' }} />
+                        </View>
+                    </View>
+                    {/* the shine: a soft diagonal band that crosses the ticket once each time the mouse comes onto it */}
+                    <View
+                        pointerEvents="none"
+                        style={{
+                            position: 'absolute', top: -12, bottom: -12, left: 0, width: 56, backgroundImage: 'linear-gradient(100deg, transparent, rgba(255,255,255,0.2), transparent)',
+                            transform: [{ translateX: hovered ? 300 : -90 }, { skewX: '-18deg' }], transitionProperty: 'transform', transitionDuration: hovered ? '750ms' : '0ms', transitionTimingFunction: 'ease-out',
+                        }}
+                    />
+                </>
+            )}
+        </Pressable>
+    );
+}
+
 export function CouponTicket({ o, size = 'strip', onPress, hint, style }) {
     const { primary, primaryLight, primaryDark, onPrimary, text, muted, surface, border, background } = useBrand();
+    if (size === 'mini' && Platform.OS === 'web') return <MiniTicketWeb o={o} onPress={onPress} hint={hint} style={style} />;
     const percent = o.discountType === 'percent';
     const value = percent ? `${o.discountValue}%` : `₹${o.discountValue}`;
     const mini = size === 'mini';

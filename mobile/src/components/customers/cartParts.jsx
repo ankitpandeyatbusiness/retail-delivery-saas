@@ -44,8 +44,41 @@ export function Appear({ children, delay = 0, style, skip }) {
     );
 }
 
+// a small picture for the common kitchen and delivery notes (the desktop chips show it when the shop gave none)
+const CHIP_ICONS = [
+    [/less spic|mild/i, 'leaf-outline'], [/spic|chill?i|hot sauce/i, 'flame-outline'], [/no onion|no garlic|jain/i, 'close-circle-outline'], [/extra|more/i, 'add-circle-outline'],
+    [/crisp|crunch/i, 'sparkles-outline'], [/sweet|sugar/i, 'cafe-outline'], [/salt/i, 'water-outline'], [/oil|butter|ghee/i, 'water-outline'],
+    [/no contact|contactless/i, 'hand-left-outline'], [/door|leave|gate|security|guard|reception/i, 'home-outline'], [/call|phone/i, 'call-outline'], [/ring|bell|knock/i, 'notifications-outline'],
+    [/cutlery|spoon|fork|plate/i, 'restaurant-outline'], [/pack|bag|parcel/i, 'bag-handle-outline'], [/warm|hot\b/i, 'thermometer-outline'], [/ice|cold|chill/i, 'snow-outline'],
+];
+const chipIcon = (label) => { const l = String(label || ''); const hit = CHIP_ICONS.find(([re]) => re.test(l)); return hit ? hit[1] : null; };
+
 export function Chip({ label, on, onPress, icon }) {
-    const { primary, text, surface, border } = useBrand();
+    const { primary, onPrimary, text, surface, border } = useBrand();
+    const desk = useIsDesktopWeb();
+    if (desk) {
+        // the desktop website: a bigger chip. Chosen = filled with the shop's colour, a tick and a glow; under the mouse = a tinted fill, a ring and a small grow.
+        const ic = icon || chipIcon(label);
+        return (
+            <Pressable
+                onPress={() => { ease(); onPress(); }}
+                accessibilityRole="button"
+                accessibilityState={{ selected: !!on }}
+                style={({ hovered }) => ({
+                    flexDirection: 'row', alignItems: 'center', height: 46, paddingHorizontal: 20, borderRadius: 23, marginRight: 10, marginBottom: 10, borderWidth: 1.5,
+                    borderColor: on || hovered ? primary : border,
+                    backgroundColor: on ? primary : hovered ? tint(primary) : surface,
+                    boxShadow: on ? `0 8px 20px ${primary}45` : hovered ? `inset 0 0 0 1px ${primary}55, 0 4px 14px ${primary}22` : '0 0 0 rgba(0,0,0,0)',
+                    transform: [{ scale: hovered && !on ? 1.05 : 1 }], cursor: 'pointer',
+                    transitionProperty: 'background-color, border-color, box-shadow, transform', transitionDuration: '180ms',
+                })}
+            >
+                {ic ? <Ionicons name={ic} size={17} color={on ? onPrimary : primary} style={{ marginRight: 8 }} /> : null}
+                <Text numberOfLines={1} style={{ color: on ? onPrimary : text, fontSize: 14.5, fontWeight: '800' }}>{label}</Text>
+                {on ? <Ionicons name="checkmark-circle" size={17} color={onPrimary} style={{ marginLeft: 8 }} /> : null}
+            </Pressable>
+        );
+    }
     return (
         <Press onPress={() => { ease(); onPress(); }} style={[s.chip, { backgroundColor: on ? tint(primary) : surface, borderColor: on ? primary : border }]}>
             {icon ? <Ionicons name={icon} size={14} color={on ? primary : text} style={{ marginRight: 6 }} /> : null}
@@ -99,6 +132,7 @@ export function Bill({ q, type, busy, baseDeliveryFee }) {
 // Free delivery bar: the fill slides, the colour fades, the text cross-fades. Nothing jumps.
 export function FreeDeliveryBar({ preview, freeAbove }) {
     const { errorText, errorSoft, ok, okSoft } = useBrand();
+    const desk = useIsDesktopWeb();   // the desktop website: a rounded card of its own (false in the phone app)
     const unlocked = preview >= freeAbove;
     const pct = Math.min(1, Math.max(0, preview / freeAbove));
 
@@ -124,7 +158,7 @@ export function FreeDeliveryBar({ preview, freeAbove }) {
 
     const fg = shown ? ok : errorText;
     return (
-        <View style={[s.tr, { backgroundColor: errorSoft, overflow: 'hidden' }]}>
+        <View style={[s.tr, { backgroundColor: errorSoft, overflow: 'hidden' }, desk && { marginHorizontal: 16, marginTop: 12, borderRadius: 16 }]}>
             {/* the "unlocked" background fades in over the "keep going" one (no colour animation on the JS thread) */}
             <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: okSoft, opacity: col }]} />
             <Animated.View style={{ opacity: fade }}>
