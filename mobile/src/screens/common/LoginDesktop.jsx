@@ -2,17 +2,15 @@
 // original LoginScreen untouched: LoginScreen picks this one only on a wide web window (utils/common/layout.js).
 // Left: the shop's pictures, big. Right: the form in a calm card. The same calls as the phone screen: send-otp, verify-otp, then the app opens.
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, TextInput, Pressable, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, TextInput, Pressable, StyleSheet, ScrollView, Modal } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../../api/common/client';
 import { useAuthStore } from '../../store/common/useAuthStore';
 import { useThemeStore } from '../../store/common/useThemeStore';
-import { useBrand } from '../../components/common/kit';
 import { ActivityIndicator } from '../../components/common/Loading';
 import PoweredBy from '../../components/common/PoweredBy';
-import LanguageSheet from '../../components/common/LanguageSheet';
 import { tr, LANGS, useLang } from '../../i18n';
 
 const MAIN_ROUTE = 'MainTabs';
@@ -30,6 +28,69 @@ const normalizePhone = (text) => {
     }
     return d.slice(0, 10);
 };
+
+// The desktop login is always dark (the design asked for it), whatever the shop's own colours are.
+const D = { bg: '#121212', card: '#262626', input: '#171717', border: '#404040', text: '#FFFFFF', muted: '#A3A3A3', accent: '#B91C1C', accentText: '#F87171', error: '#F87171' };
+
+// The Indian flag drawn with shapes: Windows browsers cannot draw the flag emoji (they show the letters "IN").
+const FLAG_URI = (() => {   // the real flag: 3 bands and the 24-spoke Ashoka Chakra, as a small picture
+    let spokes = '';
+    for (let i = 0; i < 24; i += 1) {
+        const a = (i * 15 * Math.PI) / 180;
+        spokes += `<line x1='450' y1='300' x2='${(450 + 82 * Math.cos(a)).toFixed(1)}' y2='${(300 + 82 * Math.sin(a)).toFixed(1)}' stroke='#000080' stroke-width='5'/>`;
+        const b = a + (7.5 * Math.PI) / 180;   // the small notch on the rim between spokes
+        spokes += `<circle cx='${(450 + 76 * Math.cos(b)).toFixed(1)}' cy='${(300 + 76 * Math.sin(b)).toFixed(1)}' r='4.5' fill='#000080'/>`;
+    }
+    const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 900 600'><rect width='900' height='200' fill='#FF9933'/><rect y='200' width='900' height='200' fill='#fff'/><rect y='400' width='900' height='200' fill='#138808'/><circle cx='450' cy='300' r='88' fill='none' stroke='#000080' stroke-width='8'/><circle cx='450' cy='300' r='14' fill='#000080'/>${spokes}</svg>`;
+    return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+})();
+
+function IndiaFlag() {
+    return (
+        <View style={s.flag}>
+            <Image source={{ uri: FLAG_URI }} style={{ width: '100%', height: '100%' }} contentFit="fill" />
+        </View>
+    );
+}
+
+// "Language" as a centred dark modal (the phone screens use a bottom sheet).
+function DesktopLanguageModal({ visible, onClose }) {
+    const lang = useLang((st) => st.lang);
+    const setLanguage = useLang((st) => st.setLanguage);
+    const pick = async (code) => { onClose(); if (code !== lang) await setLanguage(code); };
+    return (
+        <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+            <Pressable style={s.backdrop} onPress={onClose}>
+                <Pressable style={s.modal} onPress={() => {}}>
+                    <View style={s.modalHead}>
+                        <View style={{ flex: 1 }}>
+                            <Text style={s.modalTitle}>{tr('Language')}</Text>
+                            <Text style={s.modalSub}>{tr('Choose the language of the app')}</Text>
+                        </View>
+                        <Pressable onPress={onClose} style={s.closeBtn} hitSlop={10}><Ionicons name="close" size={22} color={D.muted} /></Pressable>
+                    </View>
+                    <ScrollView showsVerticalScrollIndicator={false}>
+                        {LANGS.map((l) => {
+                            const on = lang === l.code;
+                            return (
+                                <Pressable key={l.code} onPress={() => pick(l.code)} style={[s.langRow, on && s.langRowOn]}>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={s.langNative}>{l.native}</Text>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
+                                            <Text style={s.langName}>{l.name}</Text>
+                                            {l.beta ? <View style={s.beta}><Text style={s.betaText}>BETA</Text></View> : null}
+                                        </View>
+                                    </View>
+                                    <Ionicons name={on ? 'checkmark-circle' : 'ellipse-outline'} size={24} color={on ? D.accent : '#525252'} />
+                                </Pressable>
+                            );
+                        })}
+                    </ScrollView>
+                </Pressable>
+            </Pressable>
+        </Modal>
+    );
+}
 
 function OtpRow({ digits, setDigits, refs, hasError, dimmed, onEdit, c }) {
     const [focus, setFocus] = useState(-1);
@@ -80,7 +141,6 @@ function OtpRow({ digits, setDigits, refs, hasError, dimmed, onEdit, c }) {
 }
 
 export default function LoginDesktop({ navigation }) {
-    const brand = useBrand();
     const { theme } = useThemeStore();
     const loginStore = useAuthStore((st) => st.login);
     const lang = useLang((st) => st.lang);
@@ -90,11 +150,33 @@ export default function LoginDesktop({ navigation }) {
     const tagline = theme?.tagline || 'Delicious food, delivered to your door';
     const heroes = theme?.heroImages || [];
     const [heroIdx, setHeroIdx] = useState(0);
-    useEffect(() => {
-        if (heroes.length < 2) return undefined;
-        const t = setInterval(() => setHeroIdx((i) => (i + 1) % heroes.length), HERO_MS);
+    const heroCount = heroes.length;
+    useEffect(() => {   // auto-advance; restarts after every change (a click or a swipe) so it never jumps right after one
+        if (heroCount < 2) return undefined;
+        const t = setInterval(() => setHeroIdx((i) => (i + 1) % heroCount), HERO_MS);
         return () => clearInterval(t);
-    }, [heroes.length]);
+    }, [heroCount, heroIdx]);
+
+    // Two-finger swipe on the trackpad = sideways wheel events. One swipe moves ONE picture (the trackpad keeps sending events after the
+    // fingers lift, so we wait a moment before listening again). Native listener: the page's own "swipe = go back" must be blocked.
+    const leftRef = useRef(null);
+    useEffect(() => {
+        const el = leftRef.current;
+        if (!el || heroCount < 2 || !el.addEventListener) return undefined;
+        let acc = 0; let lockUntil = 0;
+        const onWheel = (e) => {
+            if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;   // an up/down scroll is not a swipe
+            e.preventDefault();
+            const now = Date.now();
+            if (now < lockUntil) return;
+            acc += e.deltaX;
+            if (Math.abs(acc) < 50) return;
+            setHeroIdx((i) => (acc > 0 ? (i + 1) % heroCount : (i - 1 + heroCount) % heroCount));
+            acc = 0; lockUntil = now + 700;
+        };
+        el.addEventListener('wheel', onWheel, { passive: false });
+        return () => el.removeEventListener('wheel', onWheel);
+    }, [heroCount]);
 
     const [step, setStep] = useState('phone');
     const [phone, setPhone] = useState('');
@@ -161,64 +243,71 @@ export default function LoginDesktop({ navigation }) {
     const changeNumber = () => { setError(''); setDigits(EMPTY); setStep('phone'); setTimeout(() => phoneRef.current?.focus(), 80); };
 
     const ready = phone.length === 10 && !loading;
-    const c = { primary: brand.primary, error: brand.errorText || brand.error, text: brand.text, bg: brand.background, border: brand.border };
+    const c = { primary: D.accent, error: D.error, text: D.text, bg: D.input, border: D.border };
 
     return (
-        <View style={[s.root, { backgroundColor: brand.background }]}>
-            {/* LEFT: the shop */}
-            <View style={s.left}>
+        <View style={[s.root, { backgroundColor: D.bg }]}>
+            {/* LEFT: the shop (half the screen) */}
+            <View style={s.left} ref={leftRef}>
                 {heroes.length === 0 ? (
-                    <LinearGradient colors={[brand.primaryLight, brand.primaryDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+                    <LinearGradient colors={['#4a1010', '#121212']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
                 ) : (
                     <Image source={heroes[heroIdx % heroes.length]} style={StyleSheet.absoluteFill} contentFit="cover" transition={900} cachePolicy="memory-disk" />
                 )}
-                <LinearGradient pointerEvents="none" colors={['rgba(0,0,0,0.35)', 'rgba(0,0,0,0)', 'rgba(0,0,0,0.78)']} locations={[0, 0.45, 1]} style={StyleSheet.absoluteFill} />
+                <LinearGradient pointerEvents="none" colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.5)', 'rgba(0,0,0,0.92)']} locations={[0, 0.5, 1]} start={{ x: 1, y: 0 }} end={{ x: 0, y: 1 }} style={StyleSheet.absoluteFill} />
                 <View style={s.leftText}>
-                    <Text style={s.heroName} numberOfLines={2}>{brandName}</Text>
+                    <Text style={s.heroName} numberOfLines={3}>{brandName}</Text>
                     <Text style={s.heroTag} numberOfLines={3}>{tagline}</Text>
                     {heroes.length > 1 ? (
                         <View style={s.dots}>
-                            {heroes.map((_, i) => <View key={i} style={[s.dot, i === heroIdx % heroes.length && s.dotOn]} />)}
+                            {heroes.map((_, i) => (
+                                <Pressable key={i} onPress={() => setHeroIdx(i)} hitSlop={{ top: 10, bottom: 10, left: 4, right: 4 }} style={s.dotHit}>
+                                    <View style={[s.dot, i === heroIdx % heroes.length && s.dotOn]} />
+                                </Pressable>
+                            ))}
                         </View>
                     ) : null}
                 </View>
             </View>
 
             {/* RIGHT: the form */}
-            <View style={[s.right, { backgroundColor: brand.surface }]}>
+            <View style={[s.right, { backgroundColor: D.bg }]}>
                 <View style={s.topBar}>
-                    <Pressable onPress={() => setLangOpen(true)} style={[s.chip, { borderColor: brand.border }]}>
-                        <Ionicons name="language" size={15} color={brand.text} style={{ marginRight: 6 }} />
-                        <Text style={{ color: brand.text, fontWeight: '700', fontSize: 13 }}>{LANGS.find((l) => l.code === lang)?.native}</Text>
+                    <Pressable onPress={() => setLangOpen(true)} style={({ hovered }) => [s.chip, hovered && s.chipHover]}>
+                        <Text style={s.chipIcon}>A/文</Text>
+                        <Text style={s.chipText}>{LANGS.find((l) => l.code === lang)?.native}</Text>
+                        <Ionicons name="chevron-down" size={14} color={D.text} style={{ marginLeft: 6 }} />
                     </Pressable>
-                    <Pressable onPress={goToMain} style={[s.chip, { borderColor: brand.border }]}>
-                        <Text style={{ color: brand.text, fontWeight: '700', fontSize: 13 }}>{tr('Skip')}</Text>
+                    <Pressable onPress={goToMain} style={({ hovered }) => [s.chip, hovered && s.chipHover]}>
+                        <Text style={s.chipText}>{tr('Skip')}</Text>
                     </Pressable>
                 </View>
 
                 <ScrollView contentContainerStyle={s.formWrap} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
                     <View style={s.card}>
-                        <Text style={[s.welcome, { color: brand.text }]}>{step === 'phone' ? tr('Log in or sign up') : tr('Verify your number')}</Text>
-                        <Text style={[s.sub, { color: brand.muted }]}>
-                            {step === 'phone'
-                                ? tr('Enter your phone number and we will send you a code.')
-                                : `${tr('Enter the')} ${OTP_LENGTH}${tr('-digit code sent to')} +91 ${phone.slice(0, 5)} ${phone.slice(5)}`}
-                        </Text>
+                        <View style={s.headRow}>
+                            <View style={s.headLine} />
+                            <Text style={s.headText}>{step === 'phone' ? tr('Log in or sign up') : tr('Verify your number')}</Text>
+                            <View style={s.headLine} />
+                        </View>
+                        {step === 'otp' ? (
+                            <Text style={s.sub}>{`${tr('Enter the')} ${OTP_LENGTH}${tr('-digit code sent to')} +91 ${phone.slice(0, 5)} ${phone.slice(5)}`}</Text>
+                        ) : null}
 
                         {step === 'phone' ? (
                             <>
-                                <View style={[s.inputRow, { borderColor: phoneFocus || phone ? brand.primary : brand.border, backgroundColor: brand.background }]}>
-                                    <Text style={s.flag}>🇮🇳</Text>
-                                    <Text style={[s.cc, { color: brand.text }]}>+91</Text>
-                                    <View style={[s.vline, { backgroundColor: brand.border }]} />
+                                <View style={[s.inputRow, { borderColor: phoneFocus ? D.accent : D.border }]}>
+                                    <IndiaFlag />
+                                    <Text style={s.cc}>+91</Text>
+                                    <View style={s.vline} />
                                     <TextInput
                                         ref={phoneRef}
-                                        style={[s.phoneInput, noOutline, { color: brand.text }]}
+                                        style={[s.phoneInput, noOutline]}
                                         keyboardType="phone-pad"
                                         inputMode="tel"
                                         autoComplete="tel-national"
                                         placeholder={tr('Enter phone number')}
-                                        placeholderTextColor={brand.muted}
+                                        placeholderTextColor={D.muted}
                                         value={phone}
                                         onChangeText={(t) => { setError(''); setPhone(normalizePhone(t)); }}
                                         onFocus={() => setPhoneFocus(true)}
@@ -228,26 +317,24 @@ export default function LoginDesktop({ navigation }) {
                                     />
                                     {phone ? (
                                         <Pressable onPress={() => { setPhone(''); phoneRef.current?.focus(); }} hitSlop={10}>
-                                            <Text style={{ color: brand.muted, fontSize: 16 }}>✕</Text>
+                                            <Text style={{ color: D.muted, fontSize: 16 }}>✕</Text>
                                         </Pressable>
                                     ) : null}
                                 </View>
 
-                                <Pressable onPress={sendOtp} disabled={!ready} style={[s.btnWrap, { opacity: ready || loading ? 1 : 0.45 }]}>
-                                    <LinearGradient colors={[brand.primaryLight, brand.primaryDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.btn}>
-                                        {loading ? <ActivityIndicator color="#FFFFFF" /> : <Text style={s.btnText}>{tr('Continue')}</Text>}
-                                    </LinearGradient>
+                                <Pressable onPress={sendOtp} disabled={!ready} style={({ hovered }) => [s.btn, { opacity: ready || loading ? 1 : 0.5 }, hovered && ready && s.btnHover]}>
+                                    {loading ? <ActivityIndicator color="#FFFFFF" /> : <Text style={s.btnText}>{tr('Continue')}</Text>}
                                 </Pressable>
                             </>
                         ) : (
                             <>
                                 <OtpRow digits={digits} setDigits={setDigits} refs={otpRefs} hasError={!!error} dimmed={loading} onEdit={() => setError('')} c={c} />
-                                {!error && loading ? <Text style={{ color: brand.muted, marginTop: 16 }}>{tr('Verifying...')}</Text> : null}
+                                {!error && loading ? <Text style={{ color: D.muted, marginTop: 16 }}>{tr('Verifying...')}</Text> : null}
                                 {!loading ? (
                                     <View style={s.otpFooter}>
-                                        <Pressable onPress={changeNumber} hitSlop={10}><Text style={[s.link, { color: brand.primary }]}>{tr('Change number')}</Text></Pressable>
+                                        <Pressable onPress={changeNumber} hitSlop={10}><Text style={[s.link, { color: D.accentText }]}>{tr('Change number')}</Text></Pressable>
                                         <Pressable onPress={resend} disabled={secondsLeft > 0} hitSlop={10}>
-                                            <Text style={[s.link, { color: secondsLeft > 0 ? brand.muted : brand.primary }]}>
+                                            <Text style={[s.link, { color: secondsLeft > 0 ? D.muted : D.accentText }]}>
                                                 {secondsLeft > 0 ? tr('Resend in 0:{v1}', { v1: String(secondsLeft).padStart(2, '0') }) : tr('Resend OTP')}
                                             </Text>
                                         </Pressable>
@@ -256,51 +343,73 @@ export default function LoginDesktop({ navigation }) {
                             </>
                         )}
 
-                        {!!error && <Text style={[s.err, { color: c.error }]}>{error}</Text>}
+                        {!!error && <Text style={[s.err, { color: D.error }]}>{error}</Text>}
 
-                        <Text style={[s.terms, { color: brand.muted }]}>
+                        <Text style={s.terms}>
                             {tr('By continuing, you agree to our')}{' '}
-                            <Text onPress={() => navigation.navigate('LegalDoc', { key: 'customer_terms', pub: true })} style={[s.termsLink, { color: brand.text }]}>{tr('Terms of Service')}</Text>
-                            {'  '}
-                            <Text onPress={() => navigation.navigate('LegalDoc', { key: 'privacy', pub: true })} style={[s.termsLink, { color: brand.text }]}>{tr('Privacy Policy')}</Text>
+                            <Text onPress={() => navigation.navigate('LegalDoc', { key: 'customer_terms', pub: true })} style={s.termsLink}>{tr('Terms of Service')}</Text>
+                            {' & '}
+                            <Text onPress={() => navigation.navigate('LegalDoc', { key: 'privacy', pub: true })} style={s.termsLink}>{tr('Privacy Policy')}</Text>
                         </Text>
                     </View>
                 </ScrollView>
                 <PoweredBy />
             </View>
-            <LanguageSheet visible={langOpen} onClose={() => setLangOpen(false)} />
+            <DesktopLanguageModal visible={langOpen} onClose={() => setLangOpen(false)} />
         </View>
     );
 }
 
 const s = StyleSheet.create({
     root: { flex: 1, flexDirection: 'row' },
-    left: { flex: 1.25, backgroundColor: '#161616', overflow: 'hidden', justifyContent: 'flex-end' },
+    left: { flex: 1, backgroundColor: '#161616', overflow: 'hidden', justifyContent: 'flex-end' },
     leftText: { padding: 56, paddingBottom: 64 },
-    heroName: { color: '#FFFFFF', fontSize: 54, lineHeight: 60, fontWeight: '900', letterSpacing: -0.5 },
-    heroTag: { color: 'rgba(255,255,255,0.88)', fontSize: 20, lineHeight: 28, marginTop: 14, maxWidth: 520 },
-    dots: { flexDirection: 'row', marginTop: 28 },
-    dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.4)', marginRight: 8 },
+    heroName: { color: '#FFFFFF', fontSize: 60, lineHeight: 66, fontWeight: '900', letterSpacing: -0.8 },
+    heroTag: { color: 'rgba(255,255,255,0.85)', fontSize: 21, lineHeight: 30, marginTop: 14, maxWidth: 520 },
+    dots: { flexDirection: 'row', marginTop: 30 },
+    dotHit: { cursor: 'pointer', marginRight: 8 },
+    dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.4)' },
     dotOn: { width: 26, backgroundColor: '#FFFFFF' },
-    right: { flex: 1, minWidth: 480, maxWidth: 720 },
+    right: { flex: 1 },
     topBar: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 32, paddingTop: 24 },
-    chip: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8 },
+    chip: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: D.border, borderRadius: 999, paddingHorizontal: 16, paddingVertical: 9, cursor: 'pointer' },
+    chipHover: { backgroundColor: '#262626', borderColor: '#525252' },
+    chipIcon: { color: D.muted, fontSize: 12, fontWeight: '800', marginRight: 8 },
+    chipText: { color: D.text, fontWeight: '700', fontSize: 13.5 },
     formWrap: { flexGrow: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32, paddingVertical: 24 },
-    card: { width: '100%', maxWidth: 400 },
-    welcome: { fontSize: 30, lineHeight: 38, fontWeight: '900', letterSpacing: -0.3 },
-    sub: { fontSize: 15, lineHeight: 22, marginTop: 8, marginBottom: 28 },
-    inputRow: { flexDirection: 'row', alignItems: 'center', borderWidth: 1.5, borderRadius: 14, paddingHorizontal: 16, height: 58 },
-    flag: { fontSize: 20, marginRight: 8 },
-    cc: { fontSize: 16, fontWeight: '700' },
-    vline: { width: 1, height: 24, marginHorizontal: 12 },
-    phoneInput: { flex: 1, fontSize: 17, fontWeight: '600', height: '100%' },
-    btnWrap: { marginTop: 18, borderRadius: 14, overflow: 'hidden', cursor: 'pointer' },
-    btn: { height: 54, alignItems: 'center', justifyContent: 'center' },
-    btnText: { color: '#FFFFFF', fontSize: 17, fontWeight: '800' },
+    card: {
+        width: '100%', maxWidth: 440, backgroundColor: D.card, borderRadius: 20, borderWidth: 1, borderColor: D.border, padding: 36,
+        boxShadow: '0 24px 60px rgba(0,0,0,0.55)',
+    },
+    headRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 26 },
+    headLine: { flex: 1, height: 1, backgroundColor: D.border },
+    headText: { color: D.text, fontSize: 15, fontWeight: '700', marginHorizontal: 14 },
+    sub: { color: D.muted, fontSize: 14.5, lineHeight: 21, textAlign: 'center', marginTop: -10, marginBottom: 24 },
+    inputRow: { flexDirection: 'row', alignItems: 'center', borderWidth: 1.5, borderRadius: 12, paddingHorizontal: 16, height: 56, backgroundColor: D.input },
+    flag: { width: 30, height: 20, borderRadius: 3, overflow: 'hidden', marginRight: 10 },
+    cc: { color: D.text, fontSize: 16, fontWeight: '700' },
+    vline: { width: 1, height: 24, marginHorizontal: 12, backgroundColor: D.border },
+    phoneInput: { flex: 1, fontSize: 16.5, fontWeight: '600', height: '100%', color: D.text },
+    btn: { marginTop: 20, height: 54, borderRadius: 999, backgroundColor: D.accent, alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+    btnHover: { backgroundColor: '#991B1B' },
+    btnText: { color: '#FFFFFF', fontSize: 16.5, fontWeight: '800' },
     otpBox: { width: 52, height: 60, borderWidth: 1.5, borderRadius: 12, textAlign: 'center', fontSize: 24, fontWeight: '800' },
     otpFooter: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 22 },
     link: { fontSize: 14, fontWeight: '700' },
-    err: { fontSize: 14, marginTop: 16, fontWeight: '600' },
-    terms: { fontSize: 12.5, lineHeight: 19, marginTop: 28 },
-    termsLink: { fontWeight: '700', textDecorationLine: 'underline' },
+    err: { fontSize: 14, marginTop: 16, fontWeight: '600', textAlign: 'center' },
+    terms: { color: D.muted, fontSize: 12, lineHeight: 18, marginTop: 26, textAlign: 'center' },
+    termsLink: { color: D.text, fontWeight: '800' },
+    // language modal
+    backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', alignItems: 'center', justifyContent: 'center', padding: 24, backdropFilter: 'blur(6px)' },
+    modal: { width: '100%', maxWidth: 480, maxHeight: '90%', backgroundColor: D.card, borderRadius: 20, borderWidth: 1, borderColor: D.border, padding: 26, boxShadow: '0 30px 80px rgba(0,0,0,0.6)' },
+    modalHead: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 18 },
+    modalTitle: { color: D.text, fontSize: 22, fontWeight: '900' },
+    modalSub: { color: D.muted, fontSize: 13.5, marginTop: 3 },
+    closeBtn: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+    langRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 13, paddingHorizontal: 16, marginBottom: 8, borderRadius: 14, borderWidth: 1, borderColor: D.border, backgroundColor: D.input, cursor: 'pointer' },
+    langRowOn: { borderWidth: 1.5, borderColor: D.accent, backgroundColor: 'rgba(185,28,28,0.1)' },
+    langNative: { color: D.text, fontSize: 17, fontWeight: '800' },
+    langName: { color: D.muted, fontSize: 12.5, fontWeight: '600' },
+    beta: { marginLeft: 8, paddingHorizontal: 7, paddingVertical: 1, borderRadius: 99, backgroundColor: 'rgba(185,28,28,0.2)' },
+    betaText: { color: D.accentText, fontSize: 10, fontWeight: '800' },
 });
