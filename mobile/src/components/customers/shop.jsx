@@ -1,7 +1,7 @@
 // src/components/ui/shop.jsx
 import { isMeasured, priceSuffix } from '../../utils/customers/measure';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, Pressable, StyleSheet, Animated, Easing, PanResponder } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Animated, Easing, PanResponder, Platform } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -235,7 +235,8 @@ export function SoldTag({ item }) {
 
 // The shop is closed / switched off (not taking orders): the whole screen turns grey. Add the returned style to the screen's root
 // View:  <View style={[..., closedStyle]}>.  The dish page does NOT use it: only its Add button turns grey.
-export const GREY = { filter: [{ grayscale: 1 }] };
+// (the website needs the CSS text form: react-native-web does not turn the phone's list form into CSS, so the page was never grey there)
+export const GREY = Platform.OS === 'web' ? { filter: 'grayscale(1)' } : { filter: [{ grayscale: 1 }] };
 export function useClosedStyle() {
     const closed = useHomeStore((st) => st.full.restaurant?.isOpen === false);
     const role = useAuthStore((st) => st.user?.role);

@@ -23,7 +23,7 @@ import { useAddressStore } from '../../store/customers/useAddressStore';
 import { useMeStore } from '../../store/customers/useMeStore';
 import { useOrderMode, modesOf } from '../../store/customers/useOrderMode';
 import { ask } from '../common/dialog';
-import { showToast } from './shop';
+import { showToast, useClosedStyle } from './shop';
 import { AddressSheet } from './addresses';
 import TableSheet from './TableSheet';
 import { tr } from '../../i18n';
@@ -271,12 +271,13 @@ export default function DesktopTopBar({ navRef, routeName }) {
     const wordings = [sample ? tr('Search "{dish}"', { dish: sample }) : tr('Search for dishes'), tr('Search dishes'), tr('Search')];
     const placeholder = searchW ? (wordings.find((t) => t.length * 7.6 <= room) || wordings[wordings.length - 1]) : wordings[0];
     const roomy = width >= 1280;
+    const closedStyle = useClosedStyle();   // the shop is closed: the bar turns grey with the page (like the phone's tabs)
     const floating = theme.tabBarStyle === 'floating';   // the shop chose the floating bar: on the website it is a pill that floats above the page
     const logo = theme.icon || theme.logo;
     const initial = String(user?.name || user?.phone || '?').trim().slice(0, 1).toUpperCase();
 
     return (
-        <View style={floating ? { backgroundColor: brand.background, paddingTop: 12, paddingBottom: 8, paddingHorizontal: 20, zIndex: 30 } : { backgroundColor: brand.surface, borderBottomWidth: 1, borderBottomColor: brand.border, zIndex: 30 }}>
+        <View style={[floating ? { backgroundColor: brand.background, paddingTop: 12, paddingBottom: 8, paddingHorizontal: 20, zIndex: 30 } : { backgroundColor: brand.surface, borderBottomWidth: 1, borderBottomColor: brand.border, zIndex: 30 }, closedStyle]}>
             <View
                 style={[
                     { width: '100%', flexDirection: 'row', alignItems: 'center', height: HEIGHT, paddingHorizontal: 20 },
