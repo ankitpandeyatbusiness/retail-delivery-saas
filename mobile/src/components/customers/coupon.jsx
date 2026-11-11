@@ -4,7 +4,7 @@
 //   a brand-gradient stub with the value ("20%" / "₹100"), a notched edge, and the code with what it gives.
 //   size: 'strip' (home, fixed width) | 'full' (Offers page, full width) | 'mini' (cart, tap to apply)
 import React from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand, CardGlow } from '../common/kit';
@@ -42,9 +42,12 @@ export function CouponTicket({ o, size = 'strip', onPress, hint, style }) {
     return (
         <Pressable
             onPress={onPress}
-            style={({ pressed }) => [
+            style={({ pressed, hovered }) => [
                 s.ticket,
                 { height, width, backgroundColor: surface, borderColor: border, opacity: pressed ? 0.9 : 1 },
+                // the website: a hand cursor, and the ticket lifts a little with a coloured edge while the mouse is on it
+                Platform.OS === 'web' && { cursor: 'pointer', transitionProperty: 'border-color, box-shadow, transform', transitionDuration: '180ms' },
+                Platform.OS === 'web' && hovered && { borderColor: primary, transform: [{ translateY: -2 }], boxShadow: `0 10px 28px ${primary}2E` },
                 style,
             ]}
         >
