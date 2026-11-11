@@ -229,7 +229,7 @@ export function ImageRibbon({ item }) {
 
 // Small coloured tags under the name: spice and the diet marks. Most important first, never more than `max`.
 const TAG_DARK = { '#B91C1C': '#F28B82', '#C2410C': '#F4A261', '#7C3AED': '#B79CF2', '#475569': '#A9B6C8' };   // the same tags, a notch lighter so they stand out from a dark card
-export function Tags({ item, max = 2 }) {
+export function Tags({ item, max = 2, roomy = false }) {   // roomy: bigger chips with more padding and space between them (the desktop card only; off for the phone)
     const { dark } = useBrand();
     const list = [];
     if (item.spiceLevel === 'hot') list.push([tr('Spicy'), 'flame', '#B91C1C']);
@@ -244,9 +244,9 @@ export function Tags({ item, max = 2 }) {
             {list.slice(0, max).map(([label, icon, c0]) => {
                 const c = dark ? (TAG_DARK[c0] || c0) : c0;
                 return (
-                <View key={label} style={[s.tag, { backgroundColor: dark ? `${c}26` : `${c}1F` }]}>
-                    <Ionicons name={icon} size={11} color={c} />
-                    <Text numberOfLines={1} style={[s.tagTxt, { color: c }]}>{tr(label)}</Text>
+                <View key={label} style={[s.tag, roomy && { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 9, marginRight: 8, marginBottom: 0 }, { backgroundColor: dark ? `${c}26` : `${c}1F` }]}>
+                    <Ionicons name={icon} size={roomy ? 12 : 11} color={c} />
+                    <Text numberOfLines={1} style={[s.tagTxt, roomy && { fontSize: 11.5, marginLeft: 5 }, { color: c }]}>{tr(label)}</Text>
                 </View>
                 );
             })}
@@ -484,6 +484,45 @@ function ItemCardBase({ item, variant }) {
                     <ImageRibbon item={item} />
                     {heart}
                     <AddButton item={item} kind="overlap" onPress={() => quickAdd(item, nav)} style={s.overPos} />
+                </View>
+            </Pressable>
+        );
+    }
+    // 'desk': the card of the DESKTOP website's Home grid (HomeDesktop.jsx only; no phone screen asks for it). EVERY card is the same size: the photo
+    // keeps one shape (4:3) and the text part has one fixed height, whatever the name, the tags or the rating line are. A short name leaves
+    // blank room, a long one is cut at two lines; the price and the Add button always sit on the same line at the bottom.
+    if (variant === 'desk') {
+        return (
+            <Pressable
+                onPress={open}
+                style={({ pressed, hovered }) => [card, { borderRadius: 16, borderWidth: 1, cursor: 'pointer', transform: [{ scale: pressed ? 0.985 : hovered ? 1.015 : 1 }], transitionProperty: 'transform', transitionDuration: '160ms' }, dim && s.dim]}
+            >
+                <CardGlow radius={16} />
+                <View style={{ aspectRatio: 4 / 3, borderTopLeftRadius: 15, borderTopRightRadius: 15, overflow: 'hidden' }}>
+                    <Pic item={item} style={{ width: '100%', height: '100%' }} />
+                    <ImageRibbon item={item} />
+                    <SoldTag item={item} />
+                    {heart}
+                    {pct ? <View style={s.badge}><Text style={s.badgeTxt}>{tr('{pct}% OFF', { pct: pct })}</Text></View> : null}
+                </View>
+                {/* three fixed bands, so nothing can touch or overlap: the name (2 lines), one info row (rating, time, tag), the price line */}
+                <View style={{ height: 146, padding: 12 }}>
+                    <View style={[s.nameRow, { height: 38, alignItems: 'flex-start' }]}>
+                        {showDot ? <VegDot isVeg={item.isVeg} /> : null}
+                        <Text style={[s.name, { color: text, fontSize: 15, lineHeight: 19 }]} numberOfLines={2}>{item.name}</Text>
+                    </View>
+                    <View style={{ height: 30, marginTop: 8, flexDirection: 'row', alignItems: 'center', overflow: 'hidden' }}>
+                        {/* Meta and Tags carry their own top margin for the phone card; it is cancelled here so the row stays centred */}
+                        <View style={{ marginTop: -5, marginRight: 10, flexShrink: 0 }}><Meta item={item} full={full} /></View>
+                        {item.fewLeft && !off ? <Text numberOfLines={1} style={[s.few, { marginTop: 0, marginRight: 10, flexShrink: 0 }]}>{tr('Few left')}</Text> : null}
+                        <View style={{ marginTop: -5, flexShrink: 1, minWidth: 0 }}><Tags item={item} max={1} roomy /></View>
+                    </View>
+                    <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+                        <View style={[s.rowEnd, { marginTop: 0 }]}>
+                            <Price item={item} />
+                            <AddButton item={item} kind="circle" onPress={() => quickAdd(item, nav)} />
+                        </View>
+                    </View>
                 </View>
             </Pressable>
         );

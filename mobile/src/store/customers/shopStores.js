@@ -51,7 +51,9 @@ const schedulePush = (lines, now) => {
 const save = (lines) => { writeCache('cart', { lines }); schedulePush(lines); };
 
 // the screens plug their toast in here (the store file must not import UI code)
-export const cartHooks = { onCap: null, beforeAdd: null };   // beforeAdd(line) === false: the dish is not added now (a bulk cart is waiting: the customer is asked first; see useBulkCartStore)
+// beforeAdd(line) === false: the dish is not added now (a bulk cart is waiting: the customer is asked first; see useBulkCartStore)
+// onAdd(line, quantityNow): called after a dish was added; only the desktop website listens (components/customers/DesktopCartBar.jsx), nothing else sets it
+export const cartHooks = { onCap: null, beforeAdd: null, onAdd: null };
 
 export const useCartStore = create((set, get) => ({
     lines: [],
@@ -117,6 +119,7 @@ export const useCartStore = create((set, get) => ({
             : [...cur, { ...line, quantity, selections: line.selections || [], key }];
         save(lines);
         set({ lines });
+        cartHooks.onAdd?.(line, quantity);
     },
 
     setQty(key, q) {

@@ -22,6 +22,7 @@ import BranchChip from '../../components/customers/BranchChip';
 import BulkCartBar from '../../components/customers/BulkCartBar';
 import { ItemCard, Tile, CartBar, useClosedStyle, closedText, showToast, tint } from '../../components/customers/shop';
 import FilterDialog from './FilterDialog';
+import HomeDesktop from './HomeDesktop';
 import { useThemeStore } from '../../store/common/useThemeStore';
 import { useHomeStore } from '../../store/customers/useHomeStore';
 import ModeSlider from '../../components/customers/ModeSlider';
@@ -475,7 +476,13 @@ function Strip({ r }) {
 }
 
 /* ---------------- the screen ---------------- */
+// A wide browser window gets its own Home page (HomeDesktop.jsx); everything else, the phone app included, gets the screen below untouched.
 export default function HomeScreen() {
+    const desktop = useCustomerDesktop();   // false everywhere except a browser at least 1024 px wide
+    return desktop ? <HomeDesktop /> : <HomeMobile />;
+}
+
+function HomeMobile() {
     const space = useBottomSpace();   // room for the floating order bar, only while it is on screen
     const nav = useNavigation();
     const insets = useSafeAreaInsets();
