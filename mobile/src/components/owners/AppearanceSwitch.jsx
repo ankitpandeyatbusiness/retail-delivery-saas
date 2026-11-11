@@ -2,7 +2,9 @@
 // the whole app glides into the new colours only AFTER the highlight has finished, so the repaint can never make the slide stutter.
 // The choice is kept on this phone.
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, Pressable, Animated, Easing, StyleSheet } from 'react-native';
+import { View, Text, Pressable, Animated, Easing, StyleSheet, Platform } from 'react-native';
+
+const WEB = Platform.OS === 'web';   // on the website the slider is a CSS transition (smooth even while the page is busy)
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand, smoothTheme, alpha } from '../common/kit';
 import { useThemeStore } from '../../store/common/useThemeStore';
@@ -24,9 +26,9 @@ export default function AppearanceSwitch({ last }) {
     const choose = (id) => {
         if (id === mode) return;
         setMode(id);
-        Animated.timing(slide, { toValue: MODES.findIndex((m) => m[0] === id), duration: 260, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
-        // the colours start gliding into the new look at once, together with the highlight
-        setTimeout(() => smoothTheme(() => setAppearance(id)), 40);
+        if (!WEB) Animated.timing(slide, { toValue: MODES.findIndex((m) => m[0] === id), duration: 260, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+        // the colours start gliding into the new look at once, together with the highlight; the website waits until its CSS slide has finished
+        setTimeout(() => smoothTheme(() => setAppearance(id)), WEB ? 340 : 40);
     };
     const segW = w ? (w - 6) / MODES.length : 0;
 
@@ -40,7 +42,8 @@ export default function AppearanceSwitch({ last }) {
                 </View>
             </View>
             <View onLayout={(e) => setW(e.nativeEvent.layout.width)} style={[styles.seg, { backgroundColor: background, borderColor: border }]}>
-                {segW ? <Animated.View style={[styles.pill, { width: segW, backgroundColor: primary, transform: [{ translateX: Animated.multiply(slide, segW) }] }]} /> : null}
+                {segW && WEB ? <View style={[styles.pill, { width: segW, backgroundColor: primary, transform: [{ translateX: idx * segW }], transitionProperty: 'transform', transitionDuration: '300ms', transitionTimingFunction: 'cubic-bezier(0.4, 0, 0.2, 1)' }]} /> : null}
+                {segW && !WEB ? <Animated.View style={[styles.pill, { width: segW, backgroundColor: primary, transform: [{ translateX: Animated.multiply(slide, segW) }] }]} /> : null}
                 {MODES.map(([id, icon, label]) => {
                     const on = id === mode;
                     return (

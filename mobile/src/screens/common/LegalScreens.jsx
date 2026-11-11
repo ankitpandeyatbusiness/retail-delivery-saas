@@ -7,7 +7,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand } from '../../components/common/kit';
 import { PageHeader } from '../../components/owners/ui';
-import LegalText from '../../components/common/LegalText';
+import LegalText, { useLegalInk } from '../../components/common/LegalText';
 import { fetchPublicLegal, fetchPoweredBy } from '../../api/common/legalApi';
 import { useAuthStore } from '../../store/common/useAuthStore';
 import { tr, tl } from '../../i18n';
@@ -71,16 +71,16 @@ export function LegalListScreen() {
 }
 
 const H = ({ children, first }) => {
-    const { text } = useBrand();
-    return <Text style={{ color: text, fontSize: 16, fontWeight: '900', marginTop: first ? 0 : 18, marginBottom: 4 }}>{children}</Text>;
+    const { heading } = useLegalInk();   // pure white on a dark look
+    return <Text style={{ color: heading, fontSize: 16, fontWeight: '900', marginTop: first ? 0 : 18, marginBottom: 4 }}>{children}</Text>;
 };
 const P = ({ children }) => {
-    const { muted } = useBrand();
-    return <Text style={{ color: muted, fontSize: 14.5, lineHeight: 21, marginTop: 3 }}>{children}</Text>;
+    const { body } = useLegalInk();   // grey
+    return <Text style={{ color: body, fontSize: 14.5, lineHeight: 21, marginTop: 3 }}>{children}</Text>;
 };
 const B = ({ children }) => {
-    const { text } = useBrand();
-    return <Text style={{ color: text, fontSize: 14.5, lineHeight: 21, marginTop: 3, paddingLeft: 14 }}>{'•  '}{children}</Text>;
+    const { body } = useLegalInk();   // grey, like the paragraphs
+    return <Text style={{ color: body, fontSize: 14.5, lineHeight: 21, marginTop: 3, paddingLeft: 14 }}>{'•  '}{children}</Text>;
 };
 
 // About Us: written here, in the app, so it shows at once. The names come from Platform business (fetchPoweredBy); until they arrive it says "Vivyaan".
@@ -98,7 +98,7 @@ export function AboutUsScreen() {
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
             <PageHeader title={tr('About Us')} />
-            <ScrollView contentContainerStyle={{ paddingBottom: 32 }}>
+            <ScrollView contentContainerStyle={{ paddingBottom: 32 }} showsVerticalScrollIndicator={Platform.OS === 'web' ? false : undefined}>
                 <View style={{ padding: 18 }}>
                     <H first>{tr('About {platformName}', { platformName })}</H>
                     <P>{tr('{platformName} helps restaurants and shops take orders and deliver them, all in one place.', { platformName })}</P>

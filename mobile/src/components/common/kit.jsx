@@ -1,13 +1,14 @@
 // src/components/ui/kit.jsx
 import React, { useEffect, useMemo, useState } from 'react';
 import { create } from 'zustand';
-import { View, Text, Pressable, StyleSheet, Appearance, AppState, Animated, Easing } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Appearance, AppState, Animated, Easing, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useThemeStore } from '../../store/common/useThemeStore';
 import { useAuthStore } from '../../store/common/useAuthStore';
+import { useIsDesktopWeb } from '../../utils/common/layout';
 
 const RADIUS = { rounded: 12, square: 3, pill: 99 };
 
@@ -66,6 +67,9 @@ const ease = (p) => (p < 0.5 ? 4 * p * p * p : 1 - ((-2 * p + 2) ** 3) / 2);   /
 export function smoothTheme(apply) {
     const st = useThemeStore.getState();
     if (st.theme.motion === 'off') { apply(); return; }
+    // the website: the browser cannot re-draw every themed component on every frame without freezing whatever is sliding; the new look is applied at once
+    // (the controls that call this wait for their own slide to finish first)
+    if (Platform.OS === 'web') { apply(); return; }
     const cur = useSchemeStore.getState().scheme;
     const from = computeBrand({ ...st.theme, look: resolveLook(st.theme, st.appearance, cur) });
     cancelAnimationFrame(blendTimer);
@@ -239,7 +243,23 @@ export function computeBrand(theme) {
 export function BackHeader({ title }) {
     const nav = useNavigation();
     const insets = useSafeAreaInsets();
-    const { text, background } = useBrand();
+    const { text, background, border } = useBrand();
+    const desk = useIsDesktopWeb();   // the desktop website: a roomy page header (false in the phone app)
+    if (desk) {
+        return (
+            <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: 26, paddingBottom: 12, backgroundColor: background }}>
+                <Pressable
+                    onPress={() => (nav.canGoBack() ? nav.goBack() : nav.navigate('MainTabs'))}
+                    accessibilityRole="button"
+                    accessibilityLabel="Back"
+                    style={({ hovered }) => ({ width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', marginRight: 12, backgroundColor: hovered ? border : 'transparent', cursor: 'pointer', transitionProperty: 'background-color', transitionDuration: '160ms' })}
+                >
+                    <Ionicons name="arrow-back" size={24} color={text} />
+                </Pressable>
+                <Text style={{ flex: 1, color: text, fontSize: 28, fontWeight: '900', letterSpacing: -0.5 }} numberOfLines={1}>{title}</Text>
+            </View>
+        );
+    }
     return (
         <View style={[s.header, { paddingTop: insets.top + 8, backgroundColor: background }]}>
             <Pressable onPress={() => nav.canGoBack() && nav.goBack()} hitSlop={12} style={s.back}>

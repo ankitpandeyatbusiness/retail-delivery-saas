@@ -174,7 +174,19 @@ export function FloatingTabBar({ state, descriptors, navigation, defs }) {
                 style={[tb.floatBar, { backgroundColor: surface, borderColor: border, shadowColor: dark ? '#000000' : primary }]}
             >
                 {/* exactly as wide as one tab (minus a small gap), so it can never poke out of the bar */}
-                {w ? (
+                {w && Platform.OS === 'web' ? (
+                    // the website: the browser slides the highlight (a CSS transition), so a page that is busy changing can never make it stutter
+                    <View
+                        pointerEvents="none"
+                        style={[tb.floatPill, {
+                            width: w / state.routes.length - 10,
+                            backgroundColor: alpha(primary, 0.14),
+                            transform: [{ translateX: state.index * (w / state.routes.length) + 5 }],
+                            transitionProperty: 'transform', transitionDuration: motion === 'off' ? '0ms' : '300ms', transitionTimingFunction: 'cubic-bezier(0.4, 0, 0.2, 1)',
+                        }]}
+                    />
+                ) : null}
+                {w && Platform.OS !== 'web' ? (
                     <Animated.View
                         pointerEvents="none"
                         style={[tb.floatPill, {

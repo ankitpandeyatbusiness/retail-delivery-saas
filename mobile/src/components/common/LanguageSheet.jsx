@@ -5,10 +5,12 @@ import { View, Text, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand, alpha } from './kit';
 import { Sheet } from '../owners/ui';
+import { useIsDesktopWeb } from '../../utils/common/layout';
 import { LANGS, useLang, tr } from '../../i18n';
 
 export default function LanguageSheet({ visible, onClose }) {
     const { text, muted, border, primary } = useBrand();
+    const desk = useIsDesktopWeb();   // the desktop website: the rows warm up under the mouse (false in the phone app)
     const lang = useLang((s) => s.lang);
     const setLanguage = useLang((s) => s.setLanguage);
     const pick = async (code) => { onClose(); if (code !== lang) await setLanguage(code); };
@@ -21,11 +23,11 @@ export default function LanguageSheet({ visible, onClose }) {
                     <Pressable
                         key={l.code}
                         onPress={() => pick(l.code)}
-                        style={({ pressed }) => [{
+                        style={({ pressed, hovered }) => [{
                             flexDirection: 'row', alignItems: 'center', paddingVertical: 13, paddingHorizontal: 14, marginBottom: 8,
                             borderRadius: 16, borderWidth: on ? 1.5 : 1, borderColor: on ? primary : border,
                             backgroundColor: on ? alpha(primary, 0.08) : 'transparent',
-                        }, pressed && { opacity: 0.7 }]}
+                        }, pressed && { opacity: 0.7 }, desk && { cursor: 'pointer', transitionProperty: 'background-color, border-color', transitionDuration: '160ms' }, desk && hovered && { borderColor: primary, backgroundColor: alpha(primary, 0.1) }]}
                     >
                         <View style={{ flex: 1 }}>
                             <Text style={{ color: text, fontSize: 17, fontWeight: '800' }}>{l.native}</Text>

@@ -16,8 +16,15 @@ const trHeading = (text) => {
     return m ? tr('About {platformName}', { platformName: m[1] }) : text;
 };
 
+// ONE look for every legal page and About Us, on every device (Android, iPhone, phone browser, tablet, desktop): the headings in pure white on a dark look,
+// and the text under them grey.
+export function useLegalInk() {
+    const { text, muted, dark } = useBrand();
+    return { heading: dark ? '#FFFFFF' : text, body: muted };
+}
+
 export default function LegalText({ text, title }) {
-    const { text: ink, muted } = useBrand();
+    const { heading: ink, body: para } = useLegalInk();
     const lines = String(text || '').split('\n');
     // the page header already shows the title: leave out the first heading when it is the same words
     const first = lines.findIndex((l) => l.trim());
@@ -30,10 +37,10 @@ export default function LegalText({ text, title }) {
                 let m = line.match(/^#\s+(.*)$/);
                 if (m) return <Text key={i} style={{ color: ink, fontSize: 16, fontWeight: '900', marginTop: i === 0 ? 0 : 18, marginBottom: 4 }}>{trHeading(m[1])}</Text>;
                 m = line.match(/^-\s+(.*)$/);
-                if (m) return <Text key={i} style={{ color: ink, fontSize: 14.5, lineHeight: 21, marginTop: 3, paddingLeft: 14 }}>{'•  '}{tr(m[1])}</Text>;
+                if (m) return <Text key={i} style={{ color: para, fontSize: 14.5, lineHeight: 21, marginTop: 3, paddingLeft: 14 }}>{'•  '}{tr(m[1])}</Text>;
                 m = line.match(/^(\d+)\.\s+(.*)$/);
-                if (m) return <Text key={i} style={{ color: ink, fontSize: 14.5, lineHeight: 21, marginTop: 3, paddingLeft: 14 }}>{`${m[1]}.  `}{tr(m[2])}</Text>;
-                return <Text key={i} style={{ color: muted, fontSize: 14.5, lineHeight: 21, marginTop: 3 }}>{tr(line)}</Text>;
+                if (m) return <Text key={i} style={{ color: para, fontSize: 14.5, lineHeight: 21, marginTop: 3, paddingLeft: 14 }}>{`${m[1]}.  `}{tr(m[2])}</Text>;
+                return <Text key={i} style={{ color: para, fontSize: 14.5, lineHeight: 21, marginTop: 3 }}>{tr(line)}</Text>;
             })}
         </View>
     );

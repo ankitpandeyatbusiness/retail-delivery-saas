@@ -1,6 +1,8 @@
 // src/components/ui/finder.jsx
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, Pressable, ScrollView, Animated, Easing, Modal, StyleSheet, InteractionManager } from 'react-native';
+import { View, Text, Pressable, ScrollView, Animated, Easing, Modal, StyleSheet, InteractionManager, Platform } from 'react-native';
+
+const WEB = Platform.OS === 'web';   // on the website the switches slide with CSS transitions (smooth even while the page is busy)
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -146,6 +148,8 @@ export function VegSwitch({ on, onPress }) {
         busy.current = true;
         setShown(next);
         Animated.timing(x, { toValue: next ? 1 : 0, duration: 220, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+        // the website: handed on after the knob has slid (the filter re-draws the whole menu, which would freeze the slide)
+        if (WEB) { setTimeout(() => { busy.current = false; onPress(); }, 280); return; }
         InteractionManager.runAfterInteractions(() => {
             busy.current = false;
             onPress();
@@ -154,6 +158,24 @@ export function VegSwitch({ on, onPress }) {
 
     const knobX = x.interpolate({ inputRange: [0, 1], outputRange: [0, 38] });
     const offOp = x.interpolate({ inputRange: [0, 1], outputRange: [1, 0] });
+    if (WEB) {
+        const T = { transitionProperty: 'opacity', transitionDuration: '240ms' };
+        return (
+            <Pressable onPress={press} hitSlop={8} style={[s.vegWrap, { cursor: 'pointer' }]} accessibilityRole="switch" accessibilityState={{ checked: shown }} accessibilityLabel={tr('Veg only')}>
+                <View style={[s.vPill, { backgroundColor: surface, borderColor: border }]}>
+                    <View pointerEvents="none" style={[s.vFill, { opacity: shown ? 1 : 0 }, T]} />
+                    <View pointerEvents="none" style={[s.vLeaf, { left: 42, opacity: shown ? 0 : 1 }, T]}><Ionicons name="leaf" size={16} color={muted} /></View>
+                    <View pointerEvents="none" style={[s.vLeaf, { left: 13, opacity: shown ? 1 : 0 }, T]}><Ionicons name="leaf" size={16} color="#FFFFFF" /></View>
+                    <View style={[s.vKnob, { transform: [{ translateX: shown ? 38 : 0 }], transitionProperty: 'transform', transitionDuration: '260ms', transitionTimingFunction: 'cubic-bezier(0.4, 0, 0.2, 1)' }]}>
+                        <View style={[s.vMark, { borderColor: '#8A8F98' }]}><View style={[s.vMarkDot, { backgroundColor: '#8A8F98' }]} /></View>
+                        <View style={[StyleSheet.absoluteFill, s.vMarkOn, { opacity: shown ? 1 : 0 }, T]}>
+                            <View style={[s.vMark, { borderColor: '#0F8A3C' }]}><View style={[s.vMarkDot, { backgroundColor: '#0F8A3C' }]} /></View>
+                        </View>
+                    </View>
+                </View>
+            </Pressable>
+        );
+    }
     return (
         <Pressable onPress={press} hitSlop={8} style={s.vegWrap} accessibilityRole="switch" accessibilityState={{ checked: shown }} accessibilityLabel={tr('Veg only')}>
             <View style={[s.vPill, { backgroundColor: surface, borderColor: border }]}>

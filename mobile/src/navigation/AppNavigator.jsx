@@ -156,6 +156,25 @@ import { FloatingTabBar, slideScenes, TabGlyph, gate, holdGate, releaseGate, bin
 import { tr } from '../i18n';
 
 import { webLinking } from './webLinking';
+import { deskColumn } from '../components/common/deskColumn';
+
+// These phone screens become pages of the desktop website: centred in a column (the phone app gets the screen itself, untouched: see deskColumn).
+const DBookTable = deskColumn(BookTableScreen, 1000);
+const DMyBookings = deskColumn(MyBookingsScreen, 860);
+const DBulkOrder = deskColumn(BulkOrderScreen, 920);
+const DBulkCart = deskColumn(BulkCartScreen, 920);
+const DBulkOrderDetail = deskColumn(BulkOrderDetailScreen, 860);
+const DMyBulkOrders = deskColumn(MyBulkOrdersScreen, 860);
+const DServices = deskColumn(ServicesScreen, 860);
+const DServiceForm = deskColumn(ServiceFormScreen, 860);
+const DInquiry = deskColumn(InquiryScreen, 860);
+const DMyInquiries = deskColumn(MyInquiriesScreen, 860);
+const DChat = deskColumn(ChatScreen, 860);
+const DMyPoints = deskColumn(MyPointsScreen, 860);
+const DAboutUs = deskColumn(AboutUsScreen, 820);
+const DLegalList = deskColumn(LegalListScreen, 820);
+const DLegalDoc = deskColumn(LegalDocScreen, 820);
+const DSessions = deskColumn(SessionsScreen, 860);
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -375,38 +394,38 @@ export default function AppNavigator() {
                     <Stack.Screen name="OrderDetail" component={OrderDetailScreen} />
                     <Stack.Screen name="OrderPlaced" component={OrderPlacedScreen} options={{ gestureEnabled: false, animation: motion === 'off' ? 'none' : 'fade', animationDuration: 300 }} />
                     <Stack.Screen name="Notifications" component={NotificationsScreen} />
-                    <Stack.Screen name="LegalList" component={LegalListScreen} />
-                    <Stack.Screen name="AboutUs" component={AboutUsScreen} />
+                    <Stack.Screen name="LegalList" component={DLegalList} />
+                    <Stack.Screen name="AboutUs" component={DAboutUs} />
                     {/* RiderTrip: a rider's delivery, one step at a time */}
                     <Stack.Screen name="RiderTrip" component={RiderTripScreen} />
                     <Stack.Screen name="RiderDuty" component={RiderDutyScreen} />
                     <Stack.Screen name="StaffLeave" component={StaffLeaveScreen} />
                     <Stack.Screen name="RiderPoints" component={RiderPointsScreen} />
-                    <Stack.Screen name="MyPoints" component={MyPointsScreen} />
-                    <Stack.Screen name="BookTable" component={BookTableScreen} />
-                    <Stack.Screen name="MyBookings" component={MyBookingsScreen} />
-                    <Stack.Screen name="Services" component={ServicesScreen} />
-                    <Stack.Screen name="ServiceForm" component={ServiceFormScreen} />
-                    <Stack.Screen name="Inquiry" component={InquiryScreen} />
-                    <Stack.Screen name="MyInquiries" component={MyInquiriesScreen} />
-                    <Stack.Screen name="BulkOrder" component={BulkOrderScreen} />
-                    <Stack.Screen name="BulkCart" component={BulkCartScreen} />
-                    <Stack.Screen name="Chat" component={ChatScreen} />
-                    <Stack.Screen name="BulkOrderDetail" component={BulkOrderDetailScreen} />
-                    <Stack.Screen name="MyBulkOrders" component={MyBulkOrdersScreen} />
+                    <Stack.Screen name="MyPoints" component={DMyPoints} />
+                    <Stack.Screen name="BookTable" component={DBookTable} />
+                    <Stack.Screen name="MyBookings" component={DMyBookings} />
+                    <Stack.Screen name="Services" component={DServices} />
+                    <Stack.Screen name="ServiceForm" component={DServiceForm} />
+                    <Stack.Screen name="Inquiry" component={DInquiry} />
+                    <Stack.Screen name="MyInquiries" component={DMyInquiries} />
+                    <Stack.Screen name="BulkOrder" component={DBulkOrder} />
+                    <Stack.Screen name="BulkCart" component={DBulkCart} />
+                    <Stack.Screen name="Chat" component={DChat} />
+                    <Stack.Screen name="BulkOrderDetail" component={DBulkOrderDetail} />
+                    <Stack.Screen name="MyBulkOrders" component={DMyBulkOrders} />
                     <Stack.Screen name="TableBill" component={TableBillScreen} />
                     <Stack.Screen name="ReferFriend" component={ReferFriendScreen} />
                     <Stack.Screen name="ScanTable" component={ScanTableScreen} />
-                    <Stack.Screen name="LegalDoc" component={LegalDocScreen} />
+                    <Stack.Screen name="LegalDoc" component={DLegalDoc} />
                     {/* the customer's two documents have their own addresses on the website: /terms and /privacy (navigation/webLinking.js) */}
-                    <Stack.Screen name="Terms" component={LegalDocScreen} initialParams={{ key: 'customer_terms' }} />
-                    <Stack.Screen name="Privacy" component={LegalDocScreen} initialParams={{ key: 'privacy' }} />
+                    <Stack.Screen name="Terms" component={DLegalDoc} initialParams={{ key: 'customer_terms' }} />
+                    <Stack.Screen name="Privacy" component={DLegalDoc} initialParams={{ key: 'privacy' }} />
 
                     {/* owner pages (role "admin"); the owner's tabs are MainTabs -> Landing -> OwnerTabs */}
                     <Stack.Screen name="ShopHub" component={ShopHubScreen} />
                     <Stack.Screen name="Soundbox" component={SoundboxScreen} />
                     <Stack.Screen name="AlertSettings" component={AlertSettingsScreen} />
-                    <Stack.Screen name="Sessions" component={SessionsScreen} />
+                    <Stack.Screen name="Sessions" component={DSessions} />
                     <Stack.Screen name="OwnerMoney" component={OwnerMoneyPage} />
                     <Stack.Screen name="OwnerStub" component={OwnerStubPage} />
                     <Stack.Screen name="OwnerOrder" component={OwnerOrderScreen} />

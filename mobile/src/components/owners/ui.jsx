@@ -1,7 +1,7 @@
 // The owner panel's building blocks. Everything draws from useBrand(), so the panel wears the shop's own logo,
 // colours, font and light/dark look: the owner feels he is on his own app.
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, Pressable, ScrollView, StyleSheet, RefreshControl, Modal, TextInput, KeyboardAvoidingView, Platform, Animated, Easing, AppState } from 'react-native';
+import { View, Text, Pressable, ScrollView, StyleSheet, RefreshControl, Modal, TextInput, KeyboardAvoidingView, Platform, Animated, Easing, AppState, useWindowDimensions } from 'react-native';
 import { ActivityIndicator } from '../common/Loading';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
@@ -25,6 +25,8 @@ import KeyboardScroll from '../common/KeyboardScroll';
 import Reanimated, { interpolate, runOnJS, useAnimatedStyle, useSharedValue, withSpring, withTiming, cancelAnimation } from 'react-native-reanimated';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useSheetPan } from '../common/DragDown';
+import { SheetPortal } from '../common/SheetPortal';
+import { useIsDesktopWeb } from '../../utils/common/layout';
 
 export const money = (n) => `₹${Math.round(Number(n) || 0).toLocaleString('en-IN')}`;
 
@@ -401,7 +403,24 @@ export function PageHeader(props) {
 function PageHeaderBase({ title, right }) {
     const nav = useNavigation();
     const insets = useSafeAreaInsets();
-    const { text, background } = useBrand();
+    const { text, background, border } = useBrand();
+    const desk = useIsDesktopWeb();   // the desktop website: a roomy page header (false in the phone app)
+    if (desk) {
+        return (
+            <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: 26, paddingBottom: 12, backgroundColor: background }}>
+                <Pressable
+                    onPress={() => (nav.canGoBack() ? nav.goBack() : nav.navigate('MainTabs'))}
+                    accessibilityRole="button"
+                    accessibilityLabel="Back"
+                    style={({ hovered }) => ({ width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', marginRight: 12, backgroundColor: hovered ? border : 'transparent', cursor: 'pointer', transitionProperty: 'background-color', transitionDuration: '160ms' })}
+                >
+                    <Ionicons name="arrow-back" size={24} color={text} />
+                </Pressable>
+                <Text style={{ flex: 1, color: text, fontSize: 28, fontWeight: '900', letterSpacing: -0.5 }} numberOfLines={1}>{title}</Text>
+                {right}
+            </View>
+        );
+    }
     return (
         <View style={[s.header, { paddingTop: insets.top + 8, backgroundColor: background }]}>
             <Pressable onPress={() => nav.canGoBack() && nav.goBack()} hitSlop={12} style={{ paddingRight: 14 }}>
@@ -436,7 +455,64 @@ const s = StyleSheet.create({
 // away; let go earlier and it springs back. The position lives on the UI thread, so it follows the finger smoothly.
 const SHEET_OFF = 2000;   // "not on screen yet"
 // noPull: the panel cannot be pulled down with a finger (a sheet with wheels to slide: sliding a wheel down must move the wheel, not the sheet). It still closes with the X, the back key or a tap outside.
+// The desktop website: the popup as a centred card on a darkened, blurred backdrop (Esc, the X and a click outside close it), drawn through the sheet layer
+// so a toast still shows above it. The phone's bottom sheet below is not touched.
+function DeskSheet({ visible, onClose, title, children }) {
+    const { surface, text, border, muted, background } = useBrand();
+    const { height: winH } = useWindowDimensions();
+    const [mounted, setMounted] = useState(visible);
+    const [on, setOn] = useState(false);   // false = parked just outside; the CSS transition does the fade and the slide
+    useEffect(() => {
+        if (visible) {
+            setMounted(true);
+            const id = requestAnimationFrame(() => requestAnimationFrame(() => setOn(true)));
+            return () => cancelAnimationFrame(id);
+        }
+        setOn(false);
+        const t = setTimeout(() => setMounted(false), 260);
+        return () => clearTimeout(t);
+    }, [visible]);
+    useEffect(() => {
+        if (!visible || typeof window === 'undefined') return undefined;
+        const key = (e) => { if (e.key === 'Escape') onClose(); };
+        window.addEventListener('keydown', key);
+        return () => window.removeEventListener('keydown', key);
+    }, [visible, onClose]);
+    if (!mounted) return null;
+    return (
+        <SheetPortal>
+            <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', padding: 24 }} pointerEvents={on ? 'auto' : 'none'}>
+                <Pressable
+                    onPress={onClose}
+                    style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)', opacity: on ? 1 : 0, transitionProperty: 'opacity', transitionDuration: '260ms' }}
+                />
+                <View
+                    style={{
+                        width: '100%', maxWidth: 560, maxHeight: winH - 48, borderRadius: 24, borderWidth: 1, borderColor: border, backgroundColor: surface, padding: 28, boxShadow: '0 30px 80px rgba(0,0,0,0.6)',
+                        opacity: on ? 1 : 0, transform: [{ scale: on ? 1 : 0.95 }, { translateY: on ? 0 : 14 }],
+                        transitionProperty: 'opacity, transform', transitionDuration: '260ms', transitionTimingFunction: 'cubic-bezier(0.22, 0.8, 0.2, 1)',
+                    }}
+                >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 18 }}>
+                        <Text style={{ flex: 1, color: text, fontSize: 24, fontWeight: '900', letterSpacing: -0.4 }}>{title}</Text>
+                        <Pressable
+                            onPress={onClose}
+                            hitSlop={8}
+                            accessibilityLabel="Close"
+                            style={({ hovered }) => ({ width: 36, height: 36, borderRadius: 18, borderWidth: 1, borderColor: hovered ? muted : border, backgroundColor: hovered ? border : background, alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transitionProperty: 'background-color, border-color', transitionDuration: '160ms' })}
+                        >
+                            <Ionicons name="close" size={19} color={text} />
+                        </Pressable>
+                    </View>
+                    <ScrollView style={{ flexShrink: 1 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>{children}</ScrollView>
+                </View>
+            </View>
+        </SheetPortal>
+    );
+}
+
 export function Sheet({ visible, onClose, title, children, noPull }) {
+    const desk = useIsDesktopWeb();   // the desktop website: a centred card instead of the bottom sheet (false in the phone app)
     const offGesture = useMemo(() => Gesture.Pan().enabled(false), []);
     const { surface, text, border, muted } = useBrand();
     const insets = useSafeAreaInsets();
@@ -459,6 +535,7 @@ export function Sheet({ visible, onClose, title, children, noPull }) {
     const move = useAnimatedStyle(() => ({ transform: [{ translateY: ty.value }] }));
     const fade = useAnimatedStyle(() => ({ opacity: interpolate(ty.value, [0, Math.max(h.value, 1)], [1, 0], 'clamp') }));
 
+    if (desk) return <DeskSheet visible={visible} onClose={onClose} title={title}>{children}</DeskSheet>;
     return (
         <Modal visible={shown} transparent animationType="none" onRequestClose={onClose} statusBarTranslucent>
             <GestureHandlerRootView style={{ flex: 1 }}>

@@ -36,6 +36,7 @@ import { useBottomSpace } from '../../store/customers/useLiveTripStore';
 import { useCustomerDesktop } from '../../utils/common/layout';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+const WEB = Platform.OS === 'web';   // on the website the sliders are CSS transitions (smooth even while the page is busy)
 
 function EditDialog({ visible, me, onClose, onSaved }) {
     const { primary, radius, text, muted, surface, border, background } = useBrand();
@@ -159,9 +160,10 @@ function AppearanceRow({ last }) {
     const choose = (id) => {
         if (id === mode) return;
         setMode(id);
-        Animated.timing(slide, { toValue: MODES.findIndex((m) => m[0] === id), duration: 260, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
-        // the colours start gliding into the new look at once, together with the pill (the screen itself does not move)
-        setTimeout(() => smoothTheme(() => setAppearance(id)), 40);
+        if (!WEB) Animated.timing(slide, { toValue: MODES.findIndex((m) => m[0] === id), duration: 260, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+        // the colours start gliding into the new look at once, together with the pill (the screen itself does not move).
+        // The website waits until its CSS slide has finished (the whole app re-draws in the new colours, which would freeze the slide half-way).
+        setTimeout(() => smoothTheme(() => setAppearance(id)), WEB ? 340 : 40);
     };
     const segW = w ? (w - 6) / MODES.length : 0;
     return (
@@ -174,7 +176,8 @@ function AppearanceRow({ last }) {
                 </View>
             </View>
             <View onLayout={(e) => setW(e.nativeEvent.layout.width)} style={[s.seg, { backgroundColor: background, borderColor: border }]}>
-                {segW ? (
+                {segW && WEB ? <View style={[s.segPill, { width: segW, backgroundColor: primary, transform: [{ translateX: idx * segW }], transitionProperty: 'transform', transitionDuration: '300ms', transitionTimingFunction: 'cubic-bezier(0.4, 0, 0.2, 1)' }]} /> : null}
+                {segW && !WEB ? (
                     <Animated.View style={[s.segPill, { width: segW, backgroundColor: primary, transform: [{ translateX: Animated.multiply(slide, segW) }] }]} />
                 ) : null}
                 {MODES.map(([id, icon, label]) => {
