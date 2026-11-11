@@ -4,7 +4,7 @@ export const COMPLAINT_TYPES = {
     missing_item: 'Item missing', wrong_item: 'Wrong item', quality: 'Food quality', late: 'Late delivery', packaging: 'Packaging', other: 'Other', not_received: 'Order not received',
 };
 export const COMPLAINT_STATUS = { open: 'New', in_progress: 'In progress', resolved: 'Decided' };
-export const RESOLUTION_TEXT = { none: 'Replied', refund_full: 'Full refund', refund_partial: 'Part refund', no_refund: 'No refund' };
+export const RESOLUTION_TEXT = { none: 'Replied', refund_full: 'Full refund', refund_partial: 'Part refund', no_refund: 'No refund', closed: 'Closed' };
 
 export const MESSAGE_STATUS = { queued: 'Waiting', sending: 'Sending', done: 'Sent', failed: 'Failed', finished: 'Sent' };
 export const AUDIENCES = [['customers', 'Customers'], ['riders', 'Riders'], ['both', 'Both']];

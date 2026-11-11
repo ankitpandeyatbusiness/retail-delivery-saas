@@ -177,6 +177,17 @@ describe('owner decision', () => {
         assert.equal((await patch(w, c.id, { resolution: 'refund_full' })).status, 409);
     });
 
+    test('the shop can just CLOSE a complaint: no reply needed, nothing refunded, the customer is told, and it cannot be decided again', async () => {
+        const { w, c } = await make('cmp-close');
+        const r = await patch(w, c.id, { resolution: 'closed' });
+        assert.equal(r.status, 200);
+        assert.equal(r.body.status, 'resolved');
+        assert.equal(r.body.resolution, 'closed');
+        assert.equal(r.body.refundStatus, 'none');
+        await f.waitFor(async () => (await got(w.tenant._id, w.customer.user._id, 'complaint_decision')) === 1);
+        assert.equal((await patch(w, c.id, { resolution: 'refund_full' })).status, 409);
+    });
+
     test('another shop cannot decide it; a bad id is 404', async () => {
         const { c } = await make('cmp-13');
         const w2 = await f.makeWorld('cmp-13b');

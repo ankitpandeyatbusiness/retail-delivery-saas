@@ -2,7 +2,7 @@
 const mongoose = require('mongoose');
 
 const TYPES = ['missing_item', 'wrong_item', 'quality', 'late', 'packaging', 'other', 'not_received'];
-const RESOLUTIONS = ['none', 'refund_full', 'refund_partial', 'no_refund'];
+const RESOLUTIONS = ['none', 'refund_full', 'refund_partial', 'no_refund', 'closed'];   // 'closed': the shop just closes it (no reply needed, no refund)
 
 const schema = new mongoose.Schema({
     tenantId: { type: mongoose.Schema.Types.ObjectId, required: true },

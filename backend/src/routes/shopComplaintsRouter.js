@@ -1,7 +1,7 @@
 // Owner: complaints of his customers. Mounted at /api/shop/complaints
 //   GET   /?status=open|in_progress|resolved&page=
 //   GET   /:id   one complaint
-//   PATCH /:id   { ownerReply?, resolution?: refund_full|refund_partial|no_refund, refundPaise? }
+//   PATCH /:id   { ownerReply?, resolution?: refund_full|refund_partial|no_refund|closed, refundPaise? }
 const express = require('express');
 const apiErrors = require('../middlewares/apiErrors');
 const complaints = require('../services/complaintService');

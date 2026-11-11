@@ -178,6 +178,7 @@ const DECISION_TEXT = {
     refund_partial: (c) => `The shop will refund Rs ${rs(c.refundPaise)} for order #${c.orderNo}.`,
     no_refund: (c) => `The shop looked at your complaint for order #${c.orderNo}. No refund this time.`,
     none: (c) => `The shop replied to your complaint for order #${c.orderNo}.`,
+    closed: (c) => `The shop closed your complaint for order #${c.orderNo}.`,
 };
 
 async function decide({ tenant, id, actor, body }) {
@@ -198,6 +199,8 @@ async function decide({ tenant, id, actor, body }) {
         if (!reply) throw httpError(400, 'Write a reply or choose a decision');
     } else if (resolution === 'no_refund') {
         if (!reply) throw httpError(400, 'Tell the customer why there is no refund');
+    } else if (resolution === 'closed') {
+        // the shop just closes it (it was sorted out some other way): no reply is needed and nothing is refunded
     } else {
         const order = await Order.findOne({ _id: c.orderId, tenantId: tenant._id }).select('pricing payment orderType bulkId bulkTotal').lean();
         if (order?.orderType === 'pickup' && !order.bulkId) throw httpError(409, 'A pickup order is not returned or refunded. Choose "No refund" and tell the customer why, or just reply.');

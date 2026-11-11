@@ -147,7 +147,7 @@ function refundDecision(v) {
     });
 }
 
-const RESOLUTION = { refund_full: 'Full refund', refund_partial: 'Partial refund', no_refund: 'No refund', none: 'No refund needed' };
+const RESOLUTION = { refund_full: 'Full refund', refund_partial: 'Partial refund', no_refund: 'No refund', closed: 'Closed', none: 'No refund needed' };
 
 function complaintDecision(v) {
     return compose({

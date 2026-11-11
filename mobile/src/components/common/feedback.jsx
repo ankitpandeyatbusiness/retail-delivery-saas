@@ -152,6 +152,7 @@ const STATUS = { open: 'Open', in_progress: 'In progress', resolved: 'Resolved' 
 function resolutionLine(c) {
     if (c.status !== 'resolved') return '';
     if (c.resolution === 'no_refund') return 'No refund this time';
+    if (c.resolution === 'closed') return 'The shop closed this complaint';
     if (c.resolution === 'refund_full' || c.resolution === 'refund_partial') {
         const amt = rs(c.refundPaise);
         if (c.refundStatus === 'done') return `${amt} refunded`;
@@ -283,7 +284,7 @@ export function ComplaintCard({ orderId }) {
                         <Text style={[s.body, { color: text, marginTop: 2 }]}>{c.ownerReply}</Text>
                     </View>
                 ) : null}
-                {line ? <Text style={[s.strong, { color: c.resolution === 'no_refund' ? muted : '#1E8E3E', marginTop: 10 }]}>{line}</Text> : null}
+                {line ? <Text style={[s.strong, { color: c.resolution === 'no_refund' || c.resolution === 'closed' ? muted : '#1E8E3E', marginTop: 10 }]}>{line}</Text> : null}
             </CardShell>
         );
     }

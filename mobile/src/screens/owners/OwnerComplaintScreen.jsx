@@ -16,7 +16,7 @@ import { toPaise, ago, rupees } from '../../utils/owners/riderRules';
 import { showToast } from '../../components/customers/shop';
 import { tr } from '../../i18n';
 
-const CHOICES = [['none', 'Reply only'], ['refund_full', 'Full refund'], ['refund_partial', 'Part refund'], ['no_refund', 'No refund']];
+const CHOICES = [['none', 'Reply only'], ['refund_full', 'Full refund'], ['refund_partial', 'Part refund'], ['no_refund', 'No refund'], ['closed', 'Just close it']];
 
 const clock = (d) => new Date(d).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', hour12: true });
 const metres = (m) => (m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `${m} m`);
@@ -99,7 +99,7 @@ function ComplaintView({ c0 }) {
     };
 
     return (
-        <FormPage title={c.bulkCode ? tr('Complaint · Bulk order {c}', { c: c.bulkCode }) : tr('Complaint · #{orderNo}', { orderNo: c.orderNo })} footer={!done ? <Button label={refunds ? tr('Send decision') : choice === 'no_refund' ? tr('Send decision') : tr('Send reply')} icon="send" disabled={!valid} busy={busy} onPress={submit} /> : null}>
+        <FormPage title={c.bulkCode ? tr('Complaint · Bulk order {c}', { c: c.bulkCode }) : tr('Complaint · #{orderNo}', { orderNo: c.orderNo })} footer={!done ? <Button label={refunds ? tr('Send decision') : choice === 'no_refund' ? tr('Send decision') : choice === 'closed' ? tr('Close complaint') : tr('Send reply')} icon="send" disabled={!valid} busy={busy} onPress={submit} /> : null}>
             <Card>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                     <Text style={{ color: text, fontWeight: '900', fontSize: 16, flex: 1 }}>{COMPLAINT_TYPES[c.type] || c.type}</Text>
@@ -135,6 +135,7 @@ function ComplaintView({ c0 }) {
                 <Group title={tr('Your answer')} hint={c.ownerReply ? tr('Earlier reply: “{ownerReply}”', { ownerReply: c.ownerReply }) : tr('The customer gets your answer as a notification.')}>
                     <Label>{tr('What do you decide')}</Label>
                     <Chips options={CHOICES} value={choice} onChange={setChoice} style={{ marginTop: 0 }} />
+                    {choice === 'closed' ? <Hint>{tr('The complaint is closed with no refund. The customer is told you closed it. A message is optional.')}</Hint> : null}
                     {choice === 'refund_full' && cap != null ? <Hint>{tr('The customer gets {rupees} back (the order without the tip).', { rupees: rupees(cap) })}</Hint> : null}
                     {choice === 'refund_partial' ? (
                         <View style={{ marginTop: 6 }}>

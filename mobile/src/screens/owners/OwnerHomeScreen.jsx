@@ -16,7 +16,10 @@ import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { useSoundboxStore } from '../../store/owners/useSoundboxStore';
 import { useAlertStore } from '../../store/owners/useAlertStore';
 import { useHomeStore } from '../../store/customers/useHomeStore';
-import { setAcceptingOrders, fetchStaff, apiError, booking as bookingApi } from '../../api/owners/shopApi';
+import { setAcceptingOrders, fetchStaff, apiError, booking as bookingApi, fetchComplaints, updateComplaint } from '../../api/owners/shopApi';
+import { ask } from '../../components/common/dialog';
+import { COMPLAINT_TYPES } from '../../utils/owners/hubRules';
+import { ago } from '../../utils/owners/riderRules';
 import { onNotification } from '../../api/common/socket';
 import { showToast } from '../../components/customers/shop';
 import { onOrderUpdate } from '../../api/common/socket';
@@ -88,6 +91,31 @@ export default function OwnerHomeScreen() {
     const warn = accent || '#F59E0B';
 
     useFocusEffect(useCallback(() => { refresh(); }, [refresh]));
+    // the oldest complaint nobody has decided: shown on the card with a button to close it
+    const openComplaints = d?.complaints?.open || 0;
+    const [firstCmp, setFirstCmp] = useState(null);
+    const [closing, setClosing] = useState(false);
+    useEffect(() => {
+        if (!openComplaints) { setFirstCmp(null); return undefined; }
+        let on = true;
+        (async () => {
+            try {
+                let r = await fetchComplaints({ status: 'open' });
+                let it = (r.items || []).slice(-1)[0];   // the list is newest first: the last one is the oldest
+                if (!it) { r = await fetchComplaints({ status: 'in_progress' }); it = (r.items || []).slice(-1)[0]; }
+                if (on) setFirstCmp(it || null);
+            } catch (e) { /* the card still opens the list */ }
+        })();
+        return () => { on = false; };
+    }, [openComplaints]);
+    const closeComplaint = async () => {
+        if (!firstCmp || closing) return;
+        const yes = await ask({ title: tr('Close this complaint?'), message: tr('The customer is told you closed it. No refund is given. Use it when it is already sorted out.'), confirmText: tr('Close complaint'), cancelText: tr('Not yet') });
+        if (!yes) return;
+        setClosing(true);
+        try { await updateComplaint(firstCmp.id, { resolution: 'closed' }); showToast(tr('Complaint closed')); setFirstCmp(null); await refresh(); }
+        catch (e) { showToast(apiError(e)); } finally { setClosing(false); }
+    };
     // the cooks and waiters (only the jobs the platform switched on for this shop are shown)
     const [staff, setStaff] = useState(null);
     const easy = useMenuFlags((s) => s.easy);
@@ -236,6 +264,17 @@ export default function OwnerHomeScreen() {
                             </View>
                             <Ionicons name="chevron-forward" size={18} color={muted} />
                         </View>
+                        {firstCmp ? (
+                            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: alpha(error, 0.25) }}>
+                                <View style={{ flex: 1, minWidth: 0 }}>
+                                    <Text style={{ color: text, fontWeight: '800', fontSize: 13.5 }} numberOfLines={1}>{(firstCmp.bulkCode ? tr('Bulk order {c}', { c: firstCmp.bulkCode }) : `#${firstCmp.orderNo}`)} · {COMPLAINT_TYPES[firstCmp.type] || firstCmp.type}</Text>
+                                    <Text style={{ color: muted, fontSize: 12, marginTop: 1 }} numberOfLines={1}>{firstCmp.customerName || tr('Customer')} · {ago(firstCmp.createdAt)}</Text>
+                                </View>
+                                <Pressable onPress={closeComplaint} disabled={closing} hitSlop={6} accessibilityRole="button" style={({ hovered }) => ({ marginLeft: 10, paddingHorizontal: 16, height: 36, borderRadius: 18, borderWidth: 1.5, borderColor: error, alignItems: 'center', justifyContent: 'center', backgroundColor: hovered ? alpha(error, 0.12) : 'transparent', opacity: closing ? 0.6 : 1, cursor: 'pointer' })}>
+                                    <Text style={{ color: error, fontWeight: '900', fontSize: 13 }}>{closing ? '…' : tr('Close')}</Text>
+                                </Pressable>
+                            </View>
+                        ) : null}
                     </Card>
                 </GlowBorder>
             ) : null}
