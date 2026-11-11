@@ -6,7 +6,7 @@ import { useOwedPrompt } from '../../store/customers/useOwedPrompt';
 import { useCouponStore } from '../../store/customers/useCouponStore';
 import { useAuthStore } from '../../store/common/useAuthStore';
 import React, { useCallback, useRef, useState } from 'react';
-import { View, Text, FlatList, Pressable, RefreshControl, StyleSheet } from 'react-native';
+import { View, Text, FlatList, Pressable, RefreshControl, ScrollView, StyleSheet } from 'react-native';
 import { ListShimmer } from '../../components/owners/shimmer';
 import { useNavigation } from '@react-navigation/native';
 import { useFocusEffect } from '../../hooks/common/useLiveFocus';
@@ -21,6 +21,7 @@ import { onNotification, onNotificationRead } from '../../api/common/socket';
 import { tr } from '../../i18n';
 import { notificationTarget } from '../../utils/common/notificationTarget';
 import { useClosedStyle } from '../../components/customers/shop';
+import { useIsDesktopWeb } from '../../utils/common/layout';
 
 const ICON = {
     order_status: 'receipt-outline',
@@ -45,6 +46,8 @@ export default function NotificationsScreen() {
     const closedStyle = useClosedStyle();   // the shop is closed: a customer's screen turns grey
     const nav = useNavigation();
     const { primary, text, muted, surface, border, background, error } = useBrand();
+    const desk = useIsDesktopWeb();   // a browser at least 1024 px wide: a centred panel with tabs and day groups (false in the phone app)
+    const [tab, setTab] = useState('all');   // desktop: all | unread
     const setUnread = useNotificationStore((s) => s.set);
 
     const [items, setItems] = useState([]);
@@ -135,6 +138,130 @@ export default function NotificationsScreen() {
             {!n.read ? <View style={[s.dot, { backgroundColor: primary }]} /> : null}
         </Pressable>
     );
+
+    if (desk) {
+        // the desktop panel: a header with the counts and Clear all, All / Unread tabs, and the messages grouped by day
+        const unreadN = items.filter((n) => !n.read).length;
+        const shown = tab === 'unread' ? items.filter((n) => !n.read) : items;
+        const sod = (d) => { const x = new Date(d); return new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime(); };
+        const dayOf = (d) => { const diff = Math.round((sod(Date.now()) - sod(d)) / 86400000); return diff <= 0 ? tr('Today') : diff === 1 ? tr('Yesterday') : diff < 7 ? tr('This week') : tr('Earlier'); };
+        const groups = [];
+        shown.forEach((n) => { const h = dayOf(n.createdAt); const last = groups[groups.length - 1]; if (last && last.h === h) last.items.push(n); else groups.push({ h, items: [n] }); });
+        const T = { transitionProperty: 'background-color, border-color, box-shadow, opacity', transitionDuration: '170ms' };
+        const tabBtn = (k, label, count) => {
+            const on = tab === k;
+            return (
+                <Pressable
+                    key={k}
+                    onPress={() => setTab(k)}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: on }}
+                    style={({ hovered }) => ({ flexDirection: 'row', alignItems: 'center', height: 40, paddingHorizontal: 18, borderRadius: 20, borderWidth: 1.5, borderColor: on || hovered ? primary : border, backgroundColor: on ? primary : hovered ? tint(primary) : surface, marginRight: 10, cursor: 'pointer', ...T })}
+                >
+                    <Text style={{ color: on ? '#FFFFFF' : text, fontSize: 13.5, fontWeight: '800' }}>{label}</Text>
+                    {count > 0 ? (
+                        <View style={{ minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 6, marginLeft: 8, backgroundColor: on ? 'rgba(255,255,255,0.25)' : primary, alignItems: 'center', justifyContent: 'center' }}>
+                            <Text style={{ color: '#FFFFFF', fontSize: 11, fontWeight: '900' }}>{count > 99 ? '99+' : count}</Text>
+                        </View>
+                    ) : null}
+                </Pressable>
+            );
+        };
+        return (
+            <View style={[s.flex, { backgroundColor: background }, closedStyle]}>
+                <ScrollView
+                    showsVerticalScrollIndicator={false}
+                    scrollEventThrottle={200}
+                    onScroll={(e) => { const { contentOffset, layoutMeasurement, contentSize } = e.nativeEvent; if (contentOffset.y + layoutMeasurement.height > contentSize.height - 500) loadMore(); }}
+                    contentContainerStyle={{ paddingBottom: 90 }}
+                >
+                    <View style={{ width: '100%', maxWidth: 820, alignSelf: 'center', paddingHorizontal: 24, paddingTop: 26 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <Pressable
+                                onPress={() => (nav.canGoBack() ? nav.goBack() : nav.navigate('MainTabs'))}
+                                accessibilityRole="button"
+                                accessibilityLabel={tr('Back')}
+                                style={({ hovered }) => ({ width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', marginRight: 12, backgroundColor: hovered ? border : 'transparent', cursor: 'pointer', ...T })}
+                            >
+                                <Ionicons name="arrow-back" size={24} color={text} />
+                            </Pressable>
+                            <View style={{ flex: 1 }}>
+                                <Text style={{ color: text, fontSize: 28, fontWeight: '900', letterSpacing: -0.5 }}>{tr('Notifications')}</Text>
+                                <Text style={{ color: unreadN ? primary : muted, fontSize: 13.5, fontWeight: unreadN ? '700' : '500', marginTop: 2 }}>{unreadN ? tr('{n} new', { n: unreadN }) : tr('You are all caught up')}</Text>
+                            </View>
+                            {items.length ? (
+                                <Pressable
+                                    onPress={clear}
+                                    accessibilityRole="button"
+                                    style={({ hovered }) => ({ flexDirection: 'row', alignItems: 'center', height: 40, paddingHorizontal: 16, borderRadius: 20, borderWidth: 1.5, borderColor: error, backgroundColor: hovered ? `${error}1A` : 'transparent', cursor: 'pointer', ...T })}
+                                >
+                                    <Ionicons name="trash-outline" size={16} color={error} />
+                                    <Text style={{ color: error, fontSize: 13.5, fontWeight: '800', marginLeft: 7 }}>{tr('Clear all')}</Text>
+                                </Pressable>
+                            ) : null}
+                        </View>
+
+                        {state === 'ok' && items.length ? <View style={{ flexDirection: 'row', marginTop: 20 }}>{tabBtn('all', tr('All'), 0)}{tabBtn('unread', tr('Unread'), unreadN)}</View> : null}
+
+                        <View style={{ marginTop: 18 }}>
+                            {state === 'loading' ? <SkelNotifications />
+                                : state === 'error' ? (
+                                    <View style={{ alignItems: 'center', paddingVertical: 70 }}>
+                                        <Ionicons name="cloud-offline-outline" size={42} color={muted} />
+                                        <Text style={[s.emptyBig, { color: text }]}>{tr('Could not load notifications')}</Text>
+                                        <Pressable onPress={load} style={({ hovered }) => ({ marginTop: 14, paddingHorizontal: 26, paddingVertical: 11, borderRadius: 12, backgroundColor: primary, filter: hovered ? 'brightness(1.12)' : 'brightness(1)', cursor: 'pointer', ...T })}><Text numberOfLines={1} style={s.btnTxt}>{tr('Try again')}</Text></Pressable>
+                                    </View>
+                                ) : !shown.length ? (
+                                    <View style={{ alignItems: 'center', paddingVertical: 70 }}>
+                                        <View style={{ width: 84, height: 84, borderRadius: 42, borderWidth: 1, borderColor: border, backgroundColor: surface, alignItems: 'center', justifyContent: 'center' }}>
+                                            <Ionicons name={tab === 'unread' ? 'checkmark-done-outline' : 'notifications-off-outline'} size={36} color={muted} />
+                                        </View>
+                                        <Text style={[s.emptyBig, { color: text, marginTop: 18 }]}>{tab === 'unread' ? tr('You are all caught up') : tr('No notifications yet')}</Text>
+                                        <Text style={[s.body, { color: muted, textAlign: 'center' }]}>{tab === 'unread' ? tr('Nothing new right now.') : tr('Order updates will show up here.')}</Text>
+                                    </View>
+                                ) : groups.map((g) => (
+                                    <View key={g.h}>
+                                        <Text style={{ color: muted, fontSize: 12, fontWeight: '900', letterSpacing: 1.3, marginTop: 8, marginBottom: 10 }}>{g.h.toUpperCase()}</Text>
+                                        {g.items.map((n) => (
+                                            <Pressable
+                                                key={String(n.id)}
+                                                onPress={() => open(n)}
+                                                style={({ hovered }) => ({
+                                                    flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 16, borderWidth: 1, marginBottom: 10, cursor: 'pointer',
+                                                    borderColor: hovered ? primary : n.read ? border : `${primary}55`,
+                                                    backgroundColor: n.read ? (hovered ? tint(primary) : surface) : tint(primary),
+                                                    boxShadow: hovered ? `0 10px 28px ${primary}26` : '0 0 0 rgba(0,0,0,0)', ...T,
+                                                })}
+                                            >
+                                                {({ hovered }) => (
+                                                    <>
+                                                        <View style={{ width: 46, height: 46, borderRadius: 14, backgroundColor: n.read ? tint(primary) : primary, alignItems: 'center', justifyContent: 'center' }}>
+                                                            <Ionicons name={ICON[n.type] || 'notifications-outline'} size={21} color={n.read ? primary : '#FFFFFF'} />
+                                                        </View>
+                                                        <View style={{ flex: 1, marginLeft: 14 }}>
+                                                            <Text style={{ color: text, fontSize: 15, fontWeight: n.read ? '700' : '900' }}>{n.title}</Text>
+                                                            {n.body ? <Text style={{ color: muted, fontSize: 13.5, fontWeight: '500', marginTop: 3, lineHeight: 19 }}>{n.body}</Text> : null}
+                                                            <Text style={{ color: muted, fontSize: 12, fontWeight: '600', marginTop: 6 }}>{ago(n.createdAt)}</Text>
+                                                        </View>
+                                                        {!n.read ? <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: primary, marginLeft: 10 }} /> : null}
+                                                        <Ionicons name="chevron-forward" size={18} color={muted} style={{ marginLeft: 10, opacity: hovered ? 1 : 0.35, ...T }} />
+                                                    </>
+                                                )}
+                                            </Pressable>
+                                        ))}
+                                    </View>
+                                ))}
+                            {loadingMore ? <ListShimmer count={2} /> : more && tab === 'all' ? (
+                                <Pressable onPress={loadMore} style={({ hovered }) => ({ alignSelf: 'center', marginTop: 8, paddingHorizontal: 26, height: 44, borderRadius: 22, borderWidth: 1.5, borderColor: hovered ? primary : border, alignItems: 'center', justifyContent: 'center', cursor: 'pointer', ...T })}>
+                                    <Text style={{ color: text, fontWeight: '800', fontSize: 14 }}>{tr('Load older')}</Text>
+                                </Pressable>
+                            ) : null}
+                        </View>
+                    </View>
+                </ScrollView>
+            </View>
+        );
+    }
 
     return (
         <View style={[s.flex, { backgroundColor: background }, closedStyle]}>
