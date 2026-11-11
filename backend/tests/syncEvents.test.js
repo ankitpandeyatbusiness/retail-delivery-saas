@@ -79,7 +79,8 @@ describe('devices stay in step: notifications read on one device reach the other
         live.length = 0;
         assert.equal((await request(app).post('/api/shop/notifications/read-all').set(w.owner.headers)).status, 200);
         assert.deepEqual(said('owner', 'notification:read'), [{ all: true, unread: 0 }]);
-        assert.equal(live.filter((x) => x[0].startsWith('user:')).length, 0, 'it goes to the owner side, not to one person');
+        // the "read" message goes to the owner side only (the generic sync:changed of phase 12 may still reach the person's own devices)
+        assert.equal(live.filter((x) => x[0].startsWith('user:') && x[1] === 'notification:read').length, 0, 'it goes to the owner side, not to one person');
     });
 
     test('reading a bulk order or booking chat tells my other devices (not only inquiries)', async () => {
