@@ -51,6 +51,17 @@ describe('customer complaint', () => {
         assert.equal((await send(w, old._id, body())).status, 409);
     });
 
+    test('a PICKUP order cannot be complained about at all: it is collected by the customer, nothing is returned or refunded', async () => {
+        const w = await f.makeWorld('cmp-pk');
+        const o = await delivered(w, { orderType: 'pickup' });
+        assert.equal((await send(w, o._id, body())).status, 409);
+        assert.equal((await send(w, o._id, { type: 'not_received' })).status, 409);
+        assert.equal(await Complaint.countDocuments({ orderId: o._id }), 0);
+        const info = await request(app).get(`/api/orders/${o._id}/complaints`).set(w.customer.headers);
+        assert.equal(info.status, 200);
+        assert.equal(info.body.canComplain, false);
+    });
+
     test('only one complaint per order', async () => {
         const w = await f.makeWorld('cmp-3');
         const o = await delivered(w);

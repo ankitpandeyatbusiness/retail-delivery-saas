@@ -83,8 +83,10 @@ async function deliveryEvidence({ tenantId, orderId, userId, excludeId }) {
 async function create({ tenant, userId, orderId, body }) {
     if (!isId(orderId)) throw httpError(404, 'Order not found');
     const order = await Order.findOne({ _id: orderId, tenantId: tenant._id, userId })
-        .select('orderNo bulkId bulkCode bulkTotal status deliveredAt customer.name').lean();
+        .select('orderNo orderType bulkId bulkCode bulkTotal status deliveredAt customer.name').lean();
     if (!order) throw httpError(404, 'Order not found');
+    // a pickup order is collected by the customer himself: there is nothing "missing" or "not received" to report, and no return or refund (bulk orders keep their own rules)
+    if (order.orderType === 'pickup' && !order.bulkId) throw httpError(409, 'A pickup order is collected by you, so there is nothing to report here. Please speak to the shop.');
     if (order.status !== 'delivered') throw httpError(409, 'You can complain after the order is delivered');
     if (!order.deliveredAt) throw httpError(409, 'The delivery time is missing for this order');
     if (Date.now() - new Date(order.deliveredAt).getTime() > WINDOW_MS) {
@@ -120,11 +122,12 @@ async function create({ tenant, userId, orderId, body }) {
 
 async function forOrder({ tenant, userId, orderId }) {
     if (!isId(orderId)) throw httpError(404, 'Order not found');
-    const order = await Order.findOne({ _id: orderId, tenantId: tenant._id, userId }).select('status deliveredAt').lean();
+    const order = await Order.findOne({ _id: orderId, tenantId: tenant._id, userId }).select('status deliveredAt orderType bulkId').lean();
     if (!order) throw httpError(404, 'Order not found');
     const c = await Complaint.findOne({ tenantId: tenant._id, orderId }).lean();
+    const pickup = order.orderType === 'pickup' && !order.bulkId;   // no complaint can be started on a pickup order
     const until = order.deliveredAt ? new Date(new Date(order.deliveredAt).getTime() + WINDOW_MS) : null;
-    const canComplain = !c && order.status === 'delivered' && !!until && until.getTime() > Date.now();
+    const canComplain = !c && !pickup && order.status === 'delivered' && !!until && until.getTime() > Date.now();
     return { items: c ? [view(c)] : [], canComplain, until: canComplain ? until : null };
 }
 
