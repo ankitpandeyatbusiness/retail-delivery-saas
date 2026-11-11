@@ -90,9 +90,68 @@ function MiniTicketWeb({ o, onPress, hint, style }) {
     );
 }
 
+// The big ticket of the DESKTOP home page's "Offers for you" (size 'desk', asked for only by HomeDesktop). A bold gradient stub with the value, a dashed tear line
+// with two notches, then the code (with copy), what the offer gives, its small print and a "View offer" link. On hover the ticket lifts with a coloured glow, a
+// soft shine crosses it, the code box fills with the shop's colour and the arrow slides.
+function DeskTicketWeb({ o, onPress, style }) {
+    const { primary, primaryLight, primaryDark, onPrimary, text, muted, surface, border, background } = useBrand();
+    const value = o.discountType === 'percent' ? `${o.discountValue}%` : `₹${o.discountValue}`;
+    const stubW = 124;
+    const meta = offerMeta(o);
+    const T = { transitionProperty: 'background-color, color, opacity, transform, box-shadow, border-color', transitionDuration: '240ms' };
+    return (
+        <Pressable
+            onPress={onPress}
+            accessibilityRole="button"
+            style={({ hovered, pressed }) => [{
+                height: 136, flexDirection: 'row', borderRadius: 22, overflow: 'hidden', borderWidth: 1, borderColor: hovered ? primary : border, backgroundColor: surface,
+                backgroundImage: `linear-gradient(120deg, ${surface} 0%, ${primary}1C 100%)`, cursor: 'pointer', opacity: pressed ? 0.94 : 1,
+                boxShadow: hovered ? `0 16px 36px ${primary}30, inset 0 0 0 1px ${primary}` : '0 2px 10px rgba(0,0,0,0.06)', transform: [{ translateY: hovered ? -3 : 0 }], ...T,
+            }, style]}
+        >
+            {({ hovered }) => (
+                <>
+                    <LinearGradient colors={[primaryLight, primaryDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ width: stubW, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                        <Ionicons name="pricetag" size={84} color={onPrimary} style={{ position: 'absolute', right: -16, bottom: -14, opacity: 0.13, transform: [{ rotate: '-18deg' }] }} />
+                        <Text numberOfLines={1} style={{ color: onPrimary, fontSize: 36, fontWeight: '900', letterSpacing: -1 }}>{value}</Text>
+                        <Text style={{ color: onPrimary, fontSize: 12, fontWeight: '900', letterSpacing: 3, opacity: 0.92, marginTop: 1 }}>{tr('OFF')}</Text>
+                    </LinearGradient>
+                    {/* the tear line and the two notches that make it a ticket */}
+                    <View pointerEvents="none" style={{ position: 'absolute', top: 16, bottom: 16, left: stubW, width: 0, borderLeftWidth: 2, borderStyle: 'dashed', borderColor: `${primary}55` }} />
+                    <View pointerEvents="none" style={{ position: 'absolute', top: -10, left: stubW - 10, width: 20, height: 20, borderRadius: 10, backgroundColor: background }} />
+                    <View pointerEvents="none" style={{ position: 'absolute', bottom: -10, left: stubW - 10, width: 20, height: 20, borderRadius: 10, backgroundColor: background }} />
+                    <View style={{ flex: 1, minWidth: 0, justifyContent: 'center', paddingLeft: 24, paddingRight: 18 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <View style={{ borderWidth: 1.5, borderStyle: 'dashed', borderColor: primary, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 4, backgroundColor: hovered ? primary : `${primary}1A`, ...T }}>
+                                <Text numberOfLines={1} style={{ color: hovered ? onPrimary : primary, fontSize: 15, fontWeight: '900', letterSpacing: 1.5, ...T }}>{o.code}</Text>
+                            </View>
+                            <CopyIcon code={o.code} color={primary} size={18} style={{ marginLeft: 10 }} />
+                        </View>
+                        <Text numberOfLines={2} style={{ color: text, fontSize: 14.5, fontWeight: '800', lineHeight: 19, marginTop: 10 }}>{offerText(o)}</Text>
+                        {meta ? <Text numberOfLines={1} style={{ color: muted, fontSize: 12, marginTop: 3 }}>{meta}</Text> : null}
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
+                            <Text style={{ color: primary, fontSize: 13, fontWeight: '900' }}>{tr('View offer')}</Text>
+                            <Ionicons name="arrow-forward" size={14} color={primary} style={{ marginLeft: 5, transform: [{ translateX: hovered ? 5 : 0 }], ...T }} />
+                        </View>
+                    </View>
+                    {/* the shine: a soft diagonal band that crosses the ticket once each time the mouse comes onto it */}
+                    <View
+                        pointerEvents="none"
+                        style={{
+                            position: 'absolute', top: -14, bottom: -14, left: 0, width: 70, backgroundImage: 'linear-gradient(100deg, transparent, rgba(255,255,255,0.22), transparent)',
+                            transform: [{ translateX: hovered ? 620 : -120 }, { skewX: '-18deg' }], transitionProperty: 'transform', transitionDuration: hovered ? '900ms' : '0ms', transitionTimingFunction: 'ease-out',
+                        }}
+                    />
+                </>
+            )}
+        </Pressable>
+    );
+}
+
 export function CouponTicket({ o, size = 'strip', onPress, hint, style }) {
     const { primary, primaryLight, primaryDark, onPrimary, text, muted, surface, border, background } = useBrand();
     if (size === 'mini' && Platform.OS === 'web') return <MiniTicketWeb o={o} onPress={onPress} hint={hint} style={style} />;
+    if (size === 'desk' && Platform.OS === 'web') return <DeskTicketWeb o={o} onPress={onPress} style={style} />;
     const percent = o.discountType === 'percent';
     const value = percent ? `${o.discountValue}%` : `₹${o.discountValue}`;
     const mini = size === 'mini';

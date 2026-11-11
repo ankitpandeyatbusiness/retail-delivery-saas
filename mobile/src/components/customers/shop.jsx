@@ -555,6 +555,80 @@ function ItemCardBase({ item, variant }) {
             </Pressable>
         );
     }
+    // 'deskBig' (the shop chose Big cards): a wide card with a large photo; the name on one line, one info row, then the price and the Add button.
+    // The text part has one fixed height, so every card is the same size. Desktop website only (HomeDesktop.jsx).
+    if (variant === 'deskBig') {
+        return (
+            <Pressable
+                onPress={open}
+                style={({ pressed, hovered }) => [card, {
+                    borderRadius: 20, borderWidth: 1, cursor: 'pointer', transform: [{ scale: pressed ? 0.985 : hovered ? 1.012 : 1 }],
+                    boxShadow: hovered ? `0 16px 36px ${primary}2A` : '0 0 0 rgba(0,0,0,0)', transitionProperty: 'transform, box-shadow', transitionDuration: '190ms',
+                }, dim && s.dim]}
+            >
+                <CardGlow radius={20} />
+                <View style={{ aspectRatio: 16 / 10, borderTopLeftRadius: 19, borderTopRightRadius: 19, overflow: 'hidden' }}>
+                    <Pic item={item} style={{ width: '100%', height: '100%' }} />
+                    <ImageRibbon item={item} />
+                    <SoldTag item={item} />
+                    {heart}
+                    {pct ? <View style={[s.badge, { backgroundColor: ribbon }]}><Text style={[s.badgeTxt, { color: onRibbon }]}>{tr('{pct}% OFF', { pct: pct })}</Text></View> : null}
+                </View>
+                <View style={{ height: 132, padding: 16 }}>
+                    <View style={[s.nameRow, { height: 24, alignItems: 'center' }]}>
+                        {showDot ? <VegDot isVeg={item.isVeg} /> : null}
+                        <Text style={[s.name, { color: text, fontSize: 17, lineHeight: 22 }]} numberOfLines={1}>{item.name}</Text>
+                    </View>
+                    <View style={{ height: 28, marginTop: 6, flexDirection: 'row', alignItems: 'center', overflow: 'hidden' }}>
+                        <View style={{ marginTop: -5, marginRight: 10, flexShrink: 0 }}><Meta item={item} full={full} /></View>
+                        {item.fewLeft && !off ? <Text numberOfLines={1} style={[s.few, { marginTop: 0, marginRight: 10, flexShrink: 0 }]}>{tr('Few left')}</Text> : null}
+                        <View style={{ marginTop: -5, flexShrink: 1, minWidth: 0 }}><Tags item={item} max={1} roomy /></View>
+                    </View>
+                    <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+                        <View style={[s.rowEnd, { marginTop: 0 }]}>
+                            <Price item={item} big />
+                            <AddButton item={item} onPress={() => quickAdd(item, nav)} />
+                        </View>
+                    </View>
+                </View>
+            </Pressable>
+        );
+    }
+    // 'deskCompact' (the shop chose Compact cards): the text on the left, a small photo on the right with the Add button on its corner; two or three across.
+    if (variant === 'deskCompact') {
+        return (
+            <Pressable
+                onPress={open}
+                style={({ pressed, hovered }) => [card, {
+                    flexDirection: 'row', height: 146, padding: 14, borderRadius: 18, borderWidth: 1, cursor: 'pointer', transform: [{ scale: pressed ? 0.985 : hovered ? 1.012 : 1 }],
+                    boxShadow: hovered ? `0 12px 28px ${primary}26` : '0 0 0 rgba(0,0,0,0)', transitionProperty: 'transform, box-shadow', transitionDuration: '190ms',
+                }, dim && s.dim]}
+            >
+                <CardGlow radius={18} />
+                <View style={{ flex: 1, minWidth: 0, paddingRight: 12, justifyContent: 'space-between' }}>
+                    <View>
+                        <View style={s.nameRow}>
+                            {showDot ? <VegDot isVeg={item.isVeg} /> : null}
+                            <Text style={[s.name, { color: text, fontSize: 15, lineHeight: 19 }]} numberOfLines={2}>{item.name}</Text>
+                        </View>
+                        <View style={{ marginTop: 2 }}><Meta item={item} full={full} /></View>
+                    </View>
+                    <View>
+                        <Price item={item} />
+                        {pct ? <Text style={[s.offTxt, { color: ok }]}>{tr('{pct}% off', { pct: pct })}</Text> : null}
+                    </View>
+                </View>
+                <View style={{ width: 112, height: 112, alignSelf: 'center' }}>
+                    <View style={{ width: 112, height: 112, borderRadius: 14, overflow: 'hidden' }}>
+                        <Pic item={item} style={{ width: '100%', height: '100%' }} />
+                        <ImageRibbon item={item} />
+                        <SoldTag item={item} />
+                    </View>
+                    <AddButton item={item} kind="circle" onPress={() => quickAdd(item, nav)} style={{ position: 'absolute', right: -6, bottom: -6 }} />
+                </View>
+            </Pressable>
+        );
+    }
     if (variant === 'grid') {
         return (
             <Pressable onPress={open} style={press2([s.grid, card, dim && s.dim])}>
