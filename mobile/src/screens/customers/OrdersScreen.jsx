@@ -27,6 +27,7 @@ import OwedStrip from '../../components/customers/OwedStrip';
 import { ease } from '../../utils/common/ease';
 import { tr } from '../../i18n';
 import { useBottomSpace } from '../../store/customers/useLiveTripStore';
+import { useCustomerDesktop } from '../../utils/common/layout';
 
 const PILLS = [['all', 'All'], ['active', 'Active'], ['delivered', 'Delivered'], ['cancelled', 'Cancelled'], ['bulk', 'Bulk Order']];
 // A bulk order is shown in this list too, as a card of its own. bulkLive = the shop is still working on it (or waiting for the customer).
@@ -137,7 +138,7 @@ function BulkCard({ o, onOpen, onAgain }) {
     const thumbs = list.slice(0, 3);
     const extra = list.length - thumbs.length;
     return (
-        <Press onPress={onOpen} style={[s.card, { backgroundColor: surface, borderColor: border }]}>
+        <Press hover onPress={onOpen} style={[s.card, { backgroundColor: surface, borderColor: border }]}>
             <CardGlow radius={18} />
             <View style={[s.accent, { backgroundColor: tone }]} />
             <View style={s.cardIn}>
@@ -232,7 +233,7 @@ function LiveOrderCard({ o, onOpen }) {
     }, []);
     const eta = o.etaMin ? tr('Ready in about {n} min', { n: o.etaMin }) : tr(delivery ? 'Arriving soon' : 'We will let you know when it is ready');
     return (
-        <Press onPress={onOpen} style={s.live}>
+        <Press hover onPress={onOpen} style={s.live}>
             <LinearGradient colors={[primaryLight, primaryDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.liveIn}>
                 <View style={[s.blob, { top: -50, right: -30, width: 150, height: 150 }]} />
                 <View style={[s.blob, { bottom: -60, left: 50, width: 110, height: 110, opacity: 0.6 }]} />
@@ -283,7 +284,7 @@ function OrderCard({ o, index, animate, onOpen, onCancel, onReorder, onInvoice, 
     const extra = list.length - thumbs.length;
     return (
         <Appear skip={!animate} delay={Math.min(index, 5) * 70}>
-            <Press onPress={onOpen} style={[s.card, { backgroundColor: surface, borderColor: border }]}>
+            <Press hover onPress={onOpen} style={[s.card, { backgroundColor: surface, borderColor: border }]}>
                 <CardGlow radius={18} />
                 <View style={[s.accent, { backgroundColor: accent }]} />
                 <View style={s.cardIn}>
@@ -374,7 +375,47 @@ function Empty({ filter, ranged }) {
     );
 }
 
+const border2 = (c) => (/^#[0-9a-fA-F]{6}$/.test(c || '') ? `${c}66` : c);   // the muted colour, a little fainter, as a border
+
+// a filter / date pill on the desktop website
+function DeskPill({ label, on, onPress, icon, onClear }) {
+    const { primary, surface, border, text } = useBrand();
+    return (
+        <Pressable
+            onPress={onPress}
+            accessibilityRole="button"
+            accessibilityState={{ selected: on }}
+            style={({ hovered }) => ({
+                flexDirection: 'row', alignItems: 'center', height: 40, paddingHorizontal: 18, borderRadius: 20, borderWidth: 1.5,
+                borderColor: on || hovered ? primary : border, backgroundColor: on ? primary : hovered ? tint(primary) : surface, cursor: 'pointer',
+                transitionProperty: 'background-color, border-color', transitionDuration: '170ms',
+            })}
+        >
+            {icon ? <Ionicons name={icon} size={15} color={on ? '#FFFFFF' : text} style={{ marginRight: 7 }} /> : null}
+            <Text style={{ color: on ? '#FFFFFF' : text, fontSize: 13.5, fontWeight: '800' }}>{label}</Text>
+            {on && onClear ? (
+                <Pressable onPress={onClear} hitSlop={8} accessibilityLabel={tr('Clear')} style={{ marginLeft: 9, cursor: 'pointer' }}>
+                    <Ionicons name="close-circle" size={17} color="#FFFFFF" />
+                </Pressable>
+            ) : null}
+        </Pressable>
+    );
+}
+
+function DeskOrdersSkeleton() {
+    return (
+        <View style={{ marginTop: 10 }}>
+            {[0, 1, 2].map((i) => (
+                <View key={i} style={{ flexDirection: 'row', gap: 16, marginBottom: 14 }}>
+                    {[0, 1].map((j) => <View key={j} style={{ flex: 1 }}><Skel height={150} radius={18} /></View>)}
+                </View>
+            ))}
+        </View>
+    );
+}
+
 function OrdersList() {
+    const desk = useCustomerDesktop();   // the desktop website (a wide browser): a roomy two-column page. False in the phone app.
     const space = useBottomSpace();   // room for the floating order bar, only while it is on screen
     const closedStyle = useClosedStyle();   // the shop is closed: this whole screen turns grey
     const nav = useNavigation();
@@ -485,6 +526,96 @@ function OrdersList() {
     const refresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
     const activeCount = everything.filter((o) => live(o)).length;
     const dateText = [rangeLabel(range), range?.sort === 'oldest' ? tr('Oldest first') : ''].filter(Boolean).join(' · ');
+
+    if (desk) {
+        // the orders, grouped under their headings ("Live now", "Today", "This week"...), the cards in two columns
+        const sections = [];
+        rows.forEach((r) => { if (r.h) sections.push({ h: r.h, items: [] }); else if (sections.length) sections[sections.length - 1].items.push(r.o); });
+        const card = (o, i) => {
+            if (o.isBulk) {
+                return (
+                    <BulkCard
+                        key={o.id} o={o} onOpen={() => nav.navigate('BulkOrderDetail', { id: o.bulkId })}
+                        onAgain={() => nav.navigate('BulkOrder', { again: { fulfilment: o.bulk.fulfilment, lines: (o.bulk.lines || []).map((l) => ({ productId: l.productId, quantity: l.quantity, options: l.options, pick: l.pick })) } })}
+                    />
+                );
+            }
+            if (isActive(o.status)) return <LiveOrderCard key={o.id} o={o} onOpen={() => nav.navigate('OrderDetail', { id: o.id })} />;
+            return (
+                <OrderCard
+                    key={o.id} o={o} index={i} animate={intro.current} reorderOn={reorderOn} busy={busyId === o.id}
+                    onOpen={() => nav.navigate('OrderDetail', { id: o.id })}
+                    onReorder={() => reorder(o, nav, (v) => setBusyId(v ? o.id : ''))}
+                    onInvoice={() => viewInvoice(o, (v) => setBusyId(v ? o.id : ''))}
+                    onCancel={() => cancelFlow(o, {
+                        setBusy: (v) => setBusyId(v ? o.id : ''),
+                        onDone: (u) => setOrders((p) => p.map((x) => (x.id === u.id ? u : x))),
+                    })}
+                />
+            );
+        };
+        const COLS = 2;
+        // the cards carry a 16 px side margin for the phone; the cell takes it back so a card is exactly as wide as its column
+        const grid = (items) => {
+            const out = [];
+            for (let i = 0; i < items.length; i += COLS) out.push(items.slice(i, i + COLS));
+            return out.map((r, ri) => (
+                <View key={ri} style={{ flexDirection: 'row', gap: 16 }}>
+                    {Array.from({ length: COLS }).map((_, ci) => (
+                        <View key={ci} style={{ flex: 1 }}><View style={{ marginHorizontal: -16 }}>{r[ci] ? card(r[ci], ri * COLS + ci) : null}</View></View>
+                    ))}
+                </View>
+            ));
+        };
+        return (
+            <View style={[{ flex: 1, backgroundColor: background }, closedStyle]}>
+                <ScrollView
+                    showsVerticalScrollIndicator={false}
+                    scrollEventThrottle={200}
+                    onScroll={(e) => { const { contentOffset, layoutMeasurement, contentSize } = e.nativeEvent; if (contentOffset.y + layoutMeasurement.height > contentSize.height - 500) loadMore(); }}
+                    contentContainerStyle={{ paddingBottom: 90 }}
+                >
+                    <View style={{ width: '100%', maxWidth: 1180, alignSelf: 'center', paddingHorizontal: 24, paddingTop: 26 }}>
+                        <Text style={{ color: text, fontSize: 30, fontWeight: '900', letterSpacing: -0.6 }}>{tr('Your orders')}</Text>
+                        {range ? <Text style={{ color: primary, fontSize: 14, fontWeight: '700', marginTop: 4 }}>{tr('Showing: {dateText}', { dateText: dateText })}</Text>
+                            : activeCount ? <Text style={{ color: primary, fontSize: 14, fontWeight: '700', marginTop: 4 }}>{tr('{activeCount} active right now', { activeCount: activeCount })}</Text>
+                                : <Text style={{ color: muted, fontSize: 14, marginTop: 4 }}>{tr('Track and reorder your favourites')}</Text>}
+                        <OwedStrip style={{ marginHorizontal: 0, marginTop: 16 }} />
+                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 18, marginBottom: 6 }}>
+                            <DeskPill icon="calendar-outline" label={range ? dateText : tr('Date')} on={!!range} onPress={() => setSheet(true)} onClear={() => applyRange(null)} />
+                            {PILLS.map(([k, label]) => <DeskPill key={k} label={tr(label)} on={filter === k} onPress={() => setFilter(k)} />)}
+                        </View>
+
+                        {state === 'loading' ? <DeskOrdersSkeleton />
+                            : state === 'error' ? (
+                                <View style={{ alignItems: 'center', paddingVertical: 70 }}>
+                                    <Ionicons name="cloud-offline-outline" size={42} color={muted} />
+                                    <Text style={[s.emptyBig, { color: text, marginTop: 14 }]}>{tr('Could not load your orders')}</Text>
+                                    <Press hover onPress={load} style={[s.fill, { backgroundColor: primary, marginTop: 16, paddingHorizontal: 26, paddingVertical: 11 }]}>
+                                        <Text style={s.fillTxt}>{tr('Try again')}</Text>
+                                    </Press>
+                                </View>
+                            ) : (
+                                <Animated.View style={{ opacity: fade }}>
+                                    {!sections.length ? (hasMore ? null : <Empty filter={filter} ranged={!!range?.from} />) : sections.map((sec) => (
+                                        <View key={sec.h}>
+                                            <Text style={{ color: sec.h === tr('Live now') ? primary : muted, fontSize: 12, fontWeight: '900', letterSpacing: 1.4, marginTop: 22, marginBottom: 12 }}>{sec.h.toUpperCase()}</Text>
+                                            {grid(sec.items)}
+                                        </View>
+                                    ))}
+                                    {more ? <ListShimmer count={2} /> : hasMore ? (
+                                        <Pressable onPress={loadMore} style={({ hovered }) => ({ alignSelf: 'center', marginTop: 18, paddingHorizontal: 26, height: 44, borderRadius: 22, borderWidth: 1.5, borderColor: hovered ? primary : border2(muted), alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transitionProperty: 'border-color', transitionDuration: '160ms' })}>
+                                            <Text style={{ color: text, fontWeight: '800', fontSize: 14 }}>{tr('Load older orders')}</Text>
+                                        </Pressable>
+                                    ) : null}
+                                </Animated.View>
+                            )}
+                    </View>
+                </ScrollView>
+                <DateRangeSheet visible={sheet} value={range} onClose={() => setSheet(false)} onApply={applyRange} />
+            </View>
+        );
+    }
 
     return (
         <View style={[{ flex: 1, paddingTop: insets.top, backgroundColor: background }, closedStyle]}>

@@ -1,12 +1,14 @@
 // src/components/ui/DateRangeSheet.jsx
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Modal, View, Text, Pressable, ScrollView, StyleSheet, Animated, Easing } from 'react-native';
+import { Modal, View, Text, Pressable, ScrollView, StyleSheet, Animated, Easing, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand } from '../common/kit';
 import { tint, useClosedStyle } from './shop';
 import { Press } from './cartParts';
 import { tr } from '../../i18n';
 import { DragDown, Grip } from '../common/DragDown';
+import { SheetPortal } from '../common/SheetPortal';
+import { useIsDesktopWeb } from '../../utils/common/layout';
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -63,12 +65,57 @@ function Chip({ label, on, onPress }) {
     );
 }
 
+// a day in the desktop calendar: a round highlight under the mouse, the chosen days filled, the days between them tinted
+const DeskDay = memo(function DeskDay({ d, sel, mid, off, today, onPick, h = 46 }) {
+    const { primary, text } = useBrand();
+    return (
+        <Pressable disabled={off} onPress={() => onPick(d)} style={{ width: '14.2857%', height: h, alignItems: 'center', justifyContent: 'center', cursor: off ? 'default' : 'pointer' }}>
+            {({ hovered }) => (
+                <>
+                    {mid ? <View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, top: 4, bottom: 4, backgroundColor: tint(primary) }} /> : null}
+                    <View
+                        pointerEvents="none"
+                        style={{
+                            position: 'absolute', width: Math.min(40, h - 6), height: Math.min(40, h - 6), borderRadius: 20,
+                            backgroundColor: sel ? primary : hovered && !off ? `${primary}26` : 'transparent',
+                            transitionProperty: 'background-color, transform', transitionDuration: '150ms', transform: [{ scale: hovered && !off && !sel ? 1.06 : 1 }],
+                        }}
+                    />
+                    <Text style={{ fontSize: 14.5, color: sel ? '#FFFFFF' : off ? '#6B6B6B' : text, fontWeight: sel || today ? '900' : '600' }}>{d.getDate()}</Text>
+                    {today && !sel ? <View style={{ position: 'absolute', bottom: 5, width: 4, height: 4, borderRadius: 2, backgroundColor: primary }} /> : null}
+                </>
+            )}
+        </Pressable>
+    );
+});
+
 // value: { from: 'YYYY-MM-DD' | null, to: 'YYYY-MM-DD' | null, sort: 'newest' | 'oldest' } or null
 // single: picks ONE day for a form (value 'YYYY-MM-DD', onApply('YYYY-MM-DD' | null)), from today up to `ahead` days later; no sort row.
 // ahead (also for a range): days after today that can be picked, for future bookings. noun: what the button shows ("Show bookings").
 // minDay (single only, 'YYYY-MM-DD'): the earliest day that can be picked; the days before it are greyed out (a bulk order needs notice).
 export default function DateRangeSheet({ visible, value, onClose, onApply, single, ahead = 0, title, noun, minDay }) {
     const closedStyle = useClosedStyle();   // the shop is closed: this popup turns grey
+    const { height: winH } = useWindowDimensions();
+    const desk = useIsDesktopWeb();   // a browser at least 1024 px wide: a centred two-panel modal instead of the phone's bottom sheet (false in the phone app)
+    const [dMounted, setDMounted] = useState(false);
+    const [dOn, setDOn] = useState(false);   // false = parked just outside; the CSS transition does the fade and the slide
+    useEffect(() => {
+        if (!desk) return undefined;
+        if (visible) {
+            setDMounted(true);
+            const id = requestAnimationFrame(() => requestAnimationFrame(() => setDOn(true)));
+            return () => cancelAnimationFrame(id);
+        }
+        setDOn(false);
+        const t = setTimeout(() => setDMounted(false), 260);
+        return () => clearTimeout(t);
+    }, [visible, desk]);
+    useEffect(() => {
+        if (!desk || !visible || typeof window === 'undefined') return undefined;
+        const key = (e) => { if (e.key === 'Escape') onClose(); };
+        window.addEventListener('keydown', key);
+        return () => window.removeEventListener('keydown', key);
+    }, [visible, desk, onClose]);
     const { primary, text, muted, background, surface, border, radius } = useBrand();
     const today = useMemo(() => sod(new Date()), [visible]);
     const floor = useMemo(() => { const m = single && /^d{4}-d{2}-d{2}$/.test(minDay || '') ? fromKey(minDay) : null; return m && m > today ? m : today; }, [today, single, minDay]);
@@ -143,6 +190,134 @@ export default function DateRangeSheet({ visible, value, onClose, onApply, singl
         ['Last 30 days', addDays(t, -29), t], ['This month', new Date(t.getFullYear(), t.getMonth(), 1), t],
     ];
     const summary = start ? (end ? `${fmt(keyOf(start))} – ${fmt(keyOf(end))}` : fmt(keyOf(start))) : single ? tr('Tap a day') : tr('Tap a day, or tap two days for a range');
+
+    if (desk) {
+        if (!dMounted) return null;
+        const ease = 'cubic-bezier(0.22, 0.8, 0.2, 1)';
+        // 6 week rows share what is left after the fixed parts (padding, title, month bar, weekdays, sort row, footer): 46 px when there is room, down to 34 px
+        const cellH = Math.max(34, Math.min(46, Math.floor((winH - 48 - 400) / 6)));
+        const hoverBtn = (hovered, extra) => ({ cursor: 'pointer', transitionProperty: 'background-color, border-color, filter, box-shadow', transitionDuration: '160ms', ...extra });
+        const arrow = (name, enabled, onPress, label) => (
+            <Pressable
+                disabled={!enabled}
+                onPress={onPress}
+                accessibilityLabel={label}
+                style={({ hovered }) => ({ width: 36, height: 36, borderRadius: 18, borderWidth: 1, borderColor: hovered && enabled ? muted : border, backgroundColor: hovered && enabled ? border : surface, alignItems: 'center', justifyContent: 'center', opacity: enabled ? 1 : 0.35, marginLeft: 8, ...hoverBtn(hovered, { cursor: enabled ? 'pointer' : 'default' }) })}
+            >
+                <Ionicons name={name} size={19} color={text} />
+            </Pressable>
+        );
+        return (
+            <SheetPortal>
+                <View style={[{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', padding: 24 }, closedStyle]} pointerEvents={dOn ? 'auto' : 'none'}>
+                    <Pressable
+                        onPress={onClose}
+                        style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)', opacity: dOn ? 1 : 0, transitionProperty: 'opacity', transitionDuration: '260ms' }}
+                    />
+                    <View
+                        style={{
+                            width: '100%', maxWidth: 780, maxHeight: winH - 48, borderRadius: 24, borderWidth: 1, borderColor: border, backgroundColor: surface, padding: 28, boxShadow: '0 30px 80px rgba(0,0,0,0.6)',
+                            opacity: dOn ? 1 : 0, transform: [{ scale: dOn ? 1 : 0.95 }, { translateY: dOn ? 0 : 14 }],
+                            transitionProperty: 'opacity, transform', transitionDuration: '260ms', transitionTimingFunction: ease,
+                        }}
+                    >
+                        <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+                            <View style={{ flex: 1 }}>
+                                <Text style={{ color: text, fontSize: 26, fontWeight: '900', letterSpacing: -0.4 }}>{title || tr('Filter by date')}</Text>
+                                <Text style={{ color: muted, fontSize: 14, marginTop: 4 }}>{single ? tr('Tap a day') : tr('Tap a day, or tap two days for a range')}</Text>
+                            </View>
+                            <Pressable
+                                onPress={onClose}
+                                hitSlop={8}
+                                accessibilityLabel={tr('Close')}
+                                style={({ hovered }) => ({ width: 36, height: 36, borderRadius: 18, borderWidth: 1, borderColor: hovered ? muted : border, backgroundColor: hovered ? border : background, alignItems: 'center', justifyContent: 'center', ...hoverBtn(hovered) })}
+                            >
+                                <Ionicons name="close" size={19} color={text} />
+                            </Pressable>
+                        </View>
+
+                        <ScrollView style={{ flexShrink: 1 }} showsVerticalScrollIndicator={false}>
+                        <View style={{ flexDirection: 'row', marginTop: 24 }}>
+                            {/* quick picks */}
+                            <View style={{ width: 200, paddingRight: 24, marginRight: 24, borderRightWidth: 1, borderRightColor: border }}>
+                                <Text style={{ color: muted, fontSize: 11, fontWeight: '800', letterSpacing: 1.1, marginBottom: 10 }}>{tr('QUICK PICKS')}</Text>
+                                {PRESETS.map(([label, a, b]) => {
+                                    const on = same(start, a) && (same(end, b) || (!end && same(a, b)));
+                                    return (
+                                        <Pressable
+                                            key={label}
+                                            onPress={() => preset(a, b)}
+                                            style={({ hovered }) => ({ flexDirection: 'row', alignItems: 'center', paddingVertical: 11, paddingHorizontal: 14, borderRadius: 12, marginBottom: 4, backgroundColor: on ? tint(primary) : hovered ? `${primary}12` : 'transparent', borderWidth: 1, borderColor: on ? primary : 'transparent', ...hoverBtn(hovered) })}
+                                        >
+                                            <Text style={{ flex: 1, color: on ? primary : text, fontSize: 14, fontWeight: on ? '800' : '600' }}>{tr(label)}</Text>
+                                            {on ? <Ionicons name="checkmark" size={16} color={primary} /> : null}
+                                        </Pressable>
+                                    );
+                                })}
+                            </View>
+
+                            {/* the calendar */}
+                            <View style={{ flex: 1 }}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+                                    <Text style={{ flex: 1, color: text, fontSize: 18, fontWeight: '900' }}>{tr(MONTHS[view.m])} {view.y}</Text>
+                                    {arrow('chevron-back', canPrev, () => step(-1), tr('Previous month'))}
+                                    {arrow('chevron-forward', canNext, () => step(1), tr('Next month'))}
+                                </View>
+                                <View style={s.week}>{DOW.map((x, i) => <Text key={i} style={{ width: '14.2857%', textAlign: 'center', color: muted, fontSize: 12, fontWeight: '800', paddingBottom: 8 }}>{tr(x)}</Text>)}</View>
+                                <Animated.View style={{ opacity: gridOp, minHeight: 6 * cellH }}>
+                                    {weeks.map((w, wi) => (
+                                        <View key={wi} style={s.week}>
+                                            {w.map((d, i) => {
+                                                if (!d) return <View key={i} style={{ width: '14.2857%', height: cellH }} />;
+                                                const isS = same(d, start);
+                                                const isE = same(d, end);
+                                                const mid = !!start && !!end && d > start && d < end;
+                                                return <DeskDay key={i} d={d} h={cellH} sel={isS || isE} mid={mid} today={same(d, today)} off={d > latest || d < earliest} onPick={onDay} />;
+                                            })}
+                                        </View>
+                                    ))}
+                                </Animated.View>
+                                {single ? null : (
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 14 }}>
+                                        <Text style={{ color: muted, fontSize: 11, fontWeight: '800', letterSpacing: 1.1, marginRight: 12 }}>{tr('SORT')}</Text>
+                                        {[['newest', 'Newest first'], ['oldest', 'Oldest first']].map(([k, label]) => {
+                                            const on = sort === k;
+                                            return (
+                                                <Pressable
+                                                    key={k}
+                                                    onPress={() => setSort(k)}
+                                                    style={({ hovered }) => ({ paddingHorizontal: 14, paddingVertical: 8, borderRadius: 18, borderWidth: 1.5, marginRight: 8, borderColor: on || hovered ? primary : border, backgroundColor: on ? tint(primary) : hovered ? `${primary}12` : 'transparent', ...hoverBtn(hovered) })}
+                                                >
+                                                    <Text style={{ color: on ? primary : text, fontSize: 13, fontWeight: '800' }}>{tr(label)}</Text>
+                                                </Pressable>
+                                            );
+                                        })}
+                                    </View>
+                                )}
+                            </View>
+                        </View>
+                        </ScrollView>
+
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 24, paddingTop: 20, borderTopWidth: 1, borderTopColor: border }}>
+                            <Text style={{ flex: 1, color: start ? primary : muted, fontSize: 14, fontWeight: '800' }}>{summary}</Text>
+                            <Pressable
+                                onPress={clear}
+                                style={({ hovered }) => ({ height: 48, paddingHorizontal: 26, borderRadius: radius, borderWidth: 1.5, borderColor: hovered ? muted : border, backgroundColor: hovered ? border : 'transparent', alignItems: 'center', justifyContent: 'center', marginRight: 12, ...hoverBtn(hovered) })}
+                            >
+                                <Text style={{ color: text, fontSize: 15, fontWeight: '900' }}>{tr('Clear')}</Text>
+                            </Pressable>
+                            <Pressable
+                                onPress={apply}
+                                style={({ hovered }) => ({ height: 48, minWidth: 170, paddingHorizontal: 26, borderRadius: radius, backgroundColor: primary, alignItems: 'center', justifyContent: 'center', filter: hovered ? 'brightness(1.12)' : 'brightness(1)', boxShadow: hovered ? `0 10px 26px ${primary}55` : '0 0 0 rgba(0,0,0,0)', ...hoverBtn(hovered) })}
+                            >
+                                <Text style={{ color: '#FFFFFF', fontSize: 15, fontWeight: '900' }}>{single ? tr('Done') : start ? tr(noun ? 'Show bookings' : 'Show orders') : sort === 'oldest' ? tr('Apply') : tr(noun ? 'Show all bookings' : 'Show all orders')}</Text>
+                            </Pressable>
+                        </View>
+                    </View>
+                </View>
+            </SheetPortal>
+        );
+    }
 
     return (
         <Modal visible={show} transparent animationType="none" onShow={play} onRequestClose={onClose} statusBarTranslucent>
