@@ -97,7 +97,35 @@ function EditDialog({ visible, me, onClose, onSaved }) {
 
 function Item({ icon, label, sub, onPress, danger, last, badge }) {
     const { primary, text, muted, error, border } = useBrand();
+    const desk = useCustomerDesktop();   // the desktop website: a roomier row that lights up under the mouse (false in the phone app)
     const c = danger ? error : primary;
+    if (desk) {
+        return (
+            <Pressable
+                onPress={onPress}
+                accessibilityRole="button"
+                style={({ hovered }) => ({
+                    flexDirection: 'row', alignItems: 'center', paddingHorizontal: 22, paddingVertical: 16, cursor: 'pointer',
+                    borderBottomWidth: last ? 0 : 1, borderBottomColor: border, backgroundColor: hovered ? tint(c) : 'transparent',
+                    boxShadow: hovered ? `inset 4px 0 0 ${c}` : 'inset 0 0 0 transparent', transitionProperty: 'background-color, border-color, box-shadow, transform, opacity', transitionDuration: '200ms',
+                })}
+            >
+                {({ hovered }) => (
+                    <>
+                        <View style={{ width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginRight: 16, backgroundColor: hovered ? c : tint(c), transform: [{ scale: hovered ? 1.06 : 1 }], transitionProperty: 'background-color, border-color, box-shadow, transform, opacity', transitionDuration: '200ms' }}>
+                            <Ionicons name={icon} size={20} color={hovered ? '#FFFFFF' : c} />
+                        </View>
+                        <View style={{ flex: 1, minWidth: 0 }}>
+                            <Text style={{ color: danger ? error : text, fontSize: 15.5, fontWeight: '800' }}>{label}</Text>
+                            {sub ? <Text style={{ color: muted, fontSize: 12.5, marginTop: 2 }} numberOfLines={1}>{sub}</Text> : null}
+                        </View>
+                        {badge ? <View style={{ backgroundColor: c, borderRadius: 11, paddingHorizontal: 10, paddingVertical: 3, marginRight: 8 }}><Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: '800' }}>{badge}</Text></View> : null}
+                        <Ionicons name="chevron-forward" size={19} color={hovered ? c : muted} style={{ transform: [{ translateX: hovered ? 4 : 0 }], transitionProperty: 'background-color, border-color, box-shadow, transform, opacity', transitionDuration: '200ms' }} />
+                    </>
+                )}
+            </Pressable>
+        );
+    }
     return (
         <Press hover={{ backgroundColor: tint(c) }} onPress={onPress} style={[s.row, !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: border }]}>
             <View style={[s.rowIc, { backgroundColor: tint(c) }]}><Ionicons name={icon} size={18} color={c} /></View>
@@ -113,7 +141,34 @@ function Item({ icon, label, sub, onPress, danger, last, badge }) {
 
 // A big tappable tile: icon on a soft circle, a label and one line under it
 function AccountTile({ icon, label, sub, onPress, badge }) {
-    const { primary, text, muted, surface, border } = useBrand();
+    const { primary, onPrimary, text, muted, surface, border } = useBrand();
+    const desk = useCustomerDesktop();   // the desktop website: every effect stays INSIDE the tile (it sits in a scrolling column that would clip a lift) (false in the phone app)
+    if (desk) {
+        return (
+            <Pressable
+                onPress={onPress}
+                accessibilityRole="button"
+                style={({ hovered }) => ({
+                    minHeight: 156, padding: 22, borderRadius: 24, borderWidth: 1.5, overflow: 'hidden', backgroundColor: surface, cursor: 'pointer',
+                    borderColor: hovered ? primary : border, boxShadow: hovered ? `inset 0 0 0 1px ${primary}, inset 0 0 46px ${primary}26` : 'inset 0 0 0 0 transparent', transitionProperty: 'background-color, border-color, box-shadow, transform, opacity', transitionDuration: '200ms',
+                })}
+            >
+                {({ hovered }) => (
+                    <>
+                        {/* a soft colour glow in the corner that swells under the mouse */}
+                        <View pointerEvents="none" style={{ position: 'absolute', right: -40, top: -40, width: 150, height: 150, borderRadius: 75, backgroundColor: primary, opacity: hovered ? 0.2 : 0.06, transform: [{ scale: hovered ? 1.25 : 1 }], transitionProperty: 'background-color, border-color, box-shadow, transform, opacity', transitionDuration: '200ms' }} />
+                        <View style={{ width: 58, height: 58, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: hovered ? primary : tint(primary), transform: [{ scale: hovered ? 1.06 : 1 }], transitionProperty: 'background-color, border-color, box-shadow, transform, opacity', transitionDuration: '200ms' }}>
+                            <Ionicons name={icon} size={26} color={hovered ? onPrimary : primary} />
+                            {badge > 0 ? <View style={[s.tileBadge, { backgroundColor: hovered ? onPrimary : primary, top: -6, right: -6 }]}><Text style={[s.tileBadgeTxt, { color: hovered ? primary : '#FFFFFF' }]}>{badge > 9 ? '9+' : badge}</Text></View> : null}
+                        </View>
+                        <Text style={{ color: text, fontSize: 18, fontWeight: '900', letterSpacing: -0.3, marginTop: 16 }} numberOfLines={1}>{label}</Text>
+                        <Text style={{ color: muted, fontSize: 13, marginTop: 3 }} numberOfLines={1}>{sub}</Text>
+                        <Ionicons name="arrow-forward" size={20} color={primary} style={{ position: 'absolute', top: 24, right: 22, opacity: hovered ? 1 : 0, transform: [{ translateX: hovered ? 0 : -10 }], transitionProperty: 'background-color, border-color, box-shadow, transform, opacity', transitionDuration: '200ms' }} />
+                    </>
+                )}
+            </Pressable>
+        );
+    }
     return (
         <Press hover onPress={onPress} style={[s.tile, { backgroundColor: surface, borderColor: border }]}>
             <CardGlow radius={18} />
@@ -197,12 +252,13 @@ function AppearanceRow({ last }) {
 // Language: the customer's own choice, kept on this phone (and told to the server, so messages come in it)
 function LanguageRow() {
     const { primary, text, muted, border } = useBrand();
+    const desk = useCustomerDesktop();   // the desktop website: the same roomy, lit-up row as the others (false in the phone app)
     const lang = useLang((st) => st.lang);
     const [open, setOpen] = useState(false);
     const cur = LANGS.find((l) => l.code === lang);
     return (
         <>
-            <Pressable onPress={() => setOpen(true)} style={[s.row, { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: border }]}>
+            <Pressable onPress={() => setOpen(true)} style={({ hovered }) => [s.row, { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: border }, desk && { paddingHorizontal: 22, paddingVertical: 16, borderBottomWidth: 1, cursor: 'pointer', backgroundColor: hovered ? tint(primary) : 'transparent', boxShadow: hovered ? `inset 4px 0 0 ${primary}` : 'inset 0 0 0 transparent', transitionProperty: 'background-color, border-color, box-shadow, transform, opacity', transitionDuration: '200ms' }]}>
                 <View style={[s.rowIc, { backgroundColor: tint(primary) }]}><Ionicons name="language-outline" size={18} color={primary} /></View>
                 <View style={{ flex: 1 }}>
                     <Text style={[s.rowTxt, { color: text }]}>{tr('Language')}</Text>
@@ -217,10 +273,11 @@ function LanguageRow() {
 
 function Group({ title, delay, children }) {
     const { muted, surface, border } = useBrand();
+    const desk = useCustomerDesktop();   // the desktop website: a rounder card with a soft shadow (false in the phone app)
     return (
-        <Appear delay={delay} style={s.groupWrap}>
-            {title ? <Text style={[s.gTitle, { color: muted }]}>{title}</Text> : null}
-            <View style={[s.group, { backgroundColor: surface, borderColor: border }]}><CardGlow radius={18} from="tl" strength={0.14} />{children}</View>
+        <Appear delay={delay} style={[s.groupWrap, desk && { marginTop: 30 }]}>
+            {title ? <Text style={[s.gTitle, { color: muted }, desk && { fontSize: 12.5, letterSpacing: 1.6, marginBottom: 10 }]}>{title}</Text> : null}
+            <View style={[s.group, { backgroundColor: surface, borderColor: border }, desk && { borderRadius: 24, boxShadow: '0 8px 28px rgba(0,0,0,0.10)' }]}><CardGlow radius={18} from="tl" strength={0.14} />{children}</View>
         </Appear>
     );
 }
