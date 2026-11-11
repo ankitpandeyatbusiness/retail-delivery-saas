@@ -11,7 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useBrand, BackHeader } from '../../components/common/kit';
 import { Skel } from '../../components/common/motion';
-import { Pic, VegDot, Heart, Tile, showToast, closedText, tint, soldOutText, useClosedStyle, GREY } from '../../components/customers/shop';
+import { Pic, VegDot, Heart, Tile, ItemCard, showToast, closedText, tint, soldOutText, useClosedStyle, GREY } from '../../components/customers/shop';
 import { Press, Appear, ease } from '../../components/customers/cartParts';
 import SlideNum from '../../components/common/SlideNum';
 import { useHomeStore } from '../../store/customers/useHomeStore';
@@ -21,6 +21,7 @@ import { fetchProduct, fetchFavourites } from '../../api/customers/shopApi';
 import { onMenuChanged } from '../../api/common/socket';
 import { isMeasured, perUnit, amountLabel, measureRules, packPrice, startAmount } from '../../utils/customers/measure';
 import { TextInput } from 'react-native';
+import { useCustomerDesktop } from '../../utils/common/layout';
 import { tr } from '../../i18n';
 
 // pre-select defaults, and the first available options for required groups
@@ -193,6 +194,7 @@ function Group({ g, chosen, onPick, index, base = 0 }) {
 
 export default function ItemScreen() {
     const nav = useNavigation();
+    const desk = useCustomerDesktop();   // the desktop website (a wide browser): the dish page as two columns. False in the phone app.
     const insets = useSafeAreaInsets();
     const { id } = useRoute().params || {};
     const { primary, radius, text, muted, background, surface, border, ok, okSoft } = useBrand();
@@ -426,6 +428,7 @@ export default function ItemScreen() {
     };
 
     if (state === 'loading') {
+        if (desk) return <DeskItemSkeleton />;
         return (
             <KeyboardAvoidingView style={[s.flex, { backgroundColor: background }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
                 <View pointerEvents="none" style={StyleSheet.absoluteFill}><Skeleton /></View>
@@ -463,6 +466,27 @@ export default function ItemScreen() {
     if (p.isNewArrival) chips.push({ i: 'sparkles-outline', t: tr('New') });
     const off = p.mrp > p.price ? Math.round(100 - (p.price * 100) / p.mrp) : 0;
     const longDesc = (p.description || '').length > 110;
+
+    if (desk) {
+        // one more of this dish, within the shop's limits (the same rule as the phone's + button)
+        const incQty = () => {
+            const cap = Math.min(20, p.maxQty != null ? p.maxQty : 20, p.maxPerOrder != null ? p.maxPerOrder : 20);
+            if (qty >= cap) {
+                if (p.maxPerOrder != null && qty >= p.maxPerOrder) showToast(tr('You can order only {n} of this in one order.', { n: p.maxPerOrder }));
+                else if (p.maxQty != null && qty >= p.maxQty) showToast(tr('Only a few left. You cannot add more.'));
+                return;
+            }
+            setQty(qty + 1);
+        };
+        return (
+            <ItemDesktop
+                p={p} f={f} nav={nav} rated={rated} chips={chips} off={off} measured={measured} rules={rules} amt={amt} setAmt={setAmt} typed={typed} setTyped={setTyped}
+                typedUnit={typedUnit} setTypedUnit={setTypedUnit} applyTyped={applyTyped} amtOk={amtOk} groups={groups} sel={sel} pick={pick} qty={qty} setQty={setQty}
+                incQty={incQty} total={total} existing={existing} blocked={blocked} added={added} add={add} share={share} cartCount={cartCount} cartTotal={cartTotal}
+                related={related} favShown={favShown} showDot={showDot} closedStyle={closedStyle} ok={ok} okSoft={okSoft} addLabel={full.labels.addButton}
+            />
+        );
+    }
 
     const heroY = scrollY.interpolate({ inputRange: [-250, 0, 250], outputRange: [-125, 0, 110], extrapolate: 'clamp' });
     const heroS = scrollY.interpolate({ inputRange: [-250, 0], outputRange: [2, 1], extrapolateRight: 'clamp' });
@@ -716,3 +740,329 @@ const s = StyleSheet.create({
     cartBarTop: { color: '#FFFFFF', fontSize: 14, fontWeight: '900' },
     cartBarSub: { color: '#FFFFFF', fontSize: 12, fontWeight: '600', opacity: 0.9, marginTop: 1 },
     cartBarGo: { color: '#FFFFFF', fontSize: 15, fontWeight: '900', marginRight: 2 } });
+/* ====================================================================================================================
+   THE DESKTOP WEBSITE (a browser at least 1024 px wide): the dish page as two columns, the photos on the left and everything to choose
+   on the right, with the quantity and the Add button right there (no bottom bar). It is drawn by ItemScreen from the SAME state and handlers
+   as the phone page, so options, amounts, stock limits and the cart behave identically. The phone never reaches any of this.
+   ==================================================================================================================== */
+const HOVER_T = { transitionProperty: 'background-color, border-color, box-shadow, filter, opacity, transform', transitionDuration: '170ms' };
+
+// the photos: one big picture (click = zoom), arrows on hover, a row of small pictures under it; it moves on by itself unless the mouse is on it
+function DeskGallery({ item }) {
+    const { soft, border, primary, surface } = useBrand();
+    const list = useMemo(() => [item.image, ...(Array.isArray(item.images) ? item.images : [])].filter(Boolean), [item.image, item.images]);
+    const n = list.length;
+    const [at, setAt] = useState(0);
+    const [hover, setHover] = useState(false);
+    useEffect(() => { setAt(0); }, [item._id]);
+    useEffect(() => { if (at >= n) setAt(0); }, [n, at]);
+    useEffect(() => {
+        if (n < 2 || hover) return undefined;
+        const t = setInterval(() => setAt((i) => (i + 1) % n), 4500);
+        return () => clearInterval(t);
+    }, [n, hover, at]);
+    const off = item.isAvailable === false;   // sold out: every picture is grey
+    if (!n) return <Pic item={item} style={{ width: '100%', aspectRatio: 1.25, borderRadius: 22 }} />;
+    const main = list[Math.min(at, n - 1)];
+    const arrow = (side, to) => (
+        <Pressable
+            onPress={() => setAt(to)}
+            accessibilityLabel={side === 'left' ? tr('Previous picture') : tr('Next picture')}
+            style={({ hovered }) => ({
+                position: 'absolute', top: '50%', marginTop: -20, [side]: 14, width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center',
+                backgroundColor: hovered ? '#FFFFFF' : 'rgba(255,255,255,0.88)', opacity: hover ? 1 : 0, cursor: 'pointer', boxShadow: '0 4px 14px rgba(0,0,0,0.3)', ...HOVER_T,
+            })}
+        >
+            <Ionicons name={side === 'left' ? 'chevron-back' : 'chevron-forward'} size={20} color="#1C1C1C" />
+        </Pressable>
+    );
+    return (
+        <View>
+            <Pressable onHoverIn={() => setHover(true)} onHoverOut={() => setHover(false)} style={{ aspectRatio: 1.25, borderRadius: 22, overflow: 'hidden', backgroundColor: soft, isolation: 'isolate' }}>
+                <ZoomPress uri={main} uris={list} style={{ width: '100%', height: '100%' }}>
+                    <Image key={main} source={{ uri: main }} style={[{ width: '100%', height: '100%' }, off && GREY]} contentFit="cover" transition={350} cachePolicy="memory-disk" priority="high" />
+                </ZoomPress>
+                {n > 1 ? (
+                    <>
+                        {arrow('left', (at - 1 + n) % n)}
+                        {arrow('right', (at + 1) % n)}
+                        <View pointerEvents="none" style={{ position: 'absolute', right: 14, bottom: 14, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, backgroundColor: 'rgba(0,0,0,0.55)' }}>
+                            <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: '800' }}>{`${at + 1} / ${n}`}</Text>
+                        </View>
+                    </>
+                ) : null}
+            </Pressable>
+            {n > 1 ? (
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 12 }}>
+                    {list.map((u, i) => (
+                        <Pressable
+                            key={`${i}-${u}`}
+                            onPress={() => setAt(i)}
+                            style={({ hovered }) => ({ width: 74, height: 74, borderRadius: 14, overflow: 'hidden', borderWidth: 2, borderColor: i === at ? primary : hovered ? border : 'transparent', backgroundColor: surface, opacity: i === at || hovered ? 1 : 0.72, cursor: 'pointer', ...HOVER_T })}
+                        >
+                            <Image source={{ uri: u }} style={[{ width: '100%', height: '100%' }, off && GREY]} contentFit="cover" cachePolicy="memory-disk" />
+                        </Pressable>
+                    ))}
+                </View>
+            ) : null}
+        </View>
+    );
+}
+
+// one group of choices (size, extras...): rows that warm up under the mouse
+function DeskGroup({ g, chosen, onPick, base = 0 }) {
+    const { text, muted, surface, border, primary, error } = useBrand();
+    const min = g.min ?? 0;
+    const max = g.max ?? 1;
+    const radio = max === 1;
+    const done = chosen.length >= min;
+    const hint = min >= 1
+        ? (radio ? tr('Choose 1') : min === max ? tr('Choose {n}', { n: max }) : tr('Choose {a} to {b}', { a: min, b: max }))
+        : (radio ? tr('Optional') : tr('Optional · Up to {n}', { n: max }));
+    return (
+        <View style={{ marginTop: 18, borderWidth: 1, borderColor: border, borderRadius: 18, backgroundColor: surface, overflow: 'hidden' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingTop: 16, paddingBottom: 10 }}>
+                <View style={{ flex: 1 }}>
+                    <Text style={{ color: text, fontSize: 16, fontWeight: '900' }}>{tr(g.name)}</Text>
+                    <Text style={{ color: muted, fontSize: 12.5, marginTop: 2, fontWeight: '600' }}>{hint}</Text>
+                </View>
+                {min >= 1 ? (
+                    <View style={[s.req, { backgroundColor: tint(done ? '#1E8E3E' : error) }]}>
+                        {done ? <Ionicons name="checkmark" size={11} color="#1E8E3E" style={{ marginRight: 3 }} /> : null}
+                        <Text style={[s.reqTxt, { color: done ? '#1E8E3E' : error }]}>{done ? tr('DONE') : tr('REQUIRED')}</Text>
+                    </View>
+                ) : null}
+            </View>
+            {(g.options || []).map((o, i) => {
+                const off = o.isAvailable === false;
+                const on = chosen.includes(o.id);
+                return (
+                    <Pressable
+                        key={o.id}
+                        onPress={() => onPick(g, o)}
+                        disabled={off}
+                        style={({ hovered }) => ({
+                            flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 18, borderTopWidth: i === 0 ? 0 : 1, borderTopColor: border,
+                            backgroundColor: on ? tint(primary) : hovered && !off ? `${primary}10` : 'transparent', opacity: off ? 0.4 : 1, cursor: off ? 'default' : 'pointer', ...HOVER_T,
+                        })}
+                    >
+                        <Mark on={on} radio={radio} />
+                        <Text style={{ flex: 1, marginLeft: 14, color: text, fontSize: 15, fontWeight: on ? '800' : '600' }}>{tr(o.name)}{off ? ` (${soldOutText(o)})` : ''}</Text>
+                        {g.absolute ? <Text style={{ color: text, fontSize: 14, fontWeight: '800' }}>₹{base + (o.price || 0)}</Text> : o.price ? <Text style={{ color: muted, fontSize: 14, fontWeight: '700' }}>+₹{o.price}</Text> : null}
+                    </Pressable>
+                );
+            })}
+        </View>
+    );
+}
+
+// a row of dishes under the page ("You might also like", "Your favourites"): up to five in one row, all the same size
+function DeskStrip({ title, items, closedStyle }) {
+    const { text, primary } = useBrand();
+    const COLS = 5;
+    const shown = items.slice(0, COLS);
+    if (!shown.length) return null;
+    return (
+        <View style={[{ marginTop: 44 }, closedStyle]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 14 }}>
+                <View style={{ width: 4, height: 22, borderRadius: 2, backgroundColor: primary, marginRight: 12 }} />
+                <Text style={{ color: text, fontSize: 20, fontWeight: '900' }}>{title}</Text>
+            </View>
+            <View style={{ flexDirection: 'row', gap: 16 }}>
+                {Array.from({ length: COLS }).map((_, i) => <View key={i} style={{ flex: 1 }}>{shown[i] ? <ItemCard item={shown[i]} variant="desk" /> : null}</View>)}
+            </View>
+        </View>
+    );
+}
+
+function DeskItemSkeleton() {
+    const { surface, border, background } = useBrand();
+    const block = (style) => <View style={[{ backgroundColor: surface, borderRadius: 14 }, style]} />;
+    return (
+        <View style={{ flex: 1, backgroundColor: background }}>
+            <View style={{ width: '100%', maxWidth: 1180, alignSelf: 'center', padding: 24, paddingTop: 70 }}>
+                <View style={{ flexDirection: 'row', gap: 44 }}>
+                    <View style={{ flex: 1 }}>{block({ aspectRatio: 1.25, borderRadius: 22, borderWidth: 1, borderColor: border })}</View>
+                    <View style={{ flex: 1 }}>
+                        {block({ height: 38, width: '70%' })}
+                        {block({ height: 24, width: '40%', marginTop: 16 })}
+                        {block({ height: 90, marginTop: 24 })}
+                        {block({ height: 160, marginTop: 18, borderRadius: 18 })}
+                    </View>
+                </View>
+            </View>
+        </View>
+    );
+}
+
+function ItemDesktop({
+    p, f, nav, rated, chips, off, measured, rules, amt, setAmt, typed, setTyped, typedUnit, setTypedUnit, applyTyped, amtOk, groups, sel, pick,
+    qty, setQty, incQty, total, existing, blocked, added, add, share, cartCount, cartTotal, related, favShown, showDot, closedStyle, ok, okSoft, addLabel,
+}) {
+    const { primary, onPrimary, radius, text, muted, background, surface, border } = useBrand();
+    const unitTxt = measured ? perUnit(p) : '';
+    const iconBtn = (name, onPress, label) => (
+        <Pressable
+            onPress={onPress}
+            accessibilityLabel={label}
+            style={({ hovered }) => ({ width: 42, height: 42, borderRadius: 21, borderWidth: 1, borderColor: hovered ? muted : border, backgroundColor: hovered ? border : surface, alignItems: 'center', justifyContent: 'center', cursor: 'pointer', ...HOVER_T })}
+        >
+            <Ionicons name={name} size={19} color={text} />
+        </Pressable>
+    );
+    return (
+        <View style={{ flex: 1, backgroundColor: background }}>
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 90 }}>
+                <View style={{ width: '100%', maxWidth: 1180, alignSelf: 'center', paddingHorizontal: 24, paddingTop: 22 }}>
+                    {/* back, share, favourite */}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 22 }}>
+                        <Pressable
+                            onPress={() => (nav.canGoBack() ? nav.goBack() : nav.navigate('MainTabs'))}
+                            accessibilityRole="button"
+                            style={({ hovered }) => ({ flexDirection: 'row', alignItems: 'center', height: 42, paddingHorizontal: 16, borderRadius: 21, borderWidth: 1, borderColor: hovered ? muted : border, backgroundColor: hovered ? border : surface, cursor: 'pointer', ...HOVER_T })}
+                        >
+                            <Ionicons name="arrow-back" size={18} color={text} />
+                            <Text style={{ color: text, fontWeight: '800', fontSize: 14, marginLeft: 8 }}>{tr('Back')}</Text>
+                        </Pressable>
+                        <View style={{ flex: 1 }} />
+                        {iconBtn('share-social-outline', share, tr('Share'))}
+                        {f.favourites ? <View style={{ marginLeft: 10, width: 42, height: 42 }}><Heart item={p} style={{ position: 'relative', top: 0, right: 0, left: 0, width: 42, height: 42, borderRadius: 21, borderWidth: 1, borderColor: border, backgroundColor: surface, cursor: 'pointer' }} /></View> : null}
+                    </View>
+
+                    <View style={{ flexDirection: 'row', gap: 44, alignItems: 'flex-start' }}>
+                        {/* left: the photos */}
+                        <View style={{ flex: 1 }}><DeskGallery item={p} /></View>
+
+                        {/* right: the dish and what to choose */}
+                        <View style={{ flex: 1 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                {showDot ? <View style={{ marginRight: 10 }}><VegDot isVeg={p.isVeg} /></View> : null}
+                                <Text style={{ flex: 1, color: text, fontSize: 34, lineHeight: 40, fontWeight: '900', letterSpacing: -0.6 }}>{p.name}</Text>
+                            </View>
+                            <View style={[s.chipRow, { marginTop: 14 }]}>
+                                {rated ? (
+                                    <View style={s.rate}>
+                                        <Text style={s.rateTxt}>{Number(p.rating).toFixed(1)}</Text>
+                                        <Ionicons name="star" size={10} color="#FFFFFF" style={{ marginLeft: 3 }} />
+                                    </View>
+                                ) : null}
+                                {chips.map((c) => (
+                                    <View key={c.t} style={[s.mchip, { backgroundColor: surface, borderColor: border, paddingHorizontal: 11, paddingVertical: 6, borderRadius: 9, marginRight: 10 }]}>
+                                        <Ionicons name={c.i} size={13} color={muted} style={{ marginRight: 5 }} />
+                                        <Text style={[s.mchipTxt, { color: muted, fontSize: 13 }]}>{c.t}</Text>
+                                    </View>
+                                ))}
+                            </View>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10 }}>
+                                <Text style={{ color: text, fontSize: 32, fontWeight: '900' }}>₹{p.price}{unitTxt}</Text>
+                                {off ? <Text style={[s.mrp, { color: muted, fontSize: 17, marginLeft: 12 }]}>₹{p.mrp}</Text> : null}
+                                {off ? <View style={[s.offBadge, { backgroundColor: okSoft, marginLeft: 12, paddingHorizontal: 9, paddingVertical: 4 }]}><Text style={[s.offTxt, { color: ok, fontSize: 12.5 }]}>{tr('{off}% OFF', { off })}</Text></View> : null}
+                            </View>
+                            {p.fewLeft ? <Text style={{ color: '#C2410C', fontSize: 13, fontWeight: '800', marginTop: 8 }}>{tr('Few left. Order soon')}</Text> : null}
+                            {p.description ? <Text style={{ color: muted, fontSize: 15.5, lineHeight: 24, marginTop: 16 }}>{tr(p.description)}</Text> : null}
+
+                            {/* how much (dishes sold by weight or volume) */}
+                            {measured ? (
+                                <View style={{ marginTop: 20, borderWidth: 1, borderColor: border, borderRadius: 18, backgroundColor: surface, overflow: 'hidden' }}>
+                                    <View style={{ paddingHorizontal: 18, paddingTop: 16 }}>
+                                        <Text style={{ color: text, fontSize: 16, fontWeight: '900' }}>{tr('How much do you want?')}</Text>
+                                        <Text style={{ color: muted, fontSize: 12.5, marginTop: 2, fontWeight: '600' }}>{tr('Choose a size or type your own amount')}</Text>
+                                    </View>
+                                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, padding: 18, paddingBottom: 12 }}>
+                                        {rules.options.filter((q) => p.maxQty == null || q <= p.maxQty).map((q) => {
+                                            const on = amt === q;
+                                            return (
+                                                <Pressable
+                                                    key={q}
+                                                    onPress={() => { ease(); setAmt(q); setTyped(''); }}
+                                                    style={({ hovered }) => ({ paddingHorizontal: 16, paddingVertical: 10, borderRadius: 22, borderWidth: 1.5, borderColor: on || hovered ? primary : border, backgroundColor: on ? tint(primary) : hovered ? `${primary}10` : 'transparent', cursor: 'pointer', ...HOVER_T })}
+                                                >
+                                                    <Text style={{ color: on ? primary : text, fontWeight: '800', fontSize: 14 }}>{amountLabel(p.sellBy, q)}</Text>
+                                                </Pressable>
+                                            );
+                                        })}
+                                    </View>
+                                    {rules.allowManual ? (
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingBottom: 14 }}>
+                                            <TextInput
+                                                value={typed}
+                                                onChangeText={(v) => setTyped(v.replace(/[^0-9.,]/g, ''))}
+                                                onSubmitEditing={applyTyped}
+                                                keyboardType="decimal-pad"
+                                                placeholder={tr('Type amount')}
+                                                placeholderTextColor={muted}
+                                                style={{ flex: 1, minWidth: 0, height: 46, borderWidth: 1, borderColor: border, borderRadius: 12, paddingHorizontal: 14, color: text, fontSize: 15, outlineStyle: 'none', outlineWidth: 0 }}
+                                            />
+                                            <Pressable onPress={() => setTypedUnit(typedUnit === 'small' ? 'big' : 'small')} style={({ hovered }) => ({ marginLeft: 8, height: 46, minWidth: 58, borderRadius: 12, backgroundColor: hovered ? `${primary}33` : tint(primary), alignItems: 'center', justifyContent: 'center', cursor: 'pointer', ...HOVER_T })}>
+                                                <Text style={{ color: primary, fontWeight: '800' }}>{p.sellBy === 'volume' ? (typedUnit === 'big' ? 'L' : tr('ml')) : (typedUnit === 'big' ? tr('kg') : 'g')}</Text>
+                                            </Pressable>
+                                            <Pressable onPress={applyTyped} style={({ hovered }) => ({ marginLeft: 8, height: 46, paddingHorizontal: 20, borderRadius: 12, backgroundColor: primary, alignItems: 'center', justifyContent: 'center', filter: hovered ? 'brightness(1.12)' : 'brightness(1)', cursor: 'pointer', ...HOVER_T })}>
+                                                <Text numberOfLines={1} style={{ color: onPrimary, fontWeight: '800' }}>{tr('Set')}</Text>
+                                            </Pressable>
+                                        </View>
+                                    ) : null}
+                                    <View style={{ paddingHorizontal: 18, paddingBottom: 16 }}>
+                                        <Text style={{ color: text, fontWeight: '800', fontSize: 15 }}>{amountLabel(p.sellBy, amt)} = ₹{+packPrice(p, amt).toFixed(2)}</Text>
+                                        {!amtOk ? <Text style={{ color: '#D93025', fontSize: 12.5, marginTop: 3 }}>{tr('This amount is not allowed for this item')}</Text> : null}
+                                    </View>
+                                </View>
+                            ) : null}
+
+                            {groups.map((g) => <DeskGroup key={g.id} g={g} base={p.price} chosen={sel[g.id] || []} onPick={pick} />)}
+
+                            {/* quantity and Add, right here */}
+                            <View style={{ marginTop: 24, padding: 18, borderRadius: 18, borderWidth: 1, borderColor: border, backgroundColor: surface }}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                    {measured ? (
+                                        <View style={{ height: 54, paddingHorizontal: 18, borderRadius: radius, borderWidth: 1, borderColor: primary, backgroundColor: tint(primary), alignItems: 'center', justifyContent: 'center' }}>
+                                            <Text style={{ color: primary, fontWeight: '900', fontSize: 16 }}>{amountLabel(p.sellBy, amt)}</Text>
+                                        </View>
+                                    ) : (
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', height: 54, borderRadius: radius, borderWidth: 1, borderColor: primary, backgroundColor: tint(primary), overflow: 'hidden' }}>
+                                            <Pressable onPress={() => setQty((q) => Math.max(1, q - 1))} accessibilityLabel={tr('Less')} style={({ hovered }) => ({ width: 48, height: '100%', alignItems: 'center', justifyContent: 'center', backgroundColor: hovered ? `${primary}26` : 'transparent', cursor: 'pointer', ...HOVER_T })}>
+                                                <Ionicons name="remove" size={20} color={primary} />
+                                            </Pressable>
+                                            <SlideNum value={qty} style={{ color: primary, fontSize: 17, fontWeight: '900', minWidth: 30, textAlign: 'center' }} />
+                                            <Pressable onPress={incQty} accessibilityLabel={tr('More')} style={({ hovered }) => ({ width: 48, height: '100%', alignItems: 'center', justifyContent: 'center', backgroundColor: hovered ? `${primary}26` : 'transparent', cursor: 'pointer', ...HOVER_T })}>
+                                                <Ionicons name="add" size={20} color={primary} />
+                                            </Pressable>
+                                        </View>
+                                    )}
+                                    <Pressable
+                                        onPress={blocked || added ? undefined : add}
+                                        disabled={!!blocked}
+                                        style={({ hovered }) => ({
+                                            flex: 1, marginLeft: 14, height: 54, borderRadius: radius, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12,
+                                            backgroundColor: added ? '#1E8E3E' : blocked ? '#BBBBBB' : primary, filter: hovered && !blocked ? 'brightness(1.1)' : 'brightness(1)',
+                                            boxShadow: hovered && !blocked && !added ? `0 12px 28px ${primary}55` : '0 0 0 rgba(0,0,0,0)', cursor: blocked ? 'default' : 'pointer', ...HOVER_T,
+                                        })}
+                                    >
+                                        {added ? (
+                                            <View style={s.addRow}><Ionicons name="checkmark-circle" size={19} color="#FFFFFF" /><Text style={[s.addTxt, { marginLeft: 7, fontSize: 16 }]}>{tr('Added')}</Text></View>
+                                        ) : blocked ? <Text style={[s.addTxt, { fontSize: 15 }]} numberOfLines={1}>{blocked}</Text> : (
+                                            <View style={s.addRow}>
+                                                <Text style={[s.addTxt, { fontSize: 16 }]} numberOfLines={1}>{existing ? tr('Update') : tr(addLabel)}</Text>
+                                                <Text style={[s.addTxt, { marginLeft: 10, fontSize: 16 }]}>· ₹{total}</Text>
+                                            </View>
+                                        )}
+                                    </Pressable>
+                                </View>
+                                {cartCount > 0 ? (
+                                    <Pressable onPress={() => nav.navigate('Cart')} style={({ hovered }) => ({ flexDirection: 'row', alignItems: 'center', marginTop: 14, opacity: hovered ? 0.75 : 1, cursor: 'pointer', ...HOVER_T })}>
+                                        <Ionicons name="bag-handle-outline" size={16} color={muted} />
+                                        <Text style={{ flex: 1, color: muted, fontSize: 13.5, fontWeight: '700', marginLeft: 8 }}>{tr('{cartCount} {v2} in your cart', { cartCount, v2: cartCount === 1 ? tr('item') : tr('items') })} · ₹{+cartTotal.toFixed(2)}</Text>
+                                        <Text style={{ color: primary, fontSize: 13.5, fontWeight: '800' }}>{tr('View cart')}</Text>
+                                        <Ionicons name="chevron-forward" size={15} color={primary} />
+                                    </Pressable>
+                                ) : null}
+                            </View>
+                        </View>
+                    </View>
+
+                    <DeskStrip title={tr('You might also like')} items={related} closedStyle={closedStyle} />
+                    <DeskStrip title={tr('Your favourites')} items={favShown} closedStyle={closedStyle} />
+                </View>
+            </ScrollView>
+        </View>
+    );
+}
