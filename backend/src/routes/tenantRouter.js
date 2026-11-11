@@ -28,6 +28,7 @@ tenantRouter.get('/theme', tenantRecognizer, async (req, res) => {
         headerStyle: c.brand.headerStyle,
         tabBarStyle: c.brand.tabBarStyle,
         categoryStyle: c.brand.categoryStyle,
+        categoryScroll: c.brand.categoryScroll === true,
         filterStyle: c.brand.filterStyle,
         locationStyle: c.brand.locationStyle,
         heroImages,

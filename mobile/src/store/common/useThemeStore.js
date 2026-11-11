@@ -35,6 +35,7 @@ export const useThemeStore = create((set, get) => ({
         headerStyle: 'hero',     // hero | compact
         tabBarStyle: 'classic',  // classic | floating
         categoryStyle: 'circles', // circles | tiles | pills
+        categoryScroll: false,    // the desktop website only: the categories as one sideways-scrolling row (medium size) instead of the grid
         filterStyle: 'dialog',   // dialog | sheet | rail
         locationStyle: 'card',   // card | list | chip | banner (the shop's address and Directions)
         // CDN urls from the server (tenants/<slug>/branding/hero/ in the bucket). Nothing is bundled in the app.

@@ -271,12 +271,21 @@ export default function DesktopTopBar({ navRef, routeName }) {
     const wordings = [sample ? tr('Search "{dish}"', { dish: sample }) : tr('Search for dishes'), tr('Search dishes'), tr('Search')];
     const placeholder = searchW ? (wordings.find((t) => t.length * 7.6 <= room) || wordings[wordings.length - 1]) : wordings[0];
     const roomy = width >= 1280;
+    const floating = theme.tabBarStyle === 'floating';   // the shop chose the floating bar: on the website it is a pill that floats above the page
     const logo = theme.icon || theme.logo;
     const initial = String(user?.name || user?.phone || '?').trim().slice(0, 1).toUpperCase();
 
     return (
-        <View style={{ backgroundColor: brand.surface, borderBottomWidth: 1, borderBottomColor: brand.border, zIndex: 30 }}>
-            <View style={{ width: '100%', flexDirection: 'row', alignItems: 'center', height: HEIGHT, paddingHorizontal: 20 }}>
+        <View style={floating ? { backgroundColor: brand.background, paddingTop: 12, paddingBottom: 8, paddingHorizontal: 20, zIndex: 30 } : { backgroundColor: brand.surface, borderBottomWidth: 1, borderBottomColor: brand.border, zIndex: 30 }}>
+            <View
+                style={[
+                    { width: '100%', flexDirection: 'row', alignItems: 'center', height: HEIGHT, paddingHorizontal: 20 },
+                    floating && {
+                        height: HEIGHT - 2, paddingHorizontal: 18, borderRadius: 34, borderWidth: 1, borderColor: brand.border, backgroundColor: /^#[0-9a-fA-F]{6}$/.test(brand.surface || '') ? `${brand.surface}EB` : brand.surface,
+                        backdropFilter: 'blur(18px)', boxShadow: `0 14px 40px rgba(0,0,0,0.16), 0 2px 0 ${brand.primary}33`,
+                    },
+                ]}
+            >
                 {/* brand: the logo and the name on up to two lines */}
                 <Pressable onPress={() => goTab('Home')} style={{ flexDirection: 'row', alignItems: 'center', marginRight: 16, cursor: 'pointer' }} accessibilityLabel={theme.name || 'Home'}>
                     {logo ? <Image source={logo} style={{ width: 38, height: 38, borderRadius: 10, backgroundColor: brand.background }} contentFit="cover" /> : null}

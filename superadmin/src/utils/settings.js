@@ -134,6 +134,7 @@ export function effectiveSettings({ tenant, resolved, options, defaults, presets
             headerStyle: raw.brand?.headerStyle || D.brand?.headerStyle || 'hero',
             tabBarStyle: raw.brand?.tabBarStyle || D.brand?.tabBarStyle || 'classic',
             categoryStyle: raw.brand?.categoryStyle || D.brand?.categoryStyle || 'circles',
+            categoryScroll: raw.brand?.categoryScroll === true,
             filterStyle: raw.brand?.filterStyle || D.brand?.filterStyle || 'dialog',
             locationStyle: raw.brand?.locationStyle || D.brand?.locationStyle || 'card',
         },

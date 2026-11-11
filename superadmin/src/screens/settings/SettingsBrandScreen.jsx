@@ -9,7 +9,7 @@ import { updateShop, logoColors } from '../../api/shopsApi';
 import { errMsg } from '../../api/adminClient';
 import { useShopStore } from '../../store/useShopStore';
 import { SettingsPage } from '../../components/settingsPage';
-import { Group, Choice, ColorField, Hint } from '../../components/settingsForm';
+import { Group, Choice, ColorField, Hint, Switch } from '../../components/settingsForm';
 import useSettingsEditor from '../../hooks/useSettingsEditor';
 import { choices, isHex, RECOMMENDED_LOOK } from '../../utils/settings';
 import { bestPalette, readableOnWhiteText, PALETTE_LABELS } from '../../utils/palette';
@@ -203,6 +203,7 @@ export default function SettingsBrandScreen() {
                         <Choice label="Dark theme" options={choices('look', ed.options.DARK_LOOKS || [])} value={ed.draft.brand.darkLook} onChange={(v) => ed.set('brand', 'darkLook', v)} />
                         <Choice label="Home header" options={choices('headerStyle', ed.options.HEADER_STYLES)} value={ed.draft.brand.headerStyle} onChange={(v) => ed.set('brand', 'headerStyle', v)} />
                         <Choice label="Categories" options={choices('categoryStyle', ed.options.CATEGORY_STYLES)} value={ed.draft.brand.categoryStyle} onChange={(v) => ed.set('brand', 'categoryStyle', v)} />
+                        <Switch title="Categories scroll sideways on the website" subtitle="Desktop website only: one medium-size row you scroll sideways, like the phone app, instead of the big grid. The phone app always scrolls sideways." value={ed.draft.brand.categoryScroll === true} onValueChange={(v) => ed.set('brand', 'categoryScroll', v)} />
                         <Choice label="Shop location" options={choices('locationStyle', ed.options.LOCATION_STYLES || [])} value={ed.draft.brand.locationStyle} onChange={(v) => ed.set('brand', 'locationStyle', v)} />
                         <Choice label="Filters" options={choices('filterStyle', ed.options.FILTER_STYLES)} value={ed.draft.brand.filterStyle} onChange={(v) => ed.set('brand', 'filterStyle', v)} />
                         <Choice label="Bottom tabs" options={choices('tabBarStyle', ed.options.TAB_BAR_STYLES)} value={ed.draft.brand.tabBarStyle} onChange={(v) => ed.set('brand', 'tabBarStyle', v)} />
