@@ -388,7 +388,7 @@ function Stepper({ qty, kind, onInc, onDec, style }) {
 
 // Small spring when the button switches between "Add" and the stepper.
 // It skips the first render, so cards that scroll into view stay still.
-function Pop({ mode, style, children }) {
+function Pop({ mode, style, children, onClick }) {
     const v = useRef(new Animated.Value(1)).current;
     const first = useRef(true);
     useEffect(() => {
@@ -397,7 +397,7 @@ function Pop({ mode, style, children }) {
         Animated.spring(v, { toValue: 1, friction: 6, tension: 180, useNativeDriver: true }).start();
     }, [mode]);
     return (
-        <Animated.View style={[style, {
+        <Animated.View onClick={onClick} style={[style, {
             opacity: v.interpolate({ inputRange: [0, 0.6, 1], outputRange: [0, 1, 1], extrapolate: 'clamp' }),
             transform: [{ scale: v.interpolate({ inputRange: [0, 1], outputRange: [0.7, 1] }) }],
         }]}>
@@ -421,13 +421,13 @@ export function AddButton({ item, onPress, kind = 'pill', style }) {
         inner = <Stepper qty={qty} kind={kind} onInc={onPress} onDec={() => removeOne(item._id)} />;
     } else if (kind === 'circle') {
         inner = (
-            <Pressable onPress={onPress} hitSlop={6} style={[s.circle, { backgroundColor: primary }]}>
+            <Pressable onPress={onPress} hitSlop={Platform.OS === 'web' ? 12 : 6} style={[s.circle, { backgroundColor: primary }]}>
                 <Ionicons name="add" size={20} color={onPrimary} />
             </Pressable>
         );
     } else if (kind === 'overlap') {
         inner = (
-            <Pressable onPress={onPress} style={[s.overlap, { borderColor: primary, borderRadius: radius }]}>
+            <Pressable onPress={onPress} hitSlop={Platform.OS === 'web' ? { top: 12, bottom: 12, left: 14, right: 14 } : undefined} style={[s.overlap, { borderColor: primary, borderRadius: radius }]}>
                 <Text numberOfLines={1} style={[s.overlapTxt, { color: primary }]}>{String(tr(label)).toUpperCase()}</Text>
                 <Ionicons name="add" size={14} color={primary} style={{ marginLeft: 2 }} />
             </Pressable>
@@ -444,7 +444,7 @@ export function AddButton({ item, onPress, kind = 'pill', style }) {
         );
     }
     // `style` (the absolute position on photos) now sits on the wrapper, so the pop never moves the button
-    return <Pop mode={mode} style={style}>{inner}</Pop>;
+    return <Pop mode={mode} style={style} onClick={Platform.OS === 'web' ? (e) => e.stopPropagation() : undefined}>{inner}</Pop>;
 }
 
 // Adds a dish straight to the cart, or opens the Item page when it needs a choice.
