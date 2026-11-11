@@ -32,6 +32,7 @@ import { payForOrder } from '../../utils/customers/payOnline';
 import { tr } from '../../i18n';
 import KeyboardScroll from '../../components/common/KeyboardScroll';
 import PickupTimeSheet from '../../components/customers/PickupTimeSheet';
+import { useCustomerDesktop } from '../../utils/common/layout';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const FLOW_DELIVERY = ['placed', 'accepted', 'preparing', 'ready', 'out_for_delivery', 'delivered'];
@@ -136,6 +137,7 @@ function StarBtn({ on, onPress }) {
 
 export default function OrderDetailScreen() {
     const nav = useNavigation();
+    const desk = useCustomerDesktop();   // the desktop website (a wide browser): the order as two columns. False in the phone app.
     const closedStyle = useClosedStyle();   // the shop is closed: this screen turns grey
     const insets = useSafeAreaInsets();
     const { id } = useRoute().params || {};
@@ -217,6 +219,7 @@ export default function OrderDetailScreen() {
     const startEdit = () => { setStars(saved.stars); setComment(saved.comment); setEditing(true); };
 
     if (state === 'loading') {
+        if (desk) return <DeskOrderSkeleton />;
         return (
             <View style={[s.flex, { backgroundColor: background }]}>
                 <BackHeader title={tr('Order')} />
@@ -290,6 +293,17 @@ export default function OrderDetailScreen() {
     const dock = o.canCancel || o.canAskCancel || canReorder || payable;
     const timeLine = o.scheduledFor ? (o.pickupUntil ? `${fmt(o.scheduledFor)} – ${tm(o.pickupUntil)}` : fmt(o.scheduledFor)) : '';
     const showForm = !saved || editing;
+    if (desk) {
+        return (
+            <View style={[s.flex, closedStyle]}>
+                <OrderDesktop c={{
+                    o, p, nav, cancelled, delivered, delivery, live, flow, idx, accent, dineIn, headline, sub, payable, payNow, busy, setBusy, askShop, canReorder, timeLine,
+                    showForm, spot, track, pts, saved, editing, setEditing, stars, setStars, comment, setComment, saving, submit, startEdit, inv, setInv, ptSheet, setPtSheet,
+                    setO, get, id,
+                }} />
+            </View>
+        );
+    }
 
     return (
         <View style={[s.flex, { backgroundColor: background }, closedStyle]}>
@@ -592,3 +606,266 @@ const s = StyleSheet.create({
     dock: { position: 'absolute', left: 0, right: 0, bottom: 0, flexDirection: 'row', paddingHorizontal: 16, paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth, elevation: 16, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 10, shadowOffset: { width: 0, height: -4 } },
     dBtn: { paddingVertical: 12, paddingHorizontal: 10, alignItems: 'center', justifyContent: 'center', minHeight: 50 },
 });
+/* ====================================================================================================================
+   THE DESKTOP WEBSITE (a browser at least 1024 px wide): the order as two columns. On the left what is happening (the status, the live map, the
+   steps), on the right what was ordered (items, bill, address, invoice, review). The actions (cancel, pay, reorder) sit in the header instead of a
+   bar at the bottom. It is drawn by OrderDetailScreen from the SAME data and handlers as the phone page, so nothing behaves differently.
+   The phone never reaches any of this.
+   ==================================================================================================================== */
+const D_T = { transitionProperty: 'background-color, border-color, box-shadow, filter, opacity, transform', transitionDuration: '170ms' };
+
+// a button with a hover: primary (filled), ghost (outlined, shop colour) or danger (outlined, red)
+function DBtn({ label, icon, onPress, kind = 'primary', busy, disabled, grow }) {
+    const { primary, radius, error } = useBrand();
+    const color = kind === 'danger' ? error : primary;
+    const filled = kind === 'primary';
+    return (
+        <Pressable
+            onPress={onPress}
+            disabled={disabled || busy}
+            accessibilityRole="button"
+            style={({ hovered }) => ({
+                flexDirection: 'row', alignItems: 'center', justifyContent: 'center', height: 46, paddingHorizontal: 22, borderRadius: radius, flexGrow: grow ? 1 : 0,
+                borderWidth: filled ? 0 : 1.5, borderColor: color, backgroundColor: filled ? primary : hovered ? `${color}1A` : 'transparent',
+                filter: filled && hovered ? 'brightness(1.12)' : 'brightness(1)', boxShadow: filled && hovered ? `0 10px 26px ${primary}55` : '0 0 0 rgba(0,0,0,0)',
+                opacity: disabled ? 0.5 : 1, cursor: disabled ? 'default' : 'pointer', ...D_T,
+            })}
+        >
+            {busy ? <ActivityIndicator color={filled ? '#FFFFFF' : color} /> : (
+                <>
+                    {icon ? <Ionicons name={icon} size={17} color={filled ? '#FFFFFF' : color} style={{ marginRight: 8 }} /> : null}
+                    <Text numberOfLines={1} style={{ color: filled ? '#FFFFFF' : color, fontSize: 14.5, fontWeight: '900' }}>{label}</Text>
+                </>
+            )}
+        </Pressable>
+    );
+}
+
+function DeskOrderSkeleton() {
+    const { background } = useBrand();
+    return (
+        <View style={{ flex: 1, backgroundColor: background }}>
+            <View style={{ width: '100%', maxWidth: 1180, alignSelf: 'center', padding: 24, paddingTop: 30 }}>
+                <Skel width="30%" height={32} />
+                <View style={{ flexDirection: 'row', gap: 28, marginTop: 24 }}>
+                    <View style={{ flex: 1.1 }}><Skel height={210} radius={24} /><Skel height={220} radius={18} style={{ marginTop: 16 }} /></View>
+                    <View style={{ flex: 1 }}><Skel height={260} radius={18} /><Skel height={200} radius={18} style={{ marginTop: 16 }} /></View>
+                </View>
+            </View>
+        </View>
+    );
+}
+
+function OrderDesktop({ c }) {
+    const {
+        o, p, nav, cancelled, delivered, delivery, live, flow, idx, accent, dineIn, headline, sub, payable, payNow, busy, setBusy, askShop, canReorder, timeLine,
+        showForm, spot, track, pts, saved, editing, setEditing, stars, setStars, comment, setComment, saving, submit, startEdit, inv, setInv, ptSheet, setPtSheet,
+        setO, get, id,
+    } = c;
+    const { primary, radius, text, muted, error, background, surface, border } = useBrand();
+    const itemsCount = o.items.reduce((n, l) => n + (l.measure ? 1 : l.quantity), 0);
+    const kind = delivery ? tr('DELIVERY') : dineIn ? tr('DINE IN') : tr('PICKUP');
+    const pickupCode = o.orderType === 'pickup' && o.pickupCode;
+    const note = (t, st) => <Text style={[{ color: muted, fontSize: 13.5, textAlign: 'center', marginTop: 12 }, st]}>{t}</Text>;
+
+    return (
+        <View style={{ flex: 1, backgroundColor: background }}>
+            {/* the page itself does not scroll: the header and the left column stay, only the right column scrolls */}
+                <View style={{ flex: 1, width: '100%', maxWidth: 1180, alignSelf: 'center', paddingHorizontal: 24, paddingTop: 22 }}>
+                    {/* header: back, the order, the actions */}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+                        <Pressable
+                            onPress={() => (nav.canGoBack() ? nav.goBack() : nav.navigate('MainTabs'))}
+                            accessibilityRole="button"
+                            style={({ hovered }) => ({ flexDirection: 'row', alignItems: 'center', height: 42, paddingHorizontal: 16, borderRadius: 21, borderWidth: 1, borderColor: hovered ? muted : border, backgroundColor: hovered ? border : surface, cursor: 'pointer', ...D_T })}
+                        >
+                            <Ionicons name="arrow-back" size={18} color={text} />
+                            <Text style={{ color: text, fontWeight: '800', fontSize: 14, marginLeft: 8 }}>{tr('Back')}</Text>
+                        </Pressable>
+                        <View style={{ flex: 1, minWidth: 200, marginLeft: 6 }}>
+                            <Text style={{ color: text, fontSize: 28, fontWeight: '900', letterSpacing: -0.5 }}>{tr('Order #{orderNo}', { orderNo: o.ref || o.orderNo })}</Text>
+                            <Text style={{ color: muted, fontSize: 13.5, marginTop: 2 }}>{kind}  ·  {fmt(o.createdAt)}</Text>
+                        </View>
+                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+                            {o.canCancel ? <DBtn kind="danger" label={tr('Cancel order')} disabled={busy} onPress={() => cancelFlow(o, { setBusy, onDone: setO })} /> : null}
+                            {o.canAskCancel ? <DBtn kind="danger" label={tr('Ask the shop to cancel')} disabled={busy} onPress={askShop} /> : null}
+                            {payable ? <DBtn label={tr('Pay {rs}', { rs: rs(p.total) })} icon="card-outline" busy={busy} onPress={payNow} />
+                                : canReorder ? <DBtn label={tr('Reorder')} icon="repeat" busy={busy} onPress={() => reorder(o, nav, setBusy)} /> : null}
+                        </View>
+                    </View>
+
+                    <View style={{ flex: 1, flexDirection: 'row', gap: 28, marginTop: 8 }}>
+                        {/* LEFT: what is happening. Centred in the height there is while it fits; when there is more than fits it scrolls in its own column, with room above and below so it never touches the edges of the window */}
+                        <ScrollView style={{ flex: 1.1 }} contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', paddingTop: 14, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+                            <Appear>
+                                <LinearGradient colors={[accent, mix(accent, '#000000', 0.28)]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[s.hero, { padding: 26 }]}>
+                                    <View style={[s.blob, { top: -50, right: -30, width: 190, height: 190 }]} />
+                                    <View style={[s.blob, { bottom: -60, left: 60, width: 140, height: 140, opacity: 0.6 }]} />
+                                    <View style={s.heroTop}>
+                                        <View style={{ flex: 1, paddingRight: 12 }}>
+                                            <Text style={s.heroCap}>{kind}  ·  {fmt(o.createdAt)}</Text>
+                                            <Text style={[s.heroHead, { fontSize: 32, marginTop: 8 }]} numberOfLines={2}>{headline}</Text>
+                                            {sub ? <Text style={[s.heroSub, { fontSize: 14.5, lineHeight: 21 }]}>{sub}</Text> : null}
+                                        </View>
+                                        <View style={[s.heroIc, { width: 68, height: 68, borderRadius: 34 }]}>
+                                            <Ionicons name={ICON[o.status] || 'receipt-outline'} size={34} color="#FFFFFF" />
+                                        </View>
+                                    </View>
+                                    {live && idx >= 0 ? (
+                                        <View style={[s.segs, { marginTop: 22 }]}>
+                                            {flow.map((st, k) => <View key={st} style={[s.seg, { backgroundColor: k <= idx ? '#FFFFFF' : 'rgba(255,255,255,0.28)', height: 6 }]} />)}
+                                        </View>
+                                    ) : null}
+                                    <View style={[s.facts, { marginTop: 22, paddingTop: 18 }]}>
+                                        <View style={s.fact}><Text style={s.factK}>{tr('TOTAL')}</Text><Text style={[s.factV, { fontSize: 17 }]}>{rs(p.total)}</Text></View>
+                                        <View style={s.fact}><Text style={s.factK}>{tr('ITEMS')}</Text><Text style={[s.factV, { fontSize: 17 }]}>{itemsCount}</Text></View>
+                                        <View style={s.fact}>
+                                            <Text style={s.factK}>{tr('PAYMENT')}</Text>
+                                            <Text style={[s.factV, { fontSize: 17 }]} numberOfLines={1}>{tr(PAY[o.payment?.method] || 'Cash')}{o.payment?.status === 'paid' ? tr(' · Paid') : ''}</Text>
+                                        </View>
+                                    </View>
+                                </LinearGradient>
+                            </Appear>
+
+                            {cancelled ? <StayOfferCard style={{ marginHorizontal: 0 }} /> : null}
+                            {live && !cancelled ? <QueueLine q={o.queue} style={{ marginHorizontal: 0 }} /> : null}
+
+                            {pickupCode ? (
+                                <View style={{ alignItems: 'center', marginTop: 16, padding: 20, borderRadius: 18, backgroundColor: tint(primary), borderWidth: 1, borderColor: `${primary}40` }}>
+                                    <Text style={{ color: muted, fontWeight: '800', fontSize: 12, letterSpacing: 1 }}>{tr('YOUR PICKUP CODE')}</Text>
+                                    <Text style={{ color: primary, fontSize: 48, fontWeight: '900', letterSpacing: 14, marginTop: 6, paddingLeft: 14 }}>{o.pickupCode}</Text>
+                                    <Text style={{ color: muted, fontSize: 13.5, marginTop: 8, textAlign: 'center' }}>
+                                        {o.status === 'ready' ? tr('Your order is ready. Show this code when you collect it.') : tr('Show this code when you collect your order.')}
+                                        {o.pickupUntil ? ' ' + tr('Pickup time: until {time}', { time: new Date(o.pickupUntil).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' }) }) : ''}
+                                    </Text>
+                                </View>
+                            ) : null}
+                            <PickupActions order={o} onChanged={get} />
+                            {o.pickupClaim?.kind ? note(o.pickupClaim.kind === 'collected' ? tr('You told the shop you collected it. They will confirm.') : tr('You told the shop you do not want it. They will decide about the refund and let you know.')) : null}
+                            {o.cancelRequest?.at ? note(tr('You asked the shop to cancel this. Waiting for their reply.')) : null}
+                            {delivery && live && track && track.state !== 'cancelled' ? <TrackingCard tracking={track} destination={o.address} /> : null}
+                            {dineIn && !cancelled && live ? <CallCard /> : null}
+
+                            {!cancelled ? (
+                                <Card title={tr('Order status')} icon="time-outline" delay={60}>
+                                    {flow.map((st, k) => (
+                                        <Step key={st} st={st} dine={dineIn} pack={delivery} k={k} idx={idx} live={live} last={k === flow.length - 1}
+                                            hist={(o.statusHistory || []).find((x) => x.status === st) || (st === 'ready' && delivery && o.kitchen?.readyAt ? { status: 'ready', at: o.kitchen.readyAt } : undefined)} />
+                                    ))}
+                                </Card>
+                            ) : null}
+
+                            {delivered && delivery && o.delivery?.proof?.url ? (
+                                <Card title={tr('Delivery photo')} icon="camera-outline" delay={90}>
+                                    <Image source={{ uri: o.delivery.proof.url }} style={{ width: '100%', height: 260, borderRadius: 14, backgroundColor: border }} resizeMode="cover" />
+                                    <Text style={[s.muted, { color: muted, marginTop: 8 }]}>{tr('Taken by your delivery partner when the food was handed over.')}</Text>
+                                </Card>
+                            ) : null}
+                        </ScrollView>
+
+                        {/* RIGHT: what was ordered: this is the part that scrolls */}
+                        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 90 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                            <Card title={tr('Items')} icon="fast-food-outline" delay={100}>
+                                {o.items.map((l, i) => (
+                                    <View key={`${l.productId}${i}`} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderTopWidth: i ? 1 : 0, borderTopColor: border }}>
+                                        {l.image ? <ExpoImage source={{ uri: l.image }} style={{ width: 56, height: 56, borderRadius: 14, backgroundColor: border }} contentFit="cover" transition={150} cachePolicy="memory-disk" /> : <View style={{ width: 56, height: 56, borderRadius: 14, backgroundColor: tint(primary), alignItems: 'center', justifyContent: 'center' }}><Ionicons name="fast-food-outline" size={22} color={primary} /></View>}
+                                        <View style={[s.qty, { backgroundColor: tint(primary), marginLeft: 12 }]}><Text style={[s.qtyTxt, { color: primary }]}>{l.measure?.label || `${l.quantity}×`}</Text></View>
+                                        <View style={{ flex: 1, marginHorizontal: 12 }}>
+                                            <Text style={{ color: text, fontSize: 15, fontWeight: '800' }}>{l.name}</Text>
+                                            {l.selections?.length ? <Text style={[s.muted, { color: muted, fontSize: 12.5 }]}>{l.selections.map((x) => x.name).join(', ')}</Text> : null}
+                                            {l.note ? <Text style={[s.muted, { color: muted, fontSize: 12.5 }]}>{tr('Note: {note}', { note: l.note })}</Text> : null}
+                                        </View>
+                                        <Text style={{ color: text, fontSize: 15, fontWeight: '800' }}>{rs(l.lineTotal)}</Text>
+                                    </View>
+                                ))}
+                            </Card>
+
+                            <Card title={tr('Bill details')} icon="receipt-outline" delay={140}>
+                                <Row k={tr('Subtotal')} v={rs(p.subtotal)} />
+                                {p.discount > 0 ? <Row k={tr('Coupon{v1}', { v1: p.couponCode ? ` (${p.couponCode})` : '' })} v={`− ${rs(p.discount)}`} green /> : null}
+                                {delivery ? <Row k={tr('Delivery fee')} v={p.deliveryFee > 0 ? rs(p.deliveryFee) : 'Free'} green={!p.deliveryFee} /> : null}
+                                {p.packagingCharge > 0 ? <Row k={tr('Packaging')} v={rs(p.packagingCharge)} /> : null}
+                                {(p.taxOnTop ?? (p.taxMode === 'exclusive' ? p.tax : 0)) > 0 ? <Row k={tr('GST')} v={rs(p.taxOnTop ?? p.tax)} /> : null}
+                                {p.tip > 0 ? <Row k={tr('Tip')} v={rs(p.tip)} /> : null}
+                                <View style={[s.line, { backgroundColor: border }]} />
+                                <Row k={tr('Total')} v={rs(p.total)} bold />
+                                {(p.taxIncluded ?? (p.taxMode === 'inclusive' ? p.tax : 0)) > 0 ? <Text style={[s.muted, { color: muted }]}>{tr('Includes {rs} GST', { rs: rs(p.taxIncluded ?? p.tax) })}</Text> : null}
+                            </Card>
+
+                            {timeLine ? (
+                                <Card title={delivery ? tr('Scheduled for') : tr('Pickup time')} icon="calendar-outline" delay={170}>
+                                    <Text style={{ color: text, fontSize: 15, fontWeight: '800' }}>{timeLine}</Text>
+                                    {o.pickupRequest?.from ? <Text style={{ color: muted, marginTop: 8, fontSize: 13 }}>{tr('You asked for {time}. Waiting for the shop to reply.', { time: `${fmt(o.pickupRequest.from)} – ${tm(o.pickupRequest.to)}` })}</Text> : null}
+                                    {o.canChangePickup ? (
+                                        <Pressable onPress={() => setPtSheet(true)} hitSlop={8} style={({ hovered }) => ({ marginTop: 10, opacity: hovered ? 0.7 : 1, cursor: 'pointer', ...D_T })}>
+                                            <Text style={{ color: primary, fontWeight: '800', fontSize: 14 }}>{tr('Change pickup time')}</Text>
+                                        </Pressable>
+                                    ) : null}
+                                </Card>
+                            ) : null}
+                            {!delivery && spot.on && (spot.address || spot.pinned) ? <Card title={tr('Pickup from')} icon="storefront-outline" delay={180}><StoreLocation inline /></Card> : null}
+                            {delivery && o.address ? (
+                                <Card title={tr('Delivery address')} icon="location-outline" delay={190}>
+                                    <Text style={{ color: text, fontSize: 15, fontWeight: '800' }}>{[o.address.label, o.address.name].filter(Boolean).join(' · ')}</Text>
+                                    <Text style={[s.muted, { color: muted, fontSize: 13.5, lineHeight: 20 }]}>{addr(o.address)}</Text>
+                                </Card>
+                            ) : null}
+                            {o.note ? <Card title={tr('Order note')} icon="create-outline" delay={200}><Text style={[s.muted, { color: muted, marginTop: 0, fontSize: 13.5 }]}>{o.note}</Text></Card> : null}
+
+                            {delivered ? (
+                                <Card title={tr('Invoice')} icon="document-text-outline" delay={210}>
+                                    <View style={{ flexDirection: 'row', gap: 10 }}>
+                                        <DBtn kind="ghost" grow icon="eye-outline" label={tr('View')} busy={inv === 'view'} disabled={!!inv} onPress={() => viewInvoice(o, (v) => setInv(v ? 'view' : ''))} />
+                                        <DBtn grow icon="download-outline" label={tr('Download')} busy={inv === 'save'} disabled={!!inv} onPress={() => saveInvoice(o, (v) => setInv(v ? 'save' : ''))} />
+                                    </View>
+                                    <Text style={[s.muted, { color: muted }]}>{tr('Saved as invoice-{orderNo}.pdf', { orderNo: o.orderNo })}</Text>
+                                </Card>
+                            ) : null}
+
+                            {delivered ? (
+                                <Card title={showForm ? (editing ? tr('Edit your review') : tr('Rate this order')) : tr('Your review')} icon="star-outline" delay={230}>
+                                    {showForm ? (
+                                        <>
+                                            <View style={s.stars}>{[1, 2, 3, 4, 5].map((k) => <StarBtn key={k} on={stars >= k} onPress={() => setStars(k)} />)}</View>
+                                            <Text style={[s.word, { color: stars ? '#F5A623' : muted }]}>{stars ? tr(WORDS[stars - 1]) : tr('Tap a star to rate')}</Text>
+                                            <TextInput
+                                                value={comment} onChangeText={setComment} multiline maxLength={300}
+                                                placeholder={tr('Tell us how it was (optional)')} placeholderTextColor={muted}
+                                                style={[s.review, { color: text, borderColor: border, backgroundColor: background, outlineStyle: 'none', outlineWidth: 0 }]}
+                                            />
+                                            <Text style={[s.count, { color: muted }]}>{comment.length}/300</Text>
+                                            <View style={{ flexDirection: 'row', gap: 10 }}>
+                                                {editing ? <DBtn kind="ghost" grow label={tr('Cancel')} disabled={saving} onPress={() => setEditing(false)} /> : null}
+                                                <DBtn grow label={editing ? tr('Update review') : tr('Submit review')} busy={saving} disabled={!stars} onPress={submit} />
+                                            </View>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <View style={s.stars}>
+                                                {[1, 2, 3, 4, 5].map((k) => <Ionicons key={k} name={saved.stars >= k ? 'star' : 'star-outline'} size={26} color={saved.stars >= k ? '#F5A623' : '#BBBBBB'} style={{ marginRight: 6 }} />)}
+                                            </View>
+                                            <Text style={[s.saved, { color: saved.comment ? text : muted }]}>{saved.comment || tr('No comment added')}</Text>
+                                            <View style={{ alignSelf: 'flex-start' }}><DBtn kind="ghost" icon="create-outline" label={tr('Edit review')} onPress={startEdit} /></View>
+                                        </>
+                                    )}
+                                </Card>
+                            ) : null}
+
+                            {delivered && pts?.enabled && pts.pending.items.some((x) => x.orderNo === o.orderNo) ? (
+                                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 14, padding: 14, borderRadius: 14, backgroundColor: tint(primary) }}>
+                                    <Ionicons name="gift" size={22} color={primary} />
+                                    <View style={{ flex: 1, marginLeft: 10 }}>
+                                        <Text style={{ color: text, fontWeight: '900' }}>{tr('{n} points on the way', { n: pts.pending.items.filter((x) => x.orderNo === o.orderNo).reduce((a, x) => a + x.points, 0) })}</Text>
+                                        <Text style={{ color: muted, fontSize: 12.5, marginTop: 2 }}>{tr('They reach you by {time}', { time: arriveText(pts.pending.items.find((x) => x.orderNo === o.orderNo).at) })}</Text>
+                                    </View>
+                                </View>
+                            ) : null}
+                            {delivered && delivery && track ? <DeliveryRatingCard orderId={id} tracking={track} onDone={get} /> : null}
+                            {delivered ? <ComplaintCard orderId={id} /> : null}
+                        </ScrollView>
+                    </View>
+                </View>
+            {o.canChangePickup ? <PickupTimeSheet visible={ptSheet} order={o} onClose={() => setPtSheet(false)} onDone={setO} /> : null}
+        </View>
+    );
+}
