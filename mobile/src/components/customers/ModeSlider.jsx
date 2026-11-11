@@ -1,10 +1,11 @@
 // Delivery / Pickup / Dine in on the Home header: the highlight slides to the chosen one (like the Appearance switch), and the choice is
 // handed on only after the slide has started, so the screen repaint never makes it stutter.
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, Pressable, Animated, Easing } from 'react-native';
+import { View, Text, Pressable, Animated, Easing, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { tr } from '../../i18n';
 
+const WEB = Platform.OS === 'web';
 const ICON = { delivery: 'bicycle-outline', pickup: 'basket-outline', dine_in: 'restaurant-outline' };
 const NAME = { delivery: 'Delivery', pickup: 'Pickup', dine_in: 'Dine in' };
 
@@ -15,17 +16,23 @@ export default function ModeSlider({ modes, value, onChange, trackBg, trackLine,
     const slide = useRef(new Animated.Value(idx)).current;
     useEffect(() => { setShown(value); }, [value]);
     useEffect(() => {
+        if (WEB) return;   // the website slides with CSS (above); the Animated value is only for the phone
         Animated.timing(slide, { toValue: Math.max(0, modes.indexOf(shown)), duration: 260, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
     }, [shown, modes, slide]);
     const segW = w ? (w - 6) / modes.length : 0;
     const choose = (m) => {
         if (m === shown) return;
         setShown(m);
-        setTimeout(() => onChange(m), 60);
+        // phone: 60 ms as before. Website: after the slide has finished (the page repaint is heavy and would freeze it half-way)
+        setTimeout(() => onChange(m), WEB ? 320 : 60);
     };
     return (
         <View onLayout={(e) => setW(e.nativeEvent.layout.width)} style={{ flexDirection: 'row', marginTop: 14, padding: 3, borderRadius: 14, backgroundColor: trackBg, borderWidth: 1, borderColor: trackLine }}>
-            {segW ? <Animated.View style={{ position: 'absolute', left: 3, top: 3, bottom: 3, width: segW, borderRadius: 11, backgroundColor: pillBg, transform: [{ translateX: Animated.multiply(slide, segW) }] }} /> : null}
+            {segW && WEB ? (
+                // the website: the browser slides the pill (a CSS transition on its own layer), so a busy page can never make it stutter
+                <View style={{ position: 'absolute', left: 3, top: 3, bottom: 3, width: segW, borderRadius: 11, backgroundColor: pillBg, transform: [{ translateX: idx * segW }], transitionProperty: 'transform', transitionDuration: '280ms', transitionTimingFunction: 'cubic-bezier(0.4, 0, 0.2, 1)' }} />
+            ) : null}
+            {segW && !WEB ? <Animated.View style={{ position: 'absolute', left: 3, top: 3, bottom: 3, width: segW, borderRadius: 11, backgroundColor: pillBg, transform: [{ translateX: Animated.multiply(slide, segW) }] }} /> : null}
             {modes.map((m) => {
                 const on = m === shown;
                 return (
