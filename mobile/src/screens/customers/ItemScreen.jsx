@@ -749,7 +749,8 @@ const HOVER_T = { transitionProperty: 'background-color, border-color, box-shado
 
 // the photos: one big picture (click = zoom), arrows on hover, a row of small pictures under it; it moves on by itself unless the mouse is on it
 function DeskGallery({ item }) {
-    const { soft, border, primary, surface } = useBrand();
+    const { soft, border, primary, surface, onPrimary } = useBrand();
+    const pct = item.mrp > item.price ? Math.round(100 - (item.price / item.mrp) * 100) : 0;
     const list = useMemo(() => [item.image, ...(Array.isArray(item.images) ? item.images : [])].filter(Boolean), [item.image, item.images]);
     const n = list.length;
     const [at, setAt] = useState(0);
@@ -762,7 +763,7 @@ function DeskGallery({ item }) {
         return () => clearInterval(t);
     }, [n, hover, at]);
     const off = item.isAvailable === false;   // sold out: every picture is grey
-    if (!n) return <Pic item={item} style={{ width: '100%', aspectRatio: 1.25, borderRadius: 22 }} />;
+    if (!n) return <Pic item={item} style={{ width: '100%', aspectRatio: 1.25, borderRadius: 28 }} />;
     const main = list[Math.min(at, n - 1)];
     const arrow = (side, to) => (
         <Pressable
@@ -778,10 +779,16 @@ function DeskGallery({ item }) {
     );
     return (
         <View>
-            <Pressable onHoverIn={() => setHover(true)} onHoverOut={() => setHover(false)} style={{ aspectRatio: 1.25, borderRadius: 22, overflow: 'hidden', backgroundColor: soft, isolation: 'isolate' }}>
+            <Pressable onHoverIn={() => setHover(true)} onHoverOut={() => setHover(false)} style={{ aspectRatio: 1.25, borderRadius: 28, overflow: 'hidden', backgroundColor: soft, isolation: 'isolate', boxShadow: `0 26px 60px ${primary}2E, 0 4px 14px rgba(0,0,0,0.10)` }}>
                 <ZoomPress uri={main} uris={list} style={{ width: '100%', height: '100%' }}>
                     <Image key={main} source={{ uri: main }} style={[{ width: '100%', height: '100%' }, off && GREY]} contentFit="cover" transition={350} cachePolicy="memory-disk" priority="high" />
                 </ZoomPress>
+                <View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 90, backgroundImage: 'linear-gradient(to top, rgba(0,0,0,0.28), rgba(0,0,0,0))' }} />
+                {pct ? (
+                    <View pointerEvents="none" style={{ position: 'absolute', top: 16, left: 16, paddingHorizontal: 14, paddingVertical: 7, borderRadius: 16, backgroundColor: primary, boxShadow: `0 6px 16px ${primary}66` }}>
+                        <Text style={{ color: onPrimary, fontSize: 13, fontWeight: '900', letterSpacing: 0.4 }}>{tr('{pct}% OFF', { pct })}</Text>
+                    </View>
+                ) : null}
                 {n > 1 ? (
                     <>
                         {arrow('left', (at - 1 + n) % n)}
@@ -798,7 +805,7 @@ function DeskGallery({ item }) {
                         <Pressable
                             key={`${i}-${u}`}
                             onPress={() => setAt(i)}
-                            style={({ hovered }) => ({ width: 74, height: 74, borderRadius: 14, overflow: 'hidden', borderWidth: 2, borderColor: i === at ? primary : hovered ? border : 'transparent', backgroundColor: surface, opacity: i === at || hovered ? 1 : 0.72, cursor: 'pointer', ...HOVER_T })}
+                            style={({ hovered }) => ({ width: 78, height: 78, borderRadius: 16, overflow: 'hidden', borderWidth: 2.5, borderColor: i === at ? primary : hovered ? border : 'transparent', backgroundColor: surface, opacity: i === at || hovered ? 1 : 0.72, cursor: 'pointer', ...HOVER_T })}
                         >
                             <Image source={{ uri: u }} style={[{ width: '100%', height: '100%' }, off && GREY]} contentFit="cover" cachePolicy="memory-disk" />
                         </Pressable>
@@ -810,7 +817,7 @@ function DeskGallery({ item }) {
 }
 
 // one group of choices (size, extras...): rows that warm up under the mouse
-function DeskGroup({ g, chosen, onPick, base = 0 }) {
+function DeskGroup({ g, chosen, onPick, base = 0, step }) {
     const { text, muted, surface, border, primary, error } = useBrand();
     const min = g.min ?? 0;
     const max = g.max ?? 1;
@@ -820,8 +827,9 @@ function DeskGroup({ g, chosen, onPick, base = 0 }) {
         ? (radio ? tr('Choose 1') : min === max ? tr('Choose {n}', { n: max }) : tr('Choose {a} to {b}', { a: min, b: max }))
         : (radio ? tr('Optional') : tr('Optional · Up to {n}', { n: max }));
     return (
-        <View style={{ marginTop: 18, borderWidth: 1, borderColor: border, borderRadius: 18, backgroundColor: surface, overflow: 'hidden' }}>
+        <View style={{ marginTop: 18, borderWidth: 1, borderColor: border, borderRadius: 20, backgroundColor: surface, overflow: 'hidden', boxShadow: '0 4px 16px rgba(0,0,0,0.05)' }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingTop: 16, paddingBottom: 10 }}>
+                {step ? <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: done ? '#1E8E3E' : tint(primary), alignItems: 'center', justifyContent: 'center', marginRight: 12, transitionProperty: 'background-color', transitionDuration: '200ms' }}>{done ? <Ionicons name="checkmark" size={16} color="#FFFFFF" /> : <Text style={{ color: primary, fontSize: 14, fontWeight: '900' }}>{step}</Text>}</View> : null}
                 <View style={{ flex: 1 }}>
                     <Text style={{ color: text, fontSize: 16, fontWeight: '900' }}>{tr(g.name)}</Text>
                     <Text style={{ color: muted, fontSize: 12.5, marginTop: 2, fontWeight: '600' }}>{hint}</Text>
@@ -843,7 +851,8 @@ function DeskGroup({ g, chosen, onPick, base = 0 }) {
                         disabled={off}
                         style={({ hovered }) => ({
                             flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 18, borderTopWidth: i === 0 ? 0 : 1, borderTopColor: border,
-                            backgroundColor: on ? tint(primary) : hovered && !off ? `${primary}10` : 'transparent', opacity: off ? 0.4 : 1, cursor: off ? 'default' : 'pointer', ...HOVER_T,
+                            backgroundColor: on ? tint(primary) : hovered && !off ? `${primary}10` : 'transparent', opacity: off ? 0.4 : 1, cursor: off ? 'default' : 'pointer',
+                            boxShadow: on ? `inset 4px 0 0 ${primary}` : hovered && !off ? `inset 0 0 0 1px ${primary}55` : 'inset 0 0 0 0 transparent', ...HOVER_T,
                         })}
                     >
                         <Mark on={on} radio={radio} />
@@ -857,7 +866,7 @@ function DeskGroup({ g, chosen, onPick, base = 0 }) {
 }
 
 // a row of dishes under the page ("You might also like", "Your favourites"): up to five in one row, all the same size
-function DeskStrip({ title, items, closedStyle }) {
+function DeskStrip({ title, items, closedStyle, icon }) {
     const { text, primary } = useBrand();
     const COLS = 5;
     const shown = items.slice(0, COLS);
@@ -865,8 +874,8 @@ function DeskStrip({ title, items, closedStyle }) {
     return (
         <View style={[{ marginTop: 44 }, closedStyle]}>
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 14 }}>
-                <View style={{ width: 4, height: 22, borderRadius: 2, backgroundColor: primary, marginRight: 12 }} />
-                <Text style={{ color: text, fontSize: 20, fontWeight: '900' }}>{title}</Text>
+                <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: tint(primary), alignItems: 'center', justifyContent: 'center', marginRight: 14 }}><Ionicons name={icon || 'sparkles'} size={20} color={primary} /></View>
+                <Text style={{ color: text, fontSize: 21, fontWeight: '900', letterSpacing: -0.3 }}>{title}</Text>
             </View>
             <View style={{ flexDirection: 'row', gap: 16 }}>
                 {Array.from({ length: COLS }).map((_, i) => <View key={i} style={{ flex: 1 }}>{shown[i] ? <ItemCard item={shown[i]} variant="desk" /> : null}</View>)}
@@ -931,7 +940,7 @@ function ItemDesktop({
 
                     <View style={{ flexDirection: 'row', gap: 44, alignItems: 'flex-start' }}>
                         {/* left: the photos */}
-                        <View style={{ flex: 1 }}><DeskGallery item={p} /></View>
+                        <View style={{ flex: 1, position: 'sticky', top: 20 }}><DeskGallery item={p} /></View>
 
                         {/* right: the dish and what to choose */}
                         <View style={{ flex: 1 }}>
@@ -953,10 +962,11 @@ function ItemDesktop({
                                     </View>
                                 ))}
                             </View>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10 }}>
-                                <Text style={{ color: text, fontSize: 32, fontWeight: '900' }}>₹{p.price}{unitTxt}</Text>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', marginTop: 16, paddingVertical: 14, paddingHorizontal: 20, borderRadius: 20, backgroundColor: tint(primary), borderWidth: 1, borderColor: `${primary}30` }}>
+                                <Text style={{ color: text, fontSize: 34, fontWeight: '900', letterSpacing: -0.5 }}>₹{p.price}{unitTxt}</Text>
                                 {off ? <Text style={[s.mrp, { color: muted, fontSize: 17, marginLeft: 12 }]}>₹{p.mrp}</Text> : null}
                                 {off ? <View style={[s.offBadge, { backgroundColor: okSoft, marginLeft: 12, paddingHorizontal: 9, paddingVertical: 4 }]}><Text style={[s.offTxt, { color: ok, fontSize: 12.5 }]}>{tr('{off}% OFF', { off })}</Text></View> : null}
+                                {off && p.mrp > p.price ? <Text style={{ flex: 1, textAlign: 'right', color: ok, fontSize: 14, fontWeight: '900' }}>{tr('You save ₹{n}', { n: +(p.mrp - p.price).toFixed(2) })}</Text> : null}
                             </View>
                             {p.fewLeft ? <Text style={{ color: '#C2410C', fontSize: 13, fontWeight: '800', marginTop: 8 }}>{tr('Few left. Order soon')}</Text> : null}
                             {p.description ? <Text style={{ color: muted, fontSize: 15.5, lineHeight: 24, marginTop: 16 }}>{tr(p.description)}</Text> : null}
@@ -1008,10 +1018,10 @@ function ItemDesktop({
                                 </View>
                             ) : null}
 
-                            {groups.map((g) => <DeskGroup key={g.id} g={g} base={p.price} chosen={sel[g.id] || []} onPick={pick} />)}
+                            {groups.map((g, gi) => <DeskGroup key={g.id} g={g} step={gi + 1} base={p.price} chosen={sel[g.id] || []} onPick={pick} />)}
 
                             {/* quantity and Add, right here */}
-                            <View style={{ marginTop: 24, padding: 18, borderRadius: 18, borderWidth: 1, borderColor: border, backgroundColor: surface }}>
+                            <View style={{ marginTop: 24, padding: 18, borderRadius: 22, borderWidth: 1, borderColor: border, backgroundColor: surface, position: 'sticky', bottom: 16, zIndex: 5, boxShadow: `0 -4px 30px rgba(0,0,0,0.10), 0 14px 36px ${primary}22` }}>
                                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                                     {measured ? (
                                         <View style={{ height: 54, paddingHorizontal: 18, borderRadius: radius, borderWidth: 1, borderColor: primary, backgroundColor: tint(primary), alignItems: 'center', justifyContent: 'center' }}>
@@ -1059,8 +1069,8 @@ function ItemDesktop({
                         </View>
                     </View>
 
-                    <DeskStrip title={tr('You might also like')} items={related} closedStyle={closedStyle} />
-                    <DeskStrip title={tr('Your favourites')} items={favShown} closedStyle={closedStyle} />
+                    <DeskStrip icon="thumbs-up" title={tr('You might also like')} items={related} closedStyle={closedStyle} />
+                    <DeskStrip icon="heart" title={tr('Your favourites')} items={favShown} closedStyle={closedStyle} />
                 </View>
             </ScrollView>
         </View>
