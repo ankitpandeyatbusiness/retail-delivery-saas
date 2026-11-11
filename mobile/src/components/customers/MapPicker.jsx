@@ -11,6 +11,7 @@ import { useBrand } from '../common/kit';
 import { showToast } from './shop';
 import { useHomeStore } from '../../store/customers/useHomeStore';
 import { useAuthStore } from '../../store/common/useAuthStore';
+import { useIsDesktopWeb } from '../../utils/common/layout';
 import { suggestPlaces, placeById } from '../../api/customers/geoApi';
 import { fetchAddresses } from '../../api/customers/shopApi';
 import { readCache, writeCache } from '../../utils/common/cache';
@@ -31,9 +32,10 @@ const kmText = (k) => (k == null ? '' : k < 1 ? `${Math.max(50, Math.round(k * 1
 // One suggestion: what it is, where, how far, and whether this shop delivers there
 function PlaceRow({ c, onPress }) {
     const { primary, text, muted, border, error } = useBrand();
+    const desk = useIsDesktopWeb();
     const icon = c.kind === 'saved' ? 'home-outline' : c.kind === 'recent' ? 'time-outline' : 'location-outline';
     return (
-        <Pressable onPress={onPress} style={[s.row, { borderBottomColor: border }]}>
+        <Pressable onPress={onPress} style={({ hovered }) => [s.row, { borderBottomColor: border }, desk && { borderRadius: 12, borderBottomWidth: 0, cursor: 'pointer', transitionProperty: 'background-color', transitionDuration: '150ms' }, desk && hovered && { backgroundColor: `${primary}1A` }]}>
             <Ionicons name={icon} size={20} color={primary} style={{ marginTop: 2 }} />
             <View style={{ flex: 1, marginLeft: 12 }}>
                 <Text style={[s.rowTitle, { color: text }]} numberOfLines={1}>{c.title}</Text>
@@ -51,7 +53,8 @@ function PlaceRow({ c, onPress }) {
 // forShop: the SHOP OWNER is pinning his own shop (shop settings): no saved customer addresses, and no "delivers here" badges
 export default function MapPicker({ visible, initial, onClose, onPick, startAtShop, forShop }) {
     const insets = useSafeAreaInsets();
-    const { primary, onPrimary, text, muted, surface, border, radius } = useBrand();
+    const { primary, onPrimary, text, muted, surface, border, radius, background } = useBrand();
+    const desk = useIsDesktopWeb();   // a browser at least 1024 px wide: a centred card with the search on the left and a big map (false in the phone app)
     const delivery = useHomeStore((st) => st.delivery);
     const map = useRef(null);
 
@@ -68,7 +71,7 @@ export default function MapPicker({ visible, initial, onClose, onPick, startAtSh
     const [shown, setShown] = useState(false);   // Modal fully shown (mount MapView only after this)
     const [q, setQ] = useState('');
     const [searching, setSearching] = useState(false);
-    const { height: winH } = useWindowDimensions();
+    const { width: winW, height: winH } = useWindowDimensions();
     const user = useAuthStore((st) => st.user);
     const [focused, setFocused] = useState(false);
     const [results, setResults] = useState(null);      // null = nothing asked yet, [] = nothing found
@@ -291,6 +294,112 @@ export default function MapPicker({ visible, initial, onClose, onPick, startAtSh
 
     const canConfirm = !resolving;
 
+    // ---------------- the desktop website: a centred card, search + the chosen place on the left, the map on the right ----------------
+    if (desk) {
+        const cardW = Math.min(1080, winW - 64);
+        const cardH = Math.min(680, winH - 64);
+        const hasList = (term.length >= 2) || savedRows.length > 0 || recentRows.length > 0;
+        return (
+            <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} onShow={() => setShown(true)} onDismiss={() => setShown(false)}>
+                <View style={s.dBackdrop}>
+                    <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+                    <View style={[s.dCard, { width: cardW, height: cardH, backgroundColor: surface, borderColor: border }]}>
+                        {/* left: search, suggestions, the chosen place */}
+                        <View style={[s.dLeft, { borderRightColor: border }]}>
+                            <View style={s.dHead}>
+                                <Text style={[s.dTitle, { color: text }]}>{tr('Pin your location')}</Text>
+                                <Text style={[s.dSub, { color: muted }]}>{tr('Search, or move the map to place the pin')}</Text>
+                            </View>
+                            <View style={[s.dSearch, { backgroundColor: background, borderColor: focused ? primary : border }]}>
+                                <Ionicons name="search" size={18} color={primary} />
+                                <TextInput
+                                    value={q} onChangeText={setQ} onSubmitEditing={search}
+                                    onFocus={() => { setFocused(true); if (!me) findMe(true); }} onBlur={() => setFocused(false)}
+                                    placeholder={tr('Search area, landmark or street')} placeholderTextColor={muted}
+                                    returnKeyType="search" style={[s.dInput, { color: text, outlineStyle: 'none', outlineWidth: 0 }]}
+                                />
+                                {searching ? <ActivityIndicator size="small" color={primary} /> : q ? (
+                                    <Pressable onPress={() => setQ('')} hitSlop={10} style={{ cursor: 'pointer' }}>
+                                        <Ionicons name="close-circle" size={18} color={muted} />
+                                    </Pressable>
+                                ) : null}
+                            </View>
+                            <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="always" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 14, paddingBottom: 10 }}>
+                                {term.length >= 2 ? (
+                                    <>
+                                        {suggesting && !(results && results.length) ? <View style={s.rowPad}><LineShimmer width={240} height={16} /></View> : null}
+                                        {results && !results.length && !suggesting ? <Text style={[s.empty, { color: muted }]}>{tr('No match. Try the area or city name too.')}</Text> : null}
+                                        {(results || []).map((c, i) => <PlaceRow key={`${c.placeId || c.title}-${i}`} c={{ ...c, kind: 'place' }} onPress={() => choose(c)} />)}
+                                    </>
+                                ) : hasList ? (
+                                    <>
+                                        {savedRows.length ? <Text style={[s.sec, { color: muted }]}>{tr('YOUR SAVED ADDRESSES')}</Text> : null}
+                                        {savedRows.map((c) => <PlaceRow key={c.key} c={c} onPress={() => go(c, { save: false })} />)}
+                                        {recentRows.length ? <Text style={[s.sec, { color: muted }]}>{tr('RECENT SEARCHES')}</Text> : null}
+                                        {recentRows.map((c) => <PlaceRow key={c.key} c={c} onPress={() => go(c, { save: false })} />)}
+                                    </>
+                                ) : (
+                                    <View style={{ alignItems: 'center', paddingTop: 36, paddingHorizontal: 18 }}>
+                                        <Ionicons name="map-outline" size={34} color={muted} />
+                                        <Text style={[s.empty, { color: muted }]}>{tr('Type an area, landmark or street, or drag the map to put the pin on your door.')}</Text>
+                                    </View>
+                                )}
+                            </ScrollView>
+                            <View style={[s.dFoot, { borderTopColor: border }]}>
+                                <Text style={[s.dCap, { color: muted }]}>{tr('SELECTED LOCATION')}</Text>
+                                <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginTop: 8, marginBottom: 16, minHeight: 40 }}>
+                                    <Ionicons name="location-sharp" size={20} color={primary} style={{ marginTop: 1 }} />
+                                    <View style={{ flex: 1, marginLeft: 10 }}>
+                                        {resolving ? <View style={{ marginTop: 4 }}><LineShimmer width={220} height={16} /></View> : <Text style={[s.dAddr, { color: text }]} numberOfLines={3}>{label || tr('Pinned location')}</Text>}
+                                    </View>
+                                </View>
+                                <Pressable
+                                    onPress={confirm}
+                                    disabled={!canConfirm}
+                                    style={({ hovered }) => [s.btn, { backgroundColor: primary, borderRadius: radius, opacity: canConfirm ? 1 : 0.5, cursor: canConfirm ? 'pointer' : 'default', transitionProperty: 'filter, box-shadow', transitionDuration: '180ms' }, hovered && canConfirm && { filter: 'brightness(1.12)', boxShadow: `0 10px 28px ${primary}55` }]}
+                                >
+                                    <Text numberOfLines={1} style={[s.btnTxt, { color: onPrimary }]}>{tr('Confirm location')}</Text>
+                                </Pressable>
+                            </View>
+                        </View>
+
+                        {/* right: the map */}
+                        <View style={{ flex: 1 }}>
+                            {shown ? (
+                                <MapView
+                                    ref={map}
+                                    style={StyleSheet.absoluteFill}
+                                    initialRegion={{ ...start, latitudeDelta: 0.01, longitudeDelta: 0.01 }}
+                                    onMapReady={() => setReady(true)}
+                                    onRegionChangeComplete={(r) => setCenter({ latitude: r.latitude, longitude: r.longitude })}
+                                    showsUserLocation={granted} showsMyLocationButton={false} toolbarEnabled={false}
+                                    loadingEnabled loadingIndicatorColor={primary} loadingBackgroundColor={surface}
+                                />
+                            ) : (
+                                <View style={[StyleSheet.absoluteFill, s.loading]}><LineShimmer width={260} height={260} /></View>
+                            )}
+                            <View pointerEvents="none" style={s.pinWrap}>
+                                <Ionicons name="location-sharp" size={44} color={primary} />
+                            </View>
+                            <View pointerEvents="none" style={s.dHint}>
+                                <View style={[s.dHintPill, { backgroundColor: surface, borderColor: border }]}>
+                                    <Ionicons name="move-outline" size={14} color={primary} />
+                                    <Text style={[s.dHintTxt, { color: text }]}>{tr('Move the map to place the pin')}</Text>
+                                </View>
+                            </View>
+                            <Pressable onPress={onClose} accessibilityLabel={tr('Close')} style={({ hovered }) => [s.dClose, { backgroundColor: surface, borderColor: border, cursor: 'pointer', transitionProperty: 'background-color', transitionDuration: '150ms' }, hovered && { backgroundColor: border }]}>
+                                <Ionicons name="close" size={20} color={text} />
+                            </Pressable>
+                            <Pressable onPress={locate} disabled={locating} accessibilityLabel={tr('Use my current location')} style={({ hovered }) => [s.dGps, { backgroundColor: surface, borderColor: border, cursor: 'pointer', transitionProperty: 'background-color, transform', transitionDuration: '150ms' }, hovered && { backgroundColor: border, transform: [{ scale: 1.06 }] }]}>
+                                {locating ? <Skel width={24} height={24} radius={12} /> : <Ionicons name="locate" size={24} color={primary} />}
+                            </Pressable>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+        );
+    }
+
     return (
         <Modal
             visible={visible}
@@ -391,6 +500,23 @@ export default function MapPicker({ visible, initial, onClose, onPick, startAtSh
 }
 
 const s = StyleSheet.create({
+    // the desktop card
+    dBackdrop: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)' },
+    dCard: { flexDirection: 'row', borderRadius: 24, borderWidth: 1, overflow: 'hidden', boxShadow: '0 30px 80px rgba(0,0,0,0.6)' },
+    dLeft: { width: 400, borderRightWidth: 1 },
+    dHead: { paddingHorizontal: 24, paddingTop: 24, paddingBottom: 16 },
+    dTitle: { fontSize: 22, fontWeight: '900', letterSpacing: -0.3 },
+    dSub: { fontSize: 13, marginTop: 4 },
+    dSearch: { marginHorizontal: 24, height: 46, borderRadius: 14, borderWidth: 1.5, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, marginBottom: 6 },
+    dInput: { flex: 1, minWidth: 0, height: '100%', marginLeft: 10, fontSize: 14, paddingVertical: 0 },
+    dFoot: { paddingHorizontal: 24, paddingTop: 18, paddingBottom: 22, borderTopWidth: 1 },
+    dCap: { fontSize: 10.5, fontWeight: '800', letterSpacing: 1 },
+    dAddr: { fontSize: 14.5, fontWeight: '700', lineHeight: 20 },
+    dClose: { position: 'absolute', top: 16, right: 16, width: 42, height: 42, borderRadius: 21, borderWidth: 1, alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 14px rgba(0,0,0,0.3)' },
+    dGps: { position: 'absolute', right: 16, bottom: 20, width: 48, height: 48, borderRadius: 24, borderWidth: 1, alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 14px rgba(0,0,0,0.3)' },
+    dHint: { position: 'absolute', top: 18, left: 0, right: 0, alignItems: 'center' },
+    dHintPill: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1, boxShadow: '0 4px 14px rgba(0,0,0,0.25)' },
+    dHintTxt: { fontSize: 12.5, fontWeight: '700', marginLeft: 7 },
     // same left / right edges as the search box (the back button is 64px in), so it hangs straight below it
     panel: { position: 'absolute', left: 64, right: 14, borderRadius: 16, borderWidth: StyleSheet.hairlineWidth, elevation: 8, overflow: 'hidden', zIndex: 5 },
     sec: { fontSize: 10.5, fontWeight: '800', letterSpacing: 0.8, paddingHorizontal: 14, paddingTop: 12, paddingBottom: 4 },
