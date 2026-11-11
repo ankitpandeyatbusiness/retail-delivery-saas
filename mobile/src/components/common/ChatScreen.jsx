@@ -2,11 +2,12 @@
 // (sent / delivered / read), "typing...", day headings, and a notice when the chat has closed. One screen for the customer and the owner.
 // Route 'Chat', params { kind: 'bulk' | 'inquiry' | 'booking', refId, title? }.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, FlatList, Pressable, TextInput, PanResponder } from 'react-native';
+import { View, Text, FlatList, Pressable, TextInput, PanResponder, Platform } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
-import { useRoute } from '@react-navigation/native';
+import { useRoute, useNavigation } from '@react-navigation/native';
+import { useIsDesktopWeb } from '../../utils/common/layout';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { createAudioPlayer, setAudioModeAsync, requestRecordingPermissionsAsync, useAudioRecorder, RecordingPresets } from 'expo-audio';
 import { useBrand, alpha } from './kit';
@@ -31,6 +32,7 @@ import ChatBackdrop from './ChatBackdrop';
 import ChatShimmer from './ChatShimmer';
 import TypingBubble from './TypingBubble';
 
+const WEB = Platform.OS === 'web';
 const MAX_VOICE = 120;
 const DELETE_ALL_MS = 2 * 24 * 3600 * 1000;   // "delete for everyone": only your own message, for 2 days after you sent it (the server enforces it too)
 const newId = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
@@ -133,6 +135,7 @@ function VoiceBubble({ voice, ink, track, onLongPress }) {
 
 function Bubble({ m, colors, onPicture, onRetry, onActions }) {
     const { text, primary, onPrimary, surface, border, muted } = useBrand();
+    const desk = useIsDesktopWeb();   // the desktop website: narrower bubbles with a soft shadow (false in the phone app)
     const mine = m.mine;
     const bg = mine ? primary : surface;
     const ink = mine ? onPrimary : text;
@@ -151,7 +154,7 @@ function Bubble({ m, colors, onPicture, onRetry, onActions }) {
         );
     }
     return (
-        <View style={{ alignSelf: mine ? 'flex-end' : 'flex-start', maxWidth: '82%', marginBottom: 6 }}>
+        <View style={[{ alignSelf: mine ? 'flex-end' : 'flex-start', maxWidth: desk ? '66%' : '82%', marginBottom: desk ? 8 : 6 }, desk && { filter: 'drop-shadow(0 1px 1.5px rgba(0,0,0,0.22))' }]}>
             <Pressable onPress={m.status === 'failed' ? onRetry : undefined} onLongPress={canAct ? () => onActions(m) : undefined} delayLongPress={350} style={{ backgroundColor: bg, borderWidth: mine ? 0 : 1, borderColor: border, borderRadius: 16, borderTopRightRadius: mine ? 4 : 16, borderTopLeftRadius: mine ? 16 : 4, paddingHorizontal: 11, paddingVertical: 8 }}>
                 {(m.images || []).length ? (
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: m.text ? 6 : 0 }}>
@@ -163,7 +166,7 @@ function Bubble({ m, colors, onPicture, onRetry, onActions }) {
                     </View>
                 ) : null}
                 {m.voice ? <VoiceBubble voice={m.voice} ink={ink} track={mine ? colors.read : primary} onLongPress={() => onActions(m)} /> : null}
-                {m.text ? <Text style={{ color: ink, fontSize: 15, lineHeight: 20 }}>{m.text}</Text> : null}
+                {m.text ? <Text style={{ color: ink, fontSize: desk ? 15.5 : 15, lineHeight: desk ? 22 : 20 }}>{m.text}</Text> : null}
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', marginTop: 3 }}>
                     <Text style={{ color: ink, opacity: 0.7, fontSize: 10.5, marginRight: mine ? 4 : 0 }}>{clock(m.at)}</Text>
                     {mine ? <Ticks status={m.status} colors={colors} /> : null}
@@ -176,6 +179,8 @@ function Bubble({ m, colors, onPicture, onRetry, onActions }) {
 
 export default function ChatScreen() {
     const { kind, refId, title: given } = useRoute().params || {};
+    const nav = useNavigation();
+    const desk = useIsDesktopWeb();   // the desktop website: the chat is a rounded panel with its own header, like WhatsApp Web (false in the phone app)
     const role = useAuthStore((s) => s.user?.role);
     const insets = useSafeAreaInsets();
     const { background, text, muted, primary, onPrimary, surface, border, error } = useBrand();
@@ -195,6 +200,7 @@ export default function ChatScreen() {
     const typingTimer = useRef(null);
     const lastTyping = useRef(0);
     const recTimer = useRef(null);
+    const recStart = useRef(0);   // when the recording began (the website counts the seconds itself)
     const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
     const key = `${kind}:${refId}`;
 
@@ -355,12 +361,13 @@ export default function ChatScreen() {
             await recorder.prepareToRecordAsync();
             recorder.record();
             setSecs(0); setRecording(true);
+            recStart.current = Date.now();
             recTimer.current = setInterval(() => {
-                const s = Math.floor(recorder.currentTime || 0);
+                const s = WEB ? Math.floor((Date.now() - recStart.current) / 1000) : Math.floor(recorder.currentTime || 0);
                 setSecs(s);
                 if (s >= MAX_VOICE) finishRecording(true);
             }, 300);
-        } catch (e) { showToast(tr('Could not start recording')); setRecording(false); }
+        } catch (e) { console.warn('[chat record]', e?.message); showToast(tr('Could not start recording') + (WEB && e?.message ? ` (${e.message})` : '')); setRecording(false); }
     };
     const finishRecording = async (send) => {
         clearInterval(recTimer.current);
@@ -368,7 +375,7 @@ export default function ChatScreen() {
         try {
             await recorder.stop();
             const uri = recorder.uri;
-            const sec = Math.max(1, Math.round(recorder.currentTime || secs));
+            const sec = Math.max(1, WEB ? Math.round((Date.now() - recStart.current) / 1000) : Math.round(recorder.currentTime || secs));
             await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true }).catch(() => { });
             if (!send || !uri || sec < 1) return;
             setBusy(true);
@@ -378,7 +385,7 @@ export default function ChatScreen() {
             let url;
             try { url = await uploadChatVoice({ role, uri }); } catch (e) { setItems((all) => (all || []).filter((x) => x.id !== local.id)); throw e; }
             await deliver({ voice: { url, sec } }, { ...local, voice: { url, sec } });
-        } catch (e) { showToast(e?.safe ? e.message : tr('Could not send the voice note')); } finally { setBusy(false); }
+        } catch (e) { console.warn('[chat voice]', e?.message); showToast(e?.safe ? e.message : tr('Could not send the voice note')); } finally { setBusy(false); }
     };
 
     // newest at the bottom: the list is upside down, so the data goes newest first, with a heading before each day's oldest message
@@ -397,16 +404,41 @@ export default function ChatScreen() {
 
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
+            {desk ? null : (
+                <>
             <PageHeader title={meta.title || tr('Chat')} right={canManage ? <Pressable onPress={() => setMenu(true)} hitSlop={12} accessibilityRole="button" accessibilityLabel={tr('More')}><Ionicons name="ellipsis-vertical" size={22} color={text} /></Pressable> : null} />
             <View style={{ paddingHorizontal: 16, paddingBottom: 6 }}>
                 {typing ? <Text style={{ color: primary, fontWeight: '800', fontSize: 12.5 }}>{tr('typing…')}</Text>
                     : daysLeft !== null && daysLeft <= 2 ? <Text style={{ color: muted, fontSize: 12 }}>{tr('This chat closes in {n} day(s)', { n: Math.max(1, daysLeft) })}</Text> : null}
             </View>
-            <Animated.View style={[{ flex: 1 }, lift]}>
+                </>
+            )}
+            <Animated.View style={[{ flex: 1 }, desk && { margin: 20, marginTop: 24, borderRadius: 26, overflow: 'hidden', borderWidth: 1, borderColor: border, boxShadow: '0 20px 56px rgba(0,0,0,0.28)' }, lift]}>
+                {desk ? (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 13, backgroundColor: surface, borderBottomWidth: 1, borderBottomColor: border }}>
+                        <Pressable onPress={() => (nav.canGoBack() ? nav.goBack() : nav.navigate('MainTabs'))} accessibilityRole="button" accessibilityLabel={tr('Back')} style={({ hovered }) => ({ width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', marginRight: 10, backgroundColor: hovered ? border : 'transparent', cursor: 'pointer', transitionProperty: 'background-color', transitionDuration: '150ms' })}>
+                            <Ionicons name="arrow-back" size={22} color={text} />
+                        </Pressable>
+                        <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: primary, alignItems: 'center', justifyContent: 'center', marginRight: 14 }}>
+                            <Text style={{ color: onPrimary, fontSize: 19, fontWeight: '900' }}>{String(meta.title || 'C').trim().slice(0, 1).toUpperCase()}</Text>
+                        </View>
+                        <View style={{ flex: 1, minWidth: 0 }}>
+                            <Text numberOfLines={1} style={{ color: text, fontSize: 17, fontWeight: '800' }}>{meta.title || tr('Chat')}</Text>
+                            <Text numberOfLines={1} style={{ color: typing ? primary : muted, fontSize: 12.5, fontWeight: typing ? '800' : '500', marginTop: 1 }}>
+                                {typing ? tr('typing…') : daysLeft !== null && daysLeft <= 2 ? tr('This chat closes in {n} day(s)', { n: Math.max(1, daysLeft) }) : meta.closed ? tr('This chat is closed.') : ''}
+                            </Text>
+                        </View>
+                        {canManage ? (
+                            <Pressable onPress={() => setMenu(true)} accessibilityRole="button" accessibilityLabel={tr('More')} style={({ hovered }) => ({ width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: hovered ? border : 'transparent', cursor: 'pointer', transitionProperty: 'background-color', transitionDuration: '150ms' })}>
+                                <Ionicons name="ellipsis-vertical" size={20} color={text} />
+                            </Pressable>
+                        ) : null}
+                    </View>
+                ) : null}
                 <ChatBackdrop>
                 {items === null ? <ChatShimmer /> : (
                     <FlatList
-                        inverted ListHeaderComponent={typing ? <TypingBubble /> : null} data={rows} keyExtractor={(r) => r.clientId || r.id} contentContainerStyle={{ paddingHorizontal: 12, paddingVertical: 8 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}
+                        inverted ListHeaderComponent={typing ? <TypingBubble /> : null} data={rows} keyExtractor={(r) => r.clientId || r.id} contentContainerStyle={{ paddingHorizontal: desk ? 32 : 12, paddingVertical: desk ? 14 : 8 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}
                         ListEmptyComponent={<View style={{ alignItems: 'center', marginTop: 40 }}>{/* no flip here: an inverted list already turns its empty state the right way up */}<Ionicons name="chatbubbles-outline" size={42} color={muted} /><Text style={{ color: muted, marginTop: 8, textAlign: 'center' }}>{err || tr('No messages yet. Say hello!')}</Text></View>}
                         renderItem={({ item }) => item.day
                             ? <View style={{ alignSelf: 'center', marginVertical: 8, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12, backgroundColor: alpha(muted, 0.16) }}><Text style={{ color: muted, fontWeight: '800', fontSize: 11.5 }}>{dayLabel(item.day)}</Text></View>
@@ -426,16 +458,17 @@ export default function ChatScreen() {
                         <Pressable onPress={() => finishRecording(true)} hitSlop={8} style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: primary, alignItems: 'center', justifyContent: 'center' }}><Ionicons name="send" size={20} color={onPrimary} /></Pressable>
                     </View>
                 ) : (
-                    <View style={{ flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: 8, paddingTop: 8, paddingBottom: Math.max(insets.bottom, 8), borderTopWidth: 1, borderTopColor: border, backgroundColor: surface }}>
-                        <Pressable onPress={() => setAttach(true)} hitSlop={6} disabled={busy} style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center', opacity: busy ? 0.4 : 1 }}><Ionicons name="attach" size={26} color={muted} /></Pressable>
+                    <View style={{ flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: desk ? 14 : 8, paddingTop: desk ? 12 : 8, paddingBottom: desk ? 12 : Math.max(insets.bottom, 8), borderTopWidth: 1, borderTopColor: border, backgroundColor: surface }}>
+                        <Pressable onPress={() => setAttach(true)} hitSlop={6} disabled={busy} style={{ width: desk ? 48 : 44, height: desk ? 48 : 44, alignItems: 'center', justifyContent: 'center', opacity: busy ? 0.4 : 1, ...(desk ? { cursor: 'pointer' } : null) }}><Ionicons name="attach" size={26} color={muted} /></Pressable>
                         <TextInput
                             value={input} onChangeText={onType} placeholder={tr('Type a message')} placeholderTextColor={muted} multiline maxLength={1000}
-                            style={{ flex: 1, maxHeight: 120, minHeight: 44, color: text, fontSize: 15.5, borderWidth: 1, borderColor: border, borderRadius: 22, paddingHorizontal: 14, paddingTop: 10, paddingBottom: 10, backgroundColor: background }}
+                            onKeyPress={desk ? (e) => { const k = e.nativeEvent; if (k.key === 'Enter' && !k.shiftKey) { e.preventDefault?.(); sendText(); } } : undefined}
+                            style={[{ flex: 1, maxHeight: 120, minHeight: 44, color: text, fontSize: 15.5, borderWidth: 1, borderColor: border, borderRadius: 22, paddingHorizontal: 14, paddingTop: 10, paddingBottom: 10, backgroundColor: background }, desk && { minHeight: 48, borderRadius: 24, paddingHorizontal: 20, paddingTop: 13, paddingBottom: 13, fontSize: 16, lineHeight: 22, textAlignVertical: 'center', outlineStyle: 'none', outlineWidth: 0 }]}
                         />
                         {input.trim() ? (
-                            <Pressable onPress={sendText} hitSlop={6} style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: primary, alignItems: 'center', justifyContent: 'center', marginLeft: 6 }}><Ionicons name="send" size={20} color={onPrimary} /></Pressable>
+                            <Pressable onPress={sendText} hitSlop={6} style={{ width: desk ? 48 : 46, height: desk ? 48 : 46, borderRadius: desk ? 24 : 23, backgroundColor: primary, alignItems: 'center', justifyContent: 'center', marginLeft: desk ? 8 : 6, ...(desk ? { cursor: 'pointer' } : null) }}><Ionicons name="send" size={20} color={onPrimary} /></Pressable>
                         ) : (
-                            <Pressable onPress={startRecording} hitSlop={6} disabled={busy} style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: primary, alignItems: 'center', justifyContent: 'center', marginLeft: 6, opacity: busy ? 0.5 : 1 }}><Ionicons name="mic" size={22} color={onPrimary} /></Pressable>
+                            <Pressable onPress={startRecording} hitSlop={6} disabled={busy} style={{ width: desk ? 48 : 46, height: desk ? 48 : 46, borderRadius: desk ? 24 : 23, backgroundColor: primary, alignItems: 'center', justifyContent: 'center', marginLeft: desk ? 8 : 6, ...(desk ? { cursor: 'pointer' } : null), opacity: busy ? 0.5 : 1 }}><Ionicons name="mic" size={22} color={onPrimary} /></Pressable>
                         )}
                     </View>
                 )}
