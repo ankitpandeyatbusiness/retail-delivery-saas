@@ -31,6 +31,10 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
   if (platform === 'web' && WEB_ALIASES[moduleName]) {
     return { type: 'sourceFile', filePath: WEB_ALIASES[moduleName] };
   }
+  // pull down to refresh in the browser: react-native-web's RefreshControl does nothing, so its own import of it is swapped for one that works (src/web/shims/refreshControl.js)
+  if (platform === 'web' && /exports[\/]RefreshControl$/.test(moduleName) && /react-native-web/.test(String(context.originModulePath || ''))) {
+    return { type: 'sourceFile', filePath: shim('refreshControl.js') };
+  }
   if (platform === 'web' && WEB_SRC_ALIASES[moduleName] && String(context.originModulePath || '').startsWith(SRC)) {
     return { type: 'sourceFile', filePath: WEB_SRC_ALIASES[moduleName] };
   }
