@@ -61,6 +61,15 @@ const platformSchema = new mongoose.Schema({
         paymentInstructions: { type: String, trim: true, maxlength: 500 }, // e.g. UPI id or bank details, printed on pending invoices
     },
 
+    // The private demo login (services/demoMode.js): one phone + OTP that opens ANY shop as a brand-new person. No SMS is ever sent.
+    demo: {
+        enabled: { type: Boolean, default: false },
+        phone: { type: String, trim: true },
+        otpHash: { type: String, select: false },   // keyed hash of the OTP, never the OTP itself
+        setAt: Date,
+        lastLoginAt: Date,
+        logins: { type: Number, default: 0 },
+    },
     smsProvider: { type: mongoose.Schema.Types.Mixed },   // your balance at the SMS provider, its lines and the estimate (services/smsProviderBalance.js)
     smsSetup: { type: mongoose.Schema.Types.Mixed },   // sender, entity, encrypted auth key and template IDs set from the app (services/smsPlatformSetup.js)
     dailyDigest: { type: mongoose.Schema.Types.Mixed },   // { day } the India date the morning summary was last sent

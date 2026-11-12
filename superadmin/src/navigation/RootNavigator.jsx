@@ -20,6 +20,7 @@ import OwnerMessagesScreen from '../screens/platform/OwnerMessagesScreen';
 import LegalPagesScreen from '../screens/legalPages/LegalPagesScreen';
 import LegalPageEditScreen from '../screens/legalPages/LegalPageEditScreen';
 import MaintenanceScreen from '../screens/platform/MaintenanceScreen';
+import DemoLoginScreen from '../screens/platform/DemoLoginScreen';
 import LiveTrackingScreen from '../screens/platform/LiveTrackingScreen';
 import AlertSettingsScreen from '../screens/platform/AlertSettingsScreen';
 import NotificationRulesScreen from '../screens/platform/NotificationRulesScreen';
@@ -235,6 +236,7 @@ const DETAIL = [
     ['Team', TeamScreen],
     ['AppLock', AppLockScreen],
     ['Maintenance', MaintenanceScreen],
+    ['DemoLogin', DemoLoginScreen],
     ['InsightsSettings', InsightsSettingsScreen],
     ['ServicesOverview', ServicesOverviewScreen],
     ['ServicesShop', ServicesShopScreen],

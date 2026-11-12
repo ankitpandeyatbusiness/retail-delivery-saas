@@ -35,3 +35,9 @@ export const saveTracking = (body) => data(api.put('/admin/platform/tracking', b
 /* ---- alert devices (push) ---- */
 export const registerDevice = (body) => data(api.post('/admin/devices', body));                    // { token, platform }
 export const removeDevice = (token) => data(api.post('/admin/devices/remove', { token }));
+
+/* ---- the private demo login (supreme admin) ---- */
+export const fetchDemo = () => data(api.get('/admin/demo'));
+export const saveDemo = (body) => data(api.put('/admin/demo', body));                             // { phone, otp, enabled? }
+export const switchDemo = (enabled) => data(api.put('/admin/demo/enabled', { enabled }));
+export const removeDemo = () => data(api.delete('/admin/demo'));

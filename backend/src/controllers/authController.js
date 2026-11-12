@@ -9,6 +9,7 @@ const sms = require('../services/adapters/sms');
 const wallet = require('../services/smsWalletService');
 const { hashPhone } = require('../utils/phoneHash');
 const liveFeed = require('../services/liveFeed');
+const demoMode = require('../services/demoMode');
 const { describeClient } = require('../services/clientInfo');
 
 /* ------------------------------- config ------------------------------- */
@@ -136,7 +137,7 @@ const findOrCreateUser = async (tenantId, phone) => {
     }
 };
 
-const issueSession = async (user, tenant, req, ip, { viewOnly, homeTenantId } = {}) => {
+const issueSession = async (user, tenant, req, ip, { viewOnly, homeTenantId, demo } = {}) => {
     const sessionId = new mongoose.Types.ObjectId();
     const client = describeClient(req, ip);   // web or app, device name, city (never the IP itself)
     const { accessToken, refreshToken } = tokenService.generateTokens({
@@ -150,7 +151,7 @@ const issueSession = async (user, tenant, req, ip, { viewOnly, homeTenantId } = 
         userId: user._id,
         tenantId: tenant._id,
         refreshTokenHash: tokenService.hashToken(refreshToken),
-        ...(viewOnly ? { viewOnly: true } : {}), ...(homeTenantId ? { homeTenantId } : {}),
+        ...(viewOnly ? { viewOnly: true } : {}), ...(demo ? { demo: true } : {}), ...(homeTenantId ? { homeTenantId } : {}),
         deviceId: String(req.headers['x-device-id'] || 'unknown').substring(0, 64),
         userAgent: String(req.headers['user-agent'] || '').substring(0, 200),
         ipHash: sha256(ip),
@@ -244,6 +245,12 @@ exports.sendOtp = async (req, res) => {
     const deviceId = String(req.headers['x-device-id'] || 'unknown').substring(0, 64);
     const phoneKey = `${tenant._id}-${phone}`;
     const tenantKey = String(tenant._id);
+
+    // the private demo number: no SMS, no wallet charge, nothing stored (the OTP is the one the supreme admin set; services/demoMode.js)
+    if (await demoMode.isDemoPhone(phone)) {
+        try { await limiters.ipHr.consume(ip); } catch (rej) { return handleRateLimitCatch(rej, res); }
+        return res.json({ success: true, message: 'OTP sent successfully' });
+    }
 
     if (!SMS_MOCK) {
         try {
@@ -339,6 +346,26 @@ exports.verifyOtp = async (req, res) => {
         }
     } catch (rej) {
         return handleRateLimitCatch(rej, res);
+    }
+
+    // the private demo login: the fixed OTP opens this shop as a brand-new person, in a demo session
+    if (await demoMode.isDemoPhone(phone)) {
+        try {
+            if (!(await demoMode.checkOtp(phone, otp))) {
+                await limiters.verifyPhoneLockout.consume(phoneKey).catch(() => { });
+                return res.status(400).json({ error: 'Invalid OTP' });
+            }
+            await limiters.verifyPhoneLockout.delete(phoneKey).catch(() => { });
+            const user = await findOrCreateUser(tenant._id, phone);
+            if (!user || user.isBlocked || user.role !== 'customer') return res.status(403).json({ error: 'This account cannot sign in' });
+            const { accessToken, refreshToken } = await issueSession(user, tenant, req, ip, { demo: true });
+            demoMode.noteLogin();
+            require('../middlewares/auditTrail').record({ actorType: 'system', actorLabel: 'demo login', tenantId: tenant._id, action: 'DEMO_LOGIN', method: 'POST', path: '/api/auth/verify-otp', status: 200, ip: sha256(ip).slice(0, 16) });
+            return res.json({ success: true, demo: true, user: toUserDto(user), accessToken, refreshToken });
+        } catch (error) {
+            console.error('Demo login error:', error.message);
+            return res.status(500).json({ error: 'Failed to verify OTP' });
+        }
     }
 
     try {

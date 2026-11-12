@@ -87,6 +87,7 @@ admin.use(require('./adminLoginBgRouter'));   // the desktop login page's backgr
 admin.use(require('./adminMediaRouter'));   // list a shop's uploaded images (hero, logo, build icons)   // other superadmins: add, rename, revoke, restore
 admin.use(require('./adminAccessRouter'));
 admin.use(require('./adminPlatformRouter'));
+admin.use(require('./adminDemoRouter'));   // the private demo login: number + OTP (everyone looks, the supreme admin changes)
 admin.use(require('./adminPlansRouter'));
 admin.use(require('./adminPlanCouponsRouter'));
 admin.use(require('./adminRefundsRouter'));
