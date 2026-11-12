@@ -10,6 +10,7 @@ import api from '../../api/common/client';
 import { useAuthStore } from '../../store/common/useAuthStore';
 import { useThemeStore } from '../../store/common/useThemeStore';
 import { ActivityIndicator } from '../../components/common/Loading';
+import { LineShimmer } from '../../components/owners/shimmer';
 import PoweredBy from '../../components/common/PoweredBy';
 import IndiaFlag from '../../components/common/IndiaFlag';
 import { tr, LANGS, useLang } from '../../i18n';
@@ -328,7 +329,7 @@ export default function LoginDesktop({ navigation }) {
                         ) : (
                             <>
                                 <OtpRow digits={digits} setDigits={setDigits} refs={otpRefs} hasError={!!error} dimmed={loading} onEdit={() => setError('')} c={c} />
-                                {!error && loading ? <Text style={{ color: D.muted, marginTop: 16 }}>{tr('Verifying...')}</Text> : null}
+                                {!error && loading ? <View style={{ marginTop: 18, alignItems: 'center' }}><LineShimmer width={160} height={16} /></View> : null}
                                 {!loading ? (
                                     <View style={s.otpFooter}>
                                         <Pressable onPress={changeNumber} hitSlop={10}><Text style={[s.link, { color: D.accentText }]}>{tr('Change number')}</Text></Pressable>
