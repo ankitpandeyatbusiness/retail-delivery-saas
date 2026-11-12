@@ -206,7 +206,8 @@ export function BusySheet({ visible, busy, onClose, onChanged }) {
 }
 
 // The list itself. onGo() is called just before navigating (the side menu closes itself).
-export function ShopMenu({ onGo }) {
+// side: the owner's sidebar on a computer: the same entries as a slim list (small icon tile + name, the page you are on lit up) instead of the phone's big cards
+export function ShopMenu({ onGo, side, activeRoute }) {
     const nav = useNavigation();
     const { error } = useBrand();
     const logout = useAuthStore((s) => s.logout);
@@ -243,26 +244,26 @@ export function ShopMenu({ onGo }) {
     };
 
     const [q, setQ] = useState('');
-    const { border, muted, text, surface, primary } = useBrand();
+    const { border, muted, text, surface, primary, onPrimary } = useBrand();
     const easy = useMenuFlags((s) => s.easy);
     const hidden = (route) => (route === 'OwnerAllBranches' && !lockedBy(route)) || (route === 'OwnerWallet' && plan?.id !== 'partner') || ((route === 'OwnerServices' || route === 'OwnerInquiries') && !servicesOn && !lockedBy(route)) || (route === 'OwnerBulk' && !bulkOn && !lockedBy(route)) || (route === 'OwnerBookings' && !bookingOn) || (route === 'OwnerCooks' && !staffOn.kitchenOn) || (route === 'OwnerWaiters' && !staffOn.waiterOn) || (easy && !EASY.has(route));
     // every row of the menu as one list (what is shown, and what the search looks through)
     const sections = useMemo(() => [
         ...GROUPS.map(([group, rows]) => [group, rows.filter((r) => !hidden(r[3])).map(([icon, title, subtitle, route]) => (route === '@busy'
-            ? { icon, title, subtitle: busy ? tr('On: +{extraMin} min until {clockTime}', { extraMin: busy.extraMin, clockTime: clockTime(busy.until) }) : tr(subtitle), group, words: 'busy rushed longer wait kitchen crowd', color: busy ? error : undefined, act: () => setBusyOpen(true) }
+            ? { route, icon, title, subtitle: busy ? tr('On: +{extraMin} min until {clockTime}', { extraMin: busy.extraMin, clockTime: clockTime(busy.until) }) : tr(subtitle), group, words: 'busy rushed longer wait kitchen crowd', color: busy ? error : undefined, act: () => setBusyOpen(true) }
             : route === 'OwnerPlan' && plan?.id
-                ? { icon, title, subtitle: planLineOf(plan), group, words: wordsOf(WORDS[route]), right: plan.status === 'ended' ? <Pill label="!" color={error} /> : undefined, act: () => go(route) }
+                ? { route, icon, title, subtitle: planLineOf(plan), group, words: wordsOf(WORDS[route]), right: plan.status === 'ended' ? <Pill label="!" color={error} /> : undefined, act: () => go(route) }
             : lockedBy(route)
-                ? { icon: 'lock-closed', title, subtitle: tr('Available in {plan}', { plan: lockedBy(route) }), group, words: wordsOf(WORDS[route]), tag: lockedBy(route), act: () => askUpgrade(nav, { title: tr(title), message: tr(subtitle), need: lockedBy(route), feature: LOCKS[route] }, go) }
-                : { icon, title, subtitle: tr(subtitle), group, words: wordsOf(WORDS[route]), right: route === 'OwnerRiders' && riderAttention ? <Pill label="!" color={error} /> : undefined, tag: route === 'OwnerExport' && plan?.features?.fullExports === false ? plan.needs?.fullExports || 'Pro' : undefined, act: () => go(route) }))]),
+                ? { route, icon: 'lock-closed', title, subtitle: tr('Available in {plan}', { plan: lockedBy(route) }), group, words: wordsOf(WORDS[route]), tag: lockedBy(route), act: () => askUpgrade(nav, { title: tr(title), message: tr(subtitle), need: lockedBy(route), feature: LOCKS[route] }, go) }
+                : { route, icon, title, subtitle: tr(subtitle), group, words: wordsOf(WORDS[route]), right: route === 'OwnerRiders' && riderAttention ? <Pill label="!" color={error} /> : undefined, tag: route === 'OwnerExport' && plan?.features?.fullExports === false ? plan.needs?.fullExports || 'Pro' : undefined, act: () => go(route) }))]),
         ['Your app', [
-            { icon: 'help-buoy', title: 'Help and support', subtitle: tr('Ask the platform team for help'), group: 'Your app', words: 'help support ask platform team contact problem', right: supportUnread > 0 ? <Pill label={String(supportUnread)} color={error} /> : undefined, act: () => go('OwnerSupport') },
-            { icon: 'person-circle', title: 'My profile', subtitle: user?.name || user?.phone || tr('Your name, picture and email'), group: 'Your app', words: 'profile name picture email account', act: () => go('OwnerProfile') },
+            { icon: 'help-buoy', title: 'Help and support', subtitle: tr('Ask the platform team for help'), group: 'Your app', words: 'help support ask platform team contact problem', right: supportUnread > 0 ? <Pill label={String(supportUnread)} color={error} /> : undefined, route: 'OwnerSupport', act: () => go('OwnerSupport') },
+            { icon: 'person-circle', title: 'My profile', subtitle: user?.name || user?.phone || tr('Your name, picture and email'), group: 'Your app', words: 'profile name picture email account', route: 'OwnerProfile', act: () => go('OwnerProfile') },
             { custom: 'appearance', title: 'Appearance', group: 'Your app', words: 'appearance dark light theme mode' },
             { icon: 'language', title: 'Language', subtitle: LANGS.find((l) => l.code === lang)?.native, group: 'Your app', words: 'language hindi tamil telugu marathi translate', act: () => setLangOpen(true) },
             { icon: 'eye', title: 'See the customer app', subtitle: tr('Look at your shop the way customers do. You cannot order from your own number.'), group: 'Your app', words: 'customer view preview app', act: customerView },
-            { icon: 'information-circle', title: 'About Us', subtitle: tr('About the platform, terms and privacy'), group: 'Your app', words: 'about us platform company vivyaan terms privacy', act: () => go('AboutUs') },
-            { icon: 'phone-portrait', title: "Where you're logged in", subtitle: tr('Phones and browsers signed in as you'), group: 'Your app', words: 'logged in devices sessions security browser website sign out all', act: () => go('Sessions') },
+            { icon: 'information-circle', title: 'About Us', subtitle: tr('About the platform, terms and privacy'), group: 'Your app', words: 'about us platform company vivyaan terms privacy', route: 'AboutUs', act: () => go('AboutUs') },
+            { icon: 'phone-portrait', title: "Where you're logged in", subtitle: tr('Phones and browsers signed in as you'), group: 'Your app', words: 'logged in devices sessions security browser website sign out all', route: 'Sessions', act: () => go('Sessions') },
             { icon: 'log-out', title: 'Log out', subtitle: tr('Sign out of this phone'), group: 'Your app', words: 'logout log out sign out exit', color: error, act: out },
         ]],
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -273,7 +274,7 @@ export function ShopMenu({ onGo }) {
     // A to Z: every screen in one list by name, grouped under its letter (English only: the other languages keep the sections)
     const sortAZ = useMenuFlags((s) => s.sortAZ);
     const english = lang === 'en';
-    const az = english && sortAZ && !found;
+    const az = !side && english && sortAZ && !found;
     const azGroups = useMemo(() => {
         if (!az) return [];
         const rows = sections.filter(([g]) => g !== 'Your app').flatMap(([g, rs]) => rs.filter((e) => !e.custom).map((e) => ({ ...e, group: g }))).sort((a, b) => a.title.localeCompare(b.title, 'en'));
@@ -299,6 +300,56 @@ export function ShopMenu({ onGo }) {
         const keep = new Set(azGroups.map((g) => g.letter));
         useMenuIndex.setState((s) => ({ ys: Object.fromEntries(Object.entries(s.ys).filter(([k]) => keep.has(k))) }));
     }, [azGroups]);
+
+    if (side) {
+        const sideRow = (e, note) => {
+            const on = !!e.route && e.route === activeRoute;
+            const tint = e.color || primary;
+            return (
+                <Pressable key={e.title} onPress={e.act} accessibilityRole="button" style={({ hovered }) => ({ flexDirection: 'row', alignItems: 'center', minHeight: 42, borderRadius: 14, paddingVertical: 5, paddingHorizontal: 8, marginBottom: 2, backgroundColor: on ? alpha(primary, 0.13) : hovered ? alpha(muted, 0.12) : 'transparent', cursor: 'pointer', transitionProperty: 'background-color', transitionDuration: '120ms' })}>
+                    {on ? <View style={{ position: 'absolute', left: -4, top: 10, bottom: 10, width: 4, borderRadius: 2, backgroundColor: primary }} /> : null}
+                    <View style={{ width: 30, height: 30, borderRadius: 10, backgroundColor: on ? primary : alpha(tint, 0.12), alignItems: 'center', justifyContent: 'center' }}><Ionicons name={e.icon} size={16} color={on ? onPrimary : tint} /></View>
+                    <View style={{ flex: 1, minWidth: 0, marginLeft: 11 }}>
+                        <Text numberOfLines={1} style={{ color: on ? primary : e.color || text, fontSize: 14, fontWeight: on ? '900' : '700' }}>{tr(e.title)}</Text>
+                        {note ? <Text numberOfLines={1} style={{ color: muted, fontSize: 11.5, marginTop: 1 }}>{note}</Text> : null}
+                    </View>
+                    {e.right || (e.tag ? <PlanTag need={e.tag} /> : null)}
+                </Pressable>
+            );
+        };
+        return (
+            <View style={{ paddingHorizontal: 12, paddingTop: 4 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 14, paddingHorizontal: 12, height: 42, backgroundColor: alpha(muted, 0.1) }}>
+                    <Ionicons name="search" size={17} color={muted} />
+                    <TextInput value={q} onChangeText={setQ} placeholder={tr('Search the menu')} placeholderTextColor={muted} autoCorrect={false} autoCapitalize="none" style={{ flex: 1, paddingHorizontal: 8, color: text, fontSize: 14 }} />
+                    {q ? <Pressable onPress={() => setQ('')} hitSlop={8}><Ionicons name="close-circle" size={18} color={muted} /></Pressable> : null}
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10, paddingHorizontal: 8, height: 38 }}>
+                    <Ionicons name="leaf" size={17} color={easy ? primary : muted} />
+                    <Text style={{ flex: 1, marginLeft: 11, color: text, fontSize: 13.5, fontWeight: '800' }} numberOfLines={1}>{tr('Easy mode')}</Text>
+                    <Toggle value={easy} onValueChange={(v) => useMenuFlags.getState().setEasy(v)} />
+                </View>
+                <Animated.View style={{ opacity: swap, transform: [{ translateY: swap.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }] }}>
+                    {found ? (
+                        <View>
+                            <Text style={{ color: muted, fontSize: 11, fontWeight: '900', letterSpacing: 1.2, marginTop: 14, marginBottom: 6, paddingHorizontal: 8 }}>{(found.length ? tr('{n} found', { n: found.length }) : tr('Nothing found')).toUpperCase()}</Text>
+                            {found.length ? found.map((e) => sideRow({ ...e, act: () => { setQ(''); e.act(); } }, tr(e.group))) : <Text style={{ color: muted, paddingHorizontal: 8, fontSize: 13 }}>{tr('Try another word, like cash, tip, table or picture.')}</Text>}
+                        </View>
+                    ) : sections.map(([group, rowsAll]) => {
+                        const rows = easy && group === 'Your app' ? rowsAll.filter((e) => EASY_APP.has(e.title)) : rowsAll;
+                        return rows.length ? (
+                            <View key={group}>
+                                <Text style={{ color: muted, fontSize: 11, fontWeight: '900', letterSpacing: 1.2, marginTop: 16, marginBottom: 6, paddingHorizontal: 8 }}>{tr(group).toUpperCase()}</Text>
+                                {rows.map((e) => (e.custom ? <AppearanceSwitch key={e.title} /> : sideRow(e)))}
+                            </View>
+                        ) : null;
+                    })}
+                </Animated.View>
+                <LanguageSheet visible={langOpen} onClose={() => setLangOpen(false)} />
+                <BusySheet visible={busyOpen} busy={busy} onClose={() => setBusyOpen(false)} onChanged={setBusyState} />
+            </View>
+        );
+    }
 
     return (
         <View>
