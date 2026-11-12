@@ -2,7 +2,7 @@
 // month), what the app brought in, customers, food, delivery partners, and a few plain tips. Opened from Home, the Money tab and
 // the menu; the monthly report notification opens it for that month. Opened with params { range? }.
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, ScrollView, Share } from 'react-native';
+import { View, Text, ScrollView, Share, Pressable } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand, alpha } from '../../components/common/kit';
@@ -15,6 +15,9 @@ import { fetchBusinessReport, fetchSettings, apiError } from '../../api/owners/s
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { rupees } from '../../utils/owners/riderRules';
 import { showToast } from '../../components/customers/shop';
+
+import { Hero, HeroBtn, GlassStat } from '../../components/owners/RiderDesk';
+import Masonry, { Sep } from '../../components/common/Masonry';
 import { tr } from '../../i18n';
 import { useOwnerDesktop } from '../../utils/common/layout';
 
@@ -93,12 +96,34 @@ export default function OwnerBusinessScreen() {
         <View style={{ flex: 1, backgroundColor: background }}>
             <PageHeader title={tr('Business report')} right={r ? <Ionicons name="share-social" size={22} color={text} onPress={share} /> : null} />
             <ScrollView contentContainerStyle={{ paddingTop: 6, paddingBottom: 32 }}>
-                <View style={{ paddingHorizontal: 16 }}><Chips options={options} value={range} onChange={setRange} style={{ marginTop: 0 }} /></View>
+              <View style={desk ? { width: '100%', maxWidth: 1240, alignSelf: 'center' } : undefined}>
+                {desk ? (
+                    <Hero icon="trending-up" title={tr('Business report')} subtitle={r ? `${rangeText(r.range.label)}${r.bulk?.orders ? `  ·  ${tr('Of this, from bulk orders')}: ${money(r.bulk.revenue)}` : ''}` : tr('How your shop is doing')}
+                        right={<>
+                            {options.map(([id, label]) => (
+                                <Pressable key={id} onPress={() => setRange(id)} style={({ hovered }) => ({ paddingHorizontal: 14, height: 38, borderRadius: 19, marginLeft: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: range === id ? '#FFFFFF' : hovered ? 'rgba(255,255,255,0.34)' : 'rgba(255,255,255,0.2)', cursor: 'pointer' })}>
+                                    <Text style={{ color: range === id ? primary : '#FFFFFF', fontWeight: '800', fontSize: 13 }}>{label}</Text>
+                                </Pressable>
+                            ))}
+                            {r ? <HeroBtn label={tr('Share')} icon="share-social-outline" solid onPress={share} /> : null}
+                        </>}>
+                        {r ? (
+                            <View style={{ flexDirection: 'row', marginTop: 18 }}>
+                                <GlassStat label={tr('Sales')} value={money(t.revenue)} icon="cash-outline" />
+                                <GlassStat label={tr('Delivered')} value={String(t.orders)} icon="checkmark-done-outline" />
+                                <GlassStat label={tr('Average order')} value={money(t.avgOrder)} icon="analytics-outline" />
+                                <GlassStat label={tr('Customers')} value={String(r.customers.unique)} icon="people-outline" />
+                                <GlassStat label={tr('Came back')} value={`${r.customers.repeatPct}%`} icon="repeat-outline" />
+                            </View>
+                        ) : null}
+                    </Hero>
+                ) : null}
+                {desk ? null : <View style={{ paddingHorizontal: 16 }}><Chips options={options} value={range} onChange={setRange} style={{ marginTop: 0 }} /></View>}
                 {!r && !err ? <StatShimmer /> : null}
                 {err ? <Empty icon="cloud-offline-outline" title={tr('Could not load')} hint={err} /> : null}
                 {r ? (
                     <>
-                        <Card tone={primary}>
+                        {desk ? null : <Card tone={primary}>
                             <Text style={{ color: muted, fontSize: 12, fontWeight: '700' }}>{rangeText(r.range.label)}</Text>
                             <Text style={{ color: text, fontSize: 32, fontWeight: '900', marginTop: 2 }}>{money(t.revenue)}</Text>
                             <Text style={{ color: muted, marginTop: 2 }}>{tr('from {orders} delivered {v2}', { orders: t.orders, v2: t.orders === 1 ? 'order' : 'orders' })}</Text>
@@ -115,8 +140,9 @@ export default function OwnerBusinessScreen() {
                                     <Text style={{ color: muted, marginTop: 2 }}>{tr('{n} orders · {pct}% of your sales', { n: r.bulk.orders, pct: r.bulk.sharePct })}</Text>
                                 </View>
                             ) : null}
-                        </Card>
+                        </Card>}
 
+                        <Masonry desk={desk} gap={-16}>
                         {r.milestones.length ? (
                             <Card tone={ok}>
                                 {r.milestones.map((m) => (
@@ -128,9 +154,11 @@ export default function OwnerBusinessScreen() {
                             </Card>
                         ) : null}
 
+                        <Sep />
                         <SectionTitle title={tr('Your progress')} />
                         <Card><SalesChart points={r.series.points} kind={r.series.kind} /></Card>
 
+                        <Sep />
                         {r.value.show ? (
                             <>
                                 <SectionTitle title={tr('What the app brought you')} />
@@ -145,6 +173,7 @@ export default function OwnerBusinessScreen() {
                             </>
                         ) : null}
 
+                        <Sep />
                         {r.tips.length ? (
                             <>
                                 <SectionTitle title={tr('What we suggest')} />
@@ -152,6 +181,7 @@ export default function OwnerBusinessScreen() {
                             </>
                         ) : null}
 
+                        <Sep />
                         <SectionTitle title={tr('When you are busy')} />
                         <Card>
                             <Text style={{ color: muted, marginBottom: 8 }}>{r.busiest.hourLabel ? tr('Most orders arrive on {weekday}, around {hourLabel}.', { weekday: tr(r.busiest.weekday), hourLabel: r.busiest.hourLabel.replace(/AM|PM/, (x) => tr(x)) }) : tr('Not enough orders yet to tell.')}</Text>
@@ -160,6 +190,7 @@ export default function OwnerBusinessScreen() {
                             {days.map((d, i) => <HBar key={d} label={tr(d)} value={r.busiest.byWeekday[i]} max={maxDay} right={String(r.busiest.byWeekday[i])} />)}
                         </Card>
 
+                        <Sep />
                         <SectionTitle title={tr('What customers like')} />
                         <Card>
                             {r.food.top.length ? r.food.top.slice(0, 6).map((x) => <HBar key={x.name} label={x.name} value={x.quantity} max={maxFood} right={`${tr('{n} sold', { n: x.quantity })} · ${money(x.revenue)}`} />) : <Text style={{ color: muted }}>{tr('No sales yet.')}</Text>}
@@ -168,6 +199,7 @@ export default function OwnerBusinessScreen() {
                             {r.food.slow.length ? <Text style={{ color: muted, marginTop: 6 }}>{tr('Did not sell: {v1}', { v1: r.food.slow.map((x) => x.name).join(', ') })}</Text> : null}
                         </Card>
 
+                        <Sep />
                         <SectionTitle title={tr('Your customers')} />
                         <Card>
                             <View style={{ flexDirection: 'row' }}>
@@ -180,6 +212,7 @@ export default function OwnerBusinessScreen() {
                             <View style={{ marginTop: 10 }}><Button label={tr('Open customers')} kind="ghost" icon="people" onPress={() => nav.navigate('OwnerCustomers')} /></View>
                         </Card>
 
+                        <Sep />
                         <SectionTitle title={tr('Delivery')} />
                         <Card>
                             {r.delivery.best ? (
@@ -195,6 +228,7 @@ export default function OwnerBusinessScreen() {
                             {r.delivery.rating.count ? <Text style={{ color: muted, marginTop: 8 }}>{tr('Customers rated delivery {avg} of 5 ({count} ratings).', { avg: r.delivery.rating.avg, count: r.delivery.rating.count })}</Text> : null}
                         </Card>
 
+                        <Sep />
                         <SectionTitle title={tr('Orders that did not become sales')} />
                         <Card>
                             <MoneyRow title={tr('Cancelled')} note={tr('{cancelRate}% of {placed} orders', { cancelRate: t.cancelRate, placed: t.placed })} value={`${t.cancelled}`} color={t.cancelRate >= 8 ? error : undefined} />
@@ -204,13 +238,15 @@ export default function OwnerBusinessScreen() {
                             <MoneyRow title={tr('Cash still with riders')} value={rupees(r.delivery.cashWithRidersPaise)} last />
                         </Card>
 
+                        </Masonry>
                         <Card tone={primary} style={{ alignItems: 'center' }}>
                             <Ionicons name="sparkles" size={22} color={primary} />
                             <Text style={{ color: text, fontWeight: '800', textAlign: 'center', marginTop: 6, lineHeight: 22 }}>{r.quote}</Text>
                         </Card>
-                        <View style={{ paddingHorizontal: 16 }}><Button label={tr('Share my progress')} icon="share-social" kind="ghost" onPress={share} /></View>
+                        {desk ? null : <View style={{ paddingHorizontal: 16 }}><Button label={tr('Share my progress')} icon="share-social" kind="ghost" onPress={share} /></View>}
                     </>
                 ) : null}
+              </View>
             </ScrollView>
             <BusySheet visible={busyOpen} busy={busy} onClose={() => setBusyOpen(false)} onChanged={setBusy} />
         </View>

@@ -164,8 +164,29 @@ export default function OwnerCustomersScreen() {
             <FilterPopup visible={filtering} onClose={() => setFiltering(false)} title={tr('Filter customers')} activeCount={tag === 'all' ? 0 : 1} onClear={() => setTag('all')}
                 sections={[{ key: 'tag', title: 'Show', value: tag, onChange: setTag, options: [['all', 'Everyone'], ...TAG_ORDER.map((k) => [k, `${tr(TAGS[k].label)}${counts && counts[k] != null ? ` ${counts[k]}` : ''}`]), ['blocked', `${tr('Blocked')}${blocked ? ` ${blocked.length}` : ''}`]] }]} />
             <Sheet visible={sheetOpen} onClose={() => !fileBusy && setSheetOpen(false)} title={tr('Download customers as Excel')}>
-                <Text style={{ color: muted, marginBottom: 10 }}>{tr('Choose a list. The sheet has orders, spend, most ordered food, the time they usually order and more.')}</Text>
-                {[['all', tl('All customers'), tl('Everyone who ordered, newest first')], ['repeat', tl('Most repeating customers'), tl('Ordered 2 or more times, most orders first')], ['valuable', tl('Most valuable customers'), tl('Highest spend first')], ['recent', tl('Recent customers'), tl('Ordered in the last 30 days')], ['lapsed', tl('Lapsed customers'), tl('No order for 30 days or more, biggest spenders first')]].map(([k, label, hint]) => (
+                {desk ? null : <Text style={{ color: muted, marginBottom: 10 }}>{tr('Choose a list. The sheet has orders, spend, most ordered food, the time they usually order and more.')}</Text>}
+                {desk ? (
+                    <View>
+                        <View style={{ alignItems: 'center', marginBottom: 16 }}>
+                            <View style={{ width: 70, height: 70, borderRadius: 35, backgroundColor: alpha('#1E8E3E', 0.14), alignItems: 'center', justifyContent: 'center' }}><Ionicons name="document-text" size={34} color="#1E8E3E" /></View>
+                            <Text style={{ color: muted, textAlign: 'center', marginTop: 10, lineHeight: 20, maxWidth: 400 }}>{tr('Choose a list. The sheet has orders, spend, most ordered food, the time they usually order and more.')}</Text>
+                        </View>
+                        {[['all', 'people', tl('All customers'), tl('Everyone who ordered, newest first')], ['repeat', 'repeat', tl('Most repeating customers'), tl('Ordered 2 or more times, most orders first')], ['valuable', 'diamond', tl('Most valuable customers'), tl('Highest spend first')], ['recent', 'time', tl('Recent customers'), tl('Ordered in the last 30 days')], ['lapsed', 'moon', tl('Lapsed customers'), tl('No order for 30 days or more, biggest spenders first')]].map(([k, ic, label, hint]) => (
+                            <Pressable key={k} disabled={!!fileBusy} accessibilityRole="button" onPress={async () => {
+                                setFileBusy(k);
+                                try { await downloadAndOpen({ path: customersExportPath, params: { kind: k }, filename: `customers-${k}.xlsx`, mime: XLSX, title: tr(label) }); setSheetOpen(false); } catch (e) { showToast(e?.safe ? e.message : apiError(e)); } finally { setFileBusy(''); }
+                            }} style={({ hovered }) => ({ flexDirection: 'row', alignItems: 'center', padding: 14, marginBottom: 10, borderRadius: 18, borderWidth: 1.5, borderColor: fileBusy === k ? primary : hovered && !fileBusy ? primary : border, backgroundColor: hovered && !fileBusy ? alpha(primary, 0.06) : 'transparent', opacity: fileBusy && fileBusy !== k ? 0.4 : 1, cursor: 'pointer', transitionProperty: 'background-color, border-color', transitionDuration: '140ms' })}>
+                                <View style={{ width: 46, height: 46, borderRadius: 14, backgroundColor: alpha(primary, 0.14), alignItems: 'center', justifyContent: 'center' }}><Ionicons name={ic} size={22} color={primary} /></View>
+                                <View style={{ flex: 1, minWidth: 0, marginLeft: 14 }}>
+                                    <Text style={{ color: text, fontWeight: '900', fontSize: 15.5 }}>{tr(label)}</Text>
+                                    <Text style={{ color: muted, fontSize: 12.5, marginTop: 2 }}>{tr(hint)}</Text>
+                                </View>
+                                <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: primary, alignItems: 'center', justifyContent: 'center' }}><Ionicons name={fileBusy === k ? 'hourglass-outline' : 'download-outline'} size={19} color="#FFFFFF" /></View>
+                            </Pressable>
+                        ))}
+                    </View>
+                ) : null}
+                {desk ? null : [['all', tl('All customers'), tl('Everyone who ordered, newest first')], ['repeat', tl('Most repeating customers'), tl('Ordered 2 or more times, most orders first')], ['valuable', tl('Most valuable customers'), tl('Highest spend first')], ['recent', tl('Recent customers'), tl('Ordered in the last 30 days')], ['lapsed', tl('Lapsed customers'), tl('No order for 30 days or more, biggest spenders first')]].map(([k, label, hint]) => (
                     <Pressable key={k} disabled={!!fileBusy} onPress={async () => {
                         setFileBusy(k);
                         try { await downloadAndOpen({ path: customersExportPath, params: { kind: k }, filename: `customers-${k}.xlsx`, mime: XLSX, title: tr(label) }); setSheetOpen(false); } catch (e) { showToast(e?.safe ? e.message : apiError(e)); } finally { setFileBusy(''); }
