@@ -24,6 +24,7 @@ import RiderLiveMap from '../../components/owners/RiderLiveMap';
 import TripClock from '../../components/riders/TripClock';
 import { Avatar } from './OwnerRidersScreen';
 import { useOwnerDesktop } from '../../utils/common/layout';
+import Masonry, { Sep } from '../../components/common/Masonry';
 import { Hero, HeroBtn, GlassStat } from '../../components/owners/RiderDesk';
 import { tr } from '../../i18n';
 import { trNote } from '../../utils/common/noteText';
@@ -254,8 +255,7 @@ export default function OwnerOrderScreen() {
                 </View>}
                 {desk ? null : <Text style={{ color: muted, fontSize: 12, paddingHorizontal: 16, marginBottom: 8 }}>{tr('Placed {v1} · {v2}', { v1: flow.dayTime(order.createdAt), v2: flow.ago(order.createdAt, now) })}</Text>}
 
-                <TwoCol desk={desk}>
-                <Col desk={desk} grow={3}>
+                <Masonry desk={desk} gap={-16}>
                 <SectionTitle title={tr('Items ({v1})', { v1: flow.itemCount(order) })} />
                 <Card>
                     {(order.items || []).map((l, i) => (
@@ -283,6 +283,7 @@ export default function OwnerOrderScreen() {
                     ))}
                 </Card>
 
+                <Sep />
                 <SectionTitle title={tr('Bill')} />
                 <Card>
                     <Line label={tr('Items')} value={money(p.subtotal)} />
@@ -298,8 +299,7 @@ export default function OwnerOrderScreen() {
                     <Text style={{ color: muted, fontSize: 12, marginTop: 4 }}>{flow.paymentLabel(order)}</Text>
                 </Card>
 
-                </Col>
-                <Col desk={desk} grow={2}>
+                <Sep />
                 <SectionTitle title={tr('Customer')} />
                 <Card>
                     <Text style={{ color: text, fontWeight: '900', fontSize: 16 }}>{order.customer?.name || tr('Customer')}</Text>
@@ -342,6 +342,7 @@ export default function OwnerOrderScreen() {
                     <TripClock onTheWay due={new Date(delivery?.dueAt || order.delivery?.dueAt).getTime()} style={{ marginHorizontal: 16, marginBottom: 12 }} />
                 ) : null}
 
+                <Sep />
                 {showRider ? (
                     <>
                         <SectionTitle title={tr('Delivery rider')} />
@@ -381,6 +382,7 @@ export default function OwnerOrderScreen() {
                     </>
                 ) : null}
 
+                <Sep />
                 {(order.foodReviews?.length || order.deliveryRating?.rating) ? (
                     <>
                         <SectionTitle title={tr('Customer review')} />
@@ -408,6 +410,7 @@ export default function OwnerOrderScreen() {
                     </>
                 ) : null}
 
+                <Sep />
                 {order.orderType === 'pickup' && order.pickupIntent?.kind ? (
                     <Card>
                         <Text style={{ color: text, fontWeight: '800' }}>{{ coming: tr('The customer is coming'), arrived: tr('The customer is here'), on_time: tr('The customer will come at his time'), late: tr('The customer is late, on his way'), more_time: tr('The customer needs more time') }[order.pickupIntent.kind]}</Text>
@@ -434,6 +437,7 @@ export default function OwnerOrderScreen() {
                     </Card>
                 ) : null}
 
+                <Sep />
                 <SectionTitle title={tr('What happened')} />
                 <Card>
                     {/* every step has its colour (green for good news, amber for a wait, red for a problem), never grey */}
@@ -452,6 +456,7 @@ export default function OwnerOrderScreen() {
                     ))}
                 </Card>
 
+                <Sep />
                 {order.delivery?.proof?.url ? (
                     <>
                         <SectionTitle title={tr('Photo of the delivery')} />
@@ -463,8 +468,7 @@ export default function OwnerOrderScreen() {
                         </Card>
                     </>
                 ) : null}
-                </Col>
-                </TwoCol>
+                </Masonry>
                 <PhotoViewer uri={viewing} onClose={() => setViewing(null)} />
 
                 {order.status === 'delivered' ? (

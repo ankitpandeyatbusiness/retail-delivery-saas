@@ -57,7 +57,8 @@ export default function OwnerPerformanceScreen() {
     const [error, setError] = useState('');
 
     const load = useCallback(async (id) => {
-        setData(null); setError('');
+        if (!desk) setData(null);
+        setError('');
         try { setData(await fetchRiderPerformance(rangeOf(id))); }
         catch (e) { useOwnerStore.getState().noteError(e); setError(apiError(e, 'Could not load the performance.')); setData({ items: [] }); }
     }, []);

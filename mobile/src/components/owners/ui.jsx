@@ -473,6 +473,7 @@ function DeskSheet({ visible, onClose, title, children }) {
     const { height: winH } = useWindowDimensions();
     const [mounted, setMounted] = useState(visible);
     const [on, setOn] = useState(false);   // false = parked just outside; the CSS transition does the fade and the slide
+    const [bodyH, setBodyH] = useState(null);   // the height of what is inside: when it changes (loading finished, a switch added a line) the dialog GLIDES to the new height instead of jumping
     useEffect(() => {
         if (visible) {
             setMounted(true);
@@ -515,7 +516,11 @@ function DeskSheet({ visible, onClose, title, children }) {
                             <Ionicons name="close" size={19} color={text} />
                         </Pressable>
                     </View>
-                    <ScrollView style={{ flexShrink: 1 }} contentContainerStyle={{ paddingHorizontal: 12 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>{children}</ScrollView>
+                    <View style={{ height: bodyH == null ? undefined : Math.min(bodyH, Math.max(160, winH - 200)), overflow: 'hidden', transitionProperty: 'height', transitionDuration: '240ms', transitionTimingFunction: 'cubic-bezier(0.22, 0.8, 0.2, 1)' }}>
+                        <ScrollView style={{ flexShrink: 1 }} contentContainerStyle={{ paddingHorizontal: 12 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+                            <View onLayout={(e) => { const h = Math.round(e.nativeEvent.layout.height); if (h > 0) setBodyH(h); }}>{children}</View>
+                        </ScrollView>
+                    </View>
                 </View>
             </View>
         </SheetPortal>

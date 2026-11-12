@@ -46,7 +46,7 @@ function DocRows({ docs, topBorder }) {
     const nav = useNavigation();
     const { text, muted, border, primary } = useBrand();
     return docs.map((d) => (
-        <Pressable key={d.key} onPress={() => nav.navigate('LegalDoc', { key: d.key })} style={{ flexDirection: 'row', alignItems: 'center', padding: 16, ...(topBorder ? { borderTopWidth: 0.5, borderTopColor: border } : { borderBottomWidth: 0.5, borderBottomColor: border }) }}>
+        <Pressable key={d.key} onPress={() => nav.navigate('LegalDoc', { key: d.key })} style={({ hovered }) => ({ flexDirection: 'row', alignItems: 'center', padding: 16, ...(topBorder ? { borderTopWidth: 0.5, borderTopColor: border } : { borderBottomWidth: 0.5, borderBottomColor: border }), ...(hovered ? { backgroundColor: 'rgba(128,128,128,0.1)', borderRadius: 14, cursor: 'pointer' } : null) })}>
             <Ionicons name="document-text-outline" size={24} color={primary} />
             <View style={{ flex: 1, marginLeft: 14 }}>
                 <Text style={{ color: text, fontWeight: '800', fontSize: 15 }}>{tr(d.title)}</Text>

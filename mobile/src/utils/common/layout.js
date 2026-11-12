@@ -31,6 +31,9 @@ export function useStaffDesktop() {
     return desktop && (role === 'kitchen' || role === 'waiter');
 }
 
+// the same question without a hook, for the stores: a browser at least this wide right now
+export const isDeskNow = () => Platform.OS === 'web' && typeof window !== 'undefined' && window.innerWidth >= DESKTOP_MIN_WIDTH;
+
 export function useIsDesktopWeb() {
     const { width } = useWindowDimensions();
     return Platform.OS === 'web' && width >= DESKTOP_MIN_WIDTH;

@@ -16,8 +16,10 @@ import { downloadAndOpen } from '../../utils/owners/files';
 import { topupInvoicePdfPath } from '../../api/owners/shopApi';
 import { LineShimmer, ListShimmer } from '../../components/owners/shimmer';
 import { tr } from '../../i18n';
+import { useOwnerDesktop } from '../../utils/common/layout';
 
 export default function OwnerSmsScreen() {
+    const desk = useOwnerDesktop();   // a computer keeps what is on screen while the new list loads
     const nav = useNavigation();
     const { background, text, muted, error, ok, primary } = useBrand();
     const [wallet, setWallet] = useState(null);
@@ -39,7 +41,7 @@ export default function OwnerSmsScreen() {
     const loadWallet = useCallback(() => fetchSmsWallet().then(setWallet).catch(() => { }), []);
     useFocusEffect(useCallback(() => { loadWallet(); loadRows(1); }, [loadWallet]));   // eslint-disable-line react-hooks/exhaustive-deps
     useEffect(() => { fetchTopupOptions().then(setOpts).catch(() => { }); }, []);
-    useEffect(() => { setRows(null); loadRows(1, type); }, [type]);   // eslint-disable-line react-hooks/exhaustive-deps
+    useEffect(() => { if (!desk) setRows(null); loadRows(1, type); }, [type]);   // eslint-disable-line react-hooks/exhaustive-deps
 
     const openInvoice = async (id) => {
         try { await downloadAndOpen({ path: topupInvoicePdfPath(id), filename: `sms-invoice-${id}.pdf`, mime: 'application/pdf', title: tr('SMS top-up invoice') }); }

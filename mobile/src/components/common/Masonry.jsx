@@ -1,8 +1,11 @@
 // Two columns that FILL EVENLY: each block goes under the shorter column, so a tall block on one side never leaves the other side empty while the page scrolls.
 //   <Masonry desk>  block  block  <Sep />  block ... </Masonry>
-// Blocks are the children (a fragment is one block); <Sep /> glues what is between two separators into one block (a title with its card).
-// Heights are measured once, on a hidden copy, then the blocks are placed. The placement is kept until the blocks themselves change, so typing in a form never makes
-// a block jump to the other side. When desk is false (the phone, a narrow window) the children are drawn as they are, one under the other.
+// Blocks are the children (a fragment is one block); with <Sep /> in it, what lies between two separators is one block (a title with its card).
+// The first time, each block is measured on a hidden copy and then placed. After that the page never goes blank: a block that was there keeps its place, a new block is
+// added under the shorter column (its height is read once it is on screen), and typing in a form never makes a block jump to the other side.
+// When desk is false (the phone, a narrow window) the children are drawn as they are, one under the other.
+//   aligned: the blocks sit in ROWS of two with their tops level (headings side by side), paired by height (the two tallest together, and so on), so the empty space
+//   under the shorter block of each row is as small as it can be.
 import React, { useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
 
@@ -18,28 +21,23 @@ const units = (children) => {
     });
     return out.filter((u) => u.length);
 };
+const keyOf = (u) => u.map((c) => c.key).join(',');
 
-// aligned: the blocks sit in ROWS of two with their tops level (headings side by side). The blocks are paired by height (the two tallest together, and so on), so the
-// space left under the shorter block of each row is as small as it can be; without it the blocks fill the columns unevenly but with no gaps.
 export default function Masonry({ desk, gap = 16, aligned, children }) {
     const list = units(children);
-    const sig = list.map((u) => u.map((c) => c.key).join(',')).join('|');
+    const keys = list.map(keyOf);
     const [w, setW] = useState(0);
-    const [place, setPlace] = useState(null);   // { sig, cols: [[unit index]] }
-    const heights = useRef({});
+    const [placed, setPlaced] = useState(false);   // the first placement (after the hidden measuring) has happened
     const [, bump] = useState(0);
+    const hmap = useRef({});     // block key -> its height
+    const colOf = useRef({});    // block key -> column (0 or 1)
 
-    useEffect(() => { heights.current = {}; }, [sig]);
+    const H = (k) => (hmap.current[k] > 0 ? hmap.current[k] : 160);
 
-    const colW = w ? Math.floor((w - gap) / 2) : 0;
-    const ready = place && place.sig === sig;
-    // each block goes under the shorter column; when two columns are equal (or a height is not known yet) the blocks take turns, so they never all pile up on the left
-    const placeNow = () => {
+    // where every block goes right now, from what is known (never from a fresh measuring)
+    const layout = () => {
         if (aligned) {
-            const H = (k) => (heights.current[k] > 0 ? heights.current[k] : 160);
-            // the least empty space overall: sort the blocks by height and pair neighbours (the two tallest, the next two...), so each pair is as level as it can be;
-            // then the rows go back into the page's own order (by the first block of each pair)
-            const order = list.map((_, k) => k).sort((x, y) => H(y) - H(x));
+            const order = keys.map((_, i) => i).sort((x, y) => H(keys[y]) - H(keys[x]));
             const rows = [];
             for (let i = 0; i < order.length; i += 2) {
                 const pair = [order[i], i + 1 < order.length ? order[i + 1] : null];
@@ -47,59 +45,74 @@ export default function Masonry({ desk, gap = 16, aligned, children }) {
                 rows.push(pair);
             }
             rows.sort((p, q) => p[0] - q[0]);
-            setPlace({ sig, rows });
-            bump((n) => n + 1);
-            return;
+            return { rows };
         }
         const colH = [0, 0];
         const cols = [[], []];
-        list.forEach((u, k) => {
-            const h = heights.current[k];
-            const c = colH[0] < colH[1] ? 0 : colH[1] < colH[0] ? 1 : k % 2;
-            cols[c].push(k);
-            colH[c] += h > 0 ? h : 160;
+        // the blocks that already have a column keep it
+        keys.forEach((k, i) => { const c = colOf.current[k]; if (c === 0 || c === 1) { cols[c].push(i); colH[c] += H(k); } });
+        keys.forEach((k, i) => {
+            if (colOf.current[k] === 0 || colOf.current[k] === 1) return;
+            const c = colH[0] < colH[1] ? 0 : colH[1] < colH[0] ? 1 : i % 2;
+            colOf.current[k] = c; cols[c].push(i); colH[c] += H(k);
         });
-        setPlace({ sig, cols });
-        bump((n) => n + 1);
+        cols.forEach((c) => c.sort((a, b) => a - b));
+        return { cols };
     };
-    const measured = (i, h) => {
-        heights.current[i] = h;
-        if (Object.keys(heights.current).length < list.length) return;
-        placeNow();
+
+    // the layout is worked out again only when the blocks themselves change (never because a block grew while someone typed in it)
+    const cache = useRef({ sig: null, L: null });
+    const sig = keys.join('|');
+    const current = () => { if (cache.current.sig !== sig) cache.current = { sig, L: layout() }; return cache.current.L; };
+    const colW = w ? Math.floor((w - gap) / 2) : 0;
+    const placeNow = () => { cache.current = { sig: null, L: null }; current(); setPlaced(true); bump((n) => n + 1); };
+    const measured = (k, h) => {
+        hmap.current[k] = h;
+        if (placed) return;
+        if (keys.every((x) => hmap.current[x] > 0)) placeNow();
     };
-    // if some block never reports its size, place them with what is known after a moment
+    // if a block never reports its size, place them with what is known after a moment
     useEffect(() => {
-        if (!desk || ready || !colW) return undefined;
+        if (!desk || placed || !colW) return undefined;
         const t = setTimeout(placeNow, 600);
         return () => clearTimeout(t);
     });   // eslint-disable-line react-hooks/exhaustive-deps
 
     if (!desk) return <>{children}</>;   // (after every hook above, so the order of hooks never changes)
 
+    // each block on screen reports its height (kept for later changes); nothing is moved because of it
+    const wrap = (k, node) => <View key={`u${k}`} onLayout={(e) => { hmap.current[k] = e.nativeEvent.layout.height; }}>{node}</View>;
+
     return (
         <View onLayout={(e) => { const x = Math.round(e.nativeEvent.layout.width); if (x && x !== w) setW(x); }} style={{ width: '100%' }}>
-            {ready && place.rows ? (
-                <View>
-                    {place.rows.map((r, i) => (
-                        <View key={`r${i}`} style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
-                            <View style={{ flex: 1, minWidth: 0 }}>{list[r[0]]}</View>
-                            <View style={{ flex: 1, minWidth: 0, marginLeft: gap }}>{r[1] != null ? list[r[1]] : null}</View>
+            {placed ? (() => {
+                const L = current();
+                if (L.rows) {
+                    return (
+                        <View>
+                            {L.rows.map((r) => (
+                                <View key={`r${keys[r[0]]}`} style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+                                    <View style={{ flex: 1, minWidth: 0 }}>{wrap(keys[r[0]], list[r[0]])}</View>
+                                    <View style={{ flex: 1, minWidth: 0, marginLeft: gap }}>{r[1] != null ? wrap(keys[r[1]], list[r[1]]) : null}</View>
+                                </View>
+                            ))}
                         </View>
-                    ))}
-                </View>
-            ) : ready ? (
-                <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
-                    {place.cols.map((idx, c) => (
-                        <View key={c} style={{ flex: 1, minWidth: 0, marginLeft: c ? gap : 0 }}>
-                            {idx.map((k) => <React.Fragment key={`u${k}`}>{list[k]}</React.Fragment>)}
-                        </View>
-                    ))}
-                </View>
-            ) : (
-                // before the blocks are placed: a hidden copy of each at column width, only to read its height (a short flash of the plain order at most)
+                    );
+                }
+                return (
+                    <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+                        {L.cols.map((idx, c) => (
+                            <View key={c} style={{ flex: 1, minWidth: 0, marginLeft: c ? gap : 0 }}>
+                                {idx.map((i) => wrap(keys[i], list[i]))}
+                            </View>
+                        ))}
+                    </View>
+                );
+            })() : (
+                // the very first time: a hidden copy of each block at column width, only to read its height
                 <View style={{ position: 'absolute', top: 0, left: 0, opacity: 0 }} pointerEvents="none">
                     {colW ? list.map((u, i) => (
-                        <View key={`m${i}`} style={{ width: colW }} onLayout={(e) => measured(i, e.nativeEvent.layout.height)}>{u}</View>
+                        <View key={`m${keys[i]}`} style={{ width: colW }} onLayout={(e) => measured(keys[i], e.nativeEvent.layout.height)}>{u}</View>
                     )) : null}
                 </View>
             )}

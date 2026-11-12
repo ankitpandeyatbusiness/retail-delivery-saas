@@ -14,8 +14,10 @@ import { downloadAndOpen, XLSX } from '../../utils/owners/files';
 import { showToast } from '../../components/customers/shop';
 import { StatShimmer } from '../../components/owners/shimmer';
 import { tr } from '../../i18n';
+import { useOwnerDesktop } from '../../utils/common/layout';
 
 export default function OwnerTransactionsScreen() {
+    const desk = useOwnerDesktop();   // a computer keeps what is on screen while the new list loads
     const nav = useNavigation();
     const { background, text, muted, ok, error, primary, border } = useBrand();
     const [year, setYear] = useState(undefined);
@@ -24,7 +26,8 @@ export default function OwnerTransactionsScreen() {
     const [busy, setBusy] = useState(false);
 
     const load = useCallback(async (y) => {
-        setData(null); setErr('');
+        if (!desk) setData(null);
+        setErr('');
         try { setData(await fetchTransactionSummary(y)); }
         catch (e) { useOwnerStore.getState().noteError(e); setErr(apiError(e, 'Could not load your transactions.')); }
     }, []);

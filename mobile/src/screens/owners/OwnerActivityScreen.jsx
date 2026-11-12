@@ -10,8 +10,10 @@ import { activityLabel, ACTOR_FILTERS } from '../../utils/owners/settingsRules';
 import { dayTime } from '../../utils/owners/orderFlow';
 import { ListShimmer } from '../../components/owners/shimmer';
 import { tr } from '../../i18n';
+import { useOwnerDesktop } from '../../utils/common/layout';
 
 export default function OwnerActivityScreen() {
+    const desk = useOwnerDesktop();   // a computer keeps what is on screen while the new list loads
     const { background, text, muted, primary, error } = useBrand();
     const [actor, setActor] = useState('');
     const [items, setItems] = useState(null);
@@ -26,7 +28,7 @@ export default function OwnerActivityScreen() {
             setMore(!!r.hasMore); setPage(p); setErr('');
         } catch (e) { useOwnerStore.getState().noteError(e); setErr(apiError(e, 'Could not load the activity log.')); setItems((x) => x || []); }
     }, [actor]);
-    useEffect(() => { setItems(null); load(1); }, [load]);
+    useEffect(() => { if (!desk) setItems(null); load(1); }, [load]);
 
     return (
         <View style={{ flex: 1, backgroundColor: background }}>

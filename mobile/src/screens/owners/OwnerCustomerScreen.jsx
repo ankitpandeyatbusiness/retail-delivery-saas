@@ -16,9 +16,13 @@ import { ago } from '../../utils/owners/riderRules';
 import { showToast } from '../../components/customers/shop';
 import { ask } from '../../components/common/dialog';
 import { FormShimmer } from '../../components/owners/shimmer';
+import { useOwnerDesktop } from '../../utils/common/layout';
+import { Hero, HeroBtn, GlassStat } from '../../components/owners/RiderDesk';
+import Masonry, { Sep } from '../../components/common/Masonry';
 import { tr } from '../../i18n';
 
 export default function OwnerCustomerScreen() {
+    const desk = useOwnerDesktop();   // a computer: a banner with the numbers, and the sections level in two columns
     const { id } = useRoute().params || {};
     const { text, muted, error, ok } = useBrand();
     const [c, setC] = useState(null);
@@ -69,8 +73,26 @@ export default function OwnerCustomerScreen() {
 
     const s = c.stats || {};
     return (
-        <FormPage title={personName(c)} footer={<Button label={tr('Save details')} icon="checkmark" busy={saving} onPress={save} />}>
-            <Card>
+        <FormPage title={personName(c)} wide footer={<Button label={tr('Save details')} icon="checkmark" busy={saving} onPress={save} />}>
+            {desk ? (
+                <Hero
+                    lead={<View style={{ width: 74, height: 74, borderRadius: 37, backgroundColor: 'rgba(255,255,255,0.25)', borderWidth: 3, borderColor: 'rgba(255,255,255,0.6)', alignItems: 'center', justifyContent: 'center', marginRight: 18 }}><Text style={{ color: '#FFFFFF', fontWeight: '900', fontSize: 32 }}>{personName(c).replace(/^Customer\s*/, '').charAt(0).toUpperCase() || '?'}</Text></View>}
+                    title={personName(c)}
+                    subtitle={`${c.phone || ''}  ·  ${tr('Joined {ago}{v2}', { ago: ago(c.createdAt), v2: c.lastLoginAt ? ` · last seen ${ago(c.lastLoginAt)}` : '' })}`}
+                    right={<>
+                        <HeroBtn label={tr('Call')} icon="call" onPress={() => callPhone(c.phone)} />
+                        <HeroBtn label={tr('WhatsApp')} icon="logo-whatsapp" solid onPress={() => whatsApp(c.phone)} />
+                    </>}>
+                    {c.isBlocked ? <View style={{ marginTop: 14, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, height: 32, borderRadius: 16, backgroundColor: 'rgba(0,0,0,0.28)' }}><Text style={{ color: '#FFFFFF', fontWeight: '900', fontSize: 13 }}>{tr('Blocked')}</Text></View> : null}
+                    <View style={{ flexDirection: 'row', marginTop: 18 }}>
+                        <GlassStat label={tr('Orders')} value={String(s.orders || 0)} icon="receipt-outline" />
+                        <GlassStat label={tr('Delivered')} value={String(s.delivered || 0)} icon="checkmark-done-outline" />
+                        <GlassStat label={tr('Spent')} value={money(s.spentTotal || 0)} icon="cash-outline" />
+                        <GlassStat label={tr('Last order')} value={s.lastOrderAt ? ago(s.lastOrderAt) : '—'} icon="time-outline" />
+                    </View>
+                </Hero>
+            ) : null}
+            {desk ? null : <Card>
                 <Text style={{ color: text, fontSize: 18, fontWeight: '900' }}>{personName(c)}</Text>
                 <Text style={{ color: muted, marginTop: 2 }}>{c.phone}</Text>
                 <Text style={{ color: muted, fontSize: 12, marginTop: 2 }}>{tr('Joined {ago}{v2}', { ago: ago(c.createdAt), v2: c.lastLoginAt ? ` · last seen ${ago(c.lastLoginAt)}` : '' })}</Text>
@@ -79,8 +101,10 @@ export default function OwnerCustomerScreen() {
                     <View style={{ flex: 1, marginRight: 6 }}><Button label={tr('Call')} icon="call" iconOnly kind="ghost" onPress={() => callPhone(c.phone)} /></View>
                     <View style={{ flex: 1, marginLeft: 6 }}><Button label={tr('WhatsApp')} icon="logo-whatsapp" iconOnly kind="ghost" onPress={() => whatsApp(c.phone)} /></View>
                 </View>
-            </Card>
+            </Card>}
 
+            <Masonry desk={desk} gap={-16} aligned>
+            <Sep />
             {ins && ins.orders > 0 ? (
                 <>
                     <SectionTitle title={tr('How he orders')} />
@@ -100,8 +124,8 @@ export default function OwnerCustomerScreen() {
                 </>
             ) : null}
 
-            <SectionTitle title={tr('Orders')} />
-            <Card>
+            {desk ? null : <SectionTitle title={tr('Orders')} />}
+            {desk ? null : <Card>
                 <View style={{ flexDirection: 'row' }}>
                     <Stat label={tr('Orders')} value={String(s.orders || 0)} />
                     <Stat label={tr('Delivered')} value={String(s.delivered || 0)} />
@@ -111,8 +135,9 @@ export default function OwnerCustomerScreen() {
                     <Stat label={tr('Spent')} value={money(s.spentTotal || 0)} />
                     <Stat label={tr('Last order')} value={s.lastOrderAt ? ago(s.lastOrderAt) : '—'} />
                 </View>
-            </Card>
+            </Card>}
 
+            <Sep />
             {c.cod ? (
                 <>
                     <SectionTitle title={tr('Cash on delivery')} />
@@ -130,6 +155,7 @@ export default function OwnerCustomerScreen() {
                 </>
             ) : null}
 
+            <Sep />
             <SectionTitle title={tr('Account')} />
             <Card tone={c.isBlocked ? error : undefined}>
                 {c.isBlocked && c.block ? <View style={{ marginBottom: 10 }}><BlockDetails b={c.block} /></View> : null}
@@ -137,12 +163,14 @@ export default function OwnerCustomerScreen() {
                 <View style={{ marginTop: 10 }}><Button label={c.isBlocked ? tr('Unblock this customer') : tr('Block this customer')} icon={c.isBlocked ? 'checkmark-circle' : 'ban'} kind={c.isBlocked ? 'primary' : 'danger'} busy={busy} onPress={toggleBlock} /></View>
             </Card>
 
+            <Sep />
             <Group title={tr('Details')} hint={tr('Notes are only for you. The customer never sees them.')}>
                 <TextBox label={tr('Name')} value={form.name} onChangeText={(x) => setForm({ ...form, name: x })} maxLength={80} />
                 <TextBox label={tr('Email')} value={form.email} onChangeText={(x) => setForm({ ...form, email: x })} maxLength={80} keyboardType="email-address" />
                 <TextBox label={tr('Your notes')} value={form.notes} onChangeText={(x) => setForm({ ...form, notes: x })} multiline maxLength={300} last />
                 <Hint>{tr('Only the platform can change a phone number.')}</Hint>
             </Group>
+            </Masonry>
             {ins ? <RemindSheet visible={remind} customer={{ id: ins.id, name: ins.name }} onClose={() => setRemind(false)} onSent={() => fetchCustomerInsight(id).then(setIns).catch(() => { })} /> : null}
             <BlockSheet visible={blockOpen} customer={{ id }} onClose={() => setBlockOpen(false)} onBlocked={() => fetchCustomer(id).then(apply).catch(() => { })} />
         </FormPage>

@@ -27,6 +27,9 @@ import BillSheet from '../../components/owners/BillSheet';
 import PartyPickSheet from '../../components/owners/PartyPickSheet';
 import PersonAvatar from '../../components/owners/PersonAvatar';
 import { useClaimPrompt } from '../../components/owners/OwedClaimHost';
+import { useOwnerDesktop } from '../../utils/common/layout';
+import { Hero, HeroBtn, GlassStat } from '../../components/owners/RiderDesk';
+import Masonry from '../../components/common/Masonry';
 import { tr } from '../../i18n';
 
 const RECOMMENDED = { upiId: '', sharedTables: false, maxParties: 4, guestWatch: true, unreachableMin: 10, waiterSettles: true, cancelGraceMin: 3, enabled: true, tableCount: 10, autoCloseHours: 6, tabLimitNew: 500, tabLimitTrusted: 2000, trustedAfter: 3, atShopCheck: true, radiusM: 250, checkMinutes: 20, autoReady: true, readyMin: 15, owedDaily: true, owedHour: 11, owedOnHome: true, referOn: true, referFriendPercent: 15, referFriendMax: 150, referPoints: 50, referLimit: 10, callOn: true, tipOn: true, tipChoices: [10, 20, 50], feedbackOn: true, waitMin: 15, welcomeOn: true, welcomePercent: 10, welcomeMax: 100, regularOn: true, regularAfter: 5, regularPercent: 5, regularMax: 50, happyOn: false, happyFrom: '15:00', happyTo: '18:00', happyPercent: 15, happyMax: 150, owedMax: 7, firstOnline: false, qrRequired: false, prefs: ['Make it spicy', 'Less spicy', 'Not spicy', 'Extra gravy', 'Less gravy', 'No coriander', 'No onion', 'No garlic', 'Less oil', 'Less salt'], autoServe: false, serveMin: 10, busyAuto: true, busyPercent: 70, busyExtraMin: 10 };
@@ -50,14 +53,14 @@ const AUTO = ['autoReady', 'autoServe', 'busyAuto', 'owedDaily'];
 const mins = (d) => Math.max(1, Math.round((Date.now() - new Date(d).getTime()) / 60000));
 const STATE = { placed: 'Waiting', accepted: 'Accepted', preparing: 'Preparing', ready: 'Ready to serve', delivered: 'Served' };
 
-export function TableCell({ t, onPress, blink }) {
+export function TableCell({ t, onPress, blink, onFree }) {   // onFree: what a click on a free table does (a computer shows a short note; the phone has nothing to open)
     const { text, muted, border, ok, warn, error, surface } = useBrand();
     const asked = t.state === 'bill_asked' || !!t.check;
     const eating = t.state === 'eating';
     const glow = asked || (blink && (eating || asked));
     const inner = (
         <Pressable
-            onPress={eating || asked ? onPress : undefined}
+            onPress={eating || asked ? onPress : onFree}
             style={{ width: 96, height: 84 + (t.who ? 8 : 0) + (t.waitingSince ? 16 : 0), borderRadius: 16, borderWidth: 1.5, borderColor: asked ? warn : eating ? ok : border, backgroundColor: asked ? alpha(warn, 0.14) : eating ? alpha(ok, 0.1) : surface, alignItems: 'center', justifyContent: 'center' }}
         >
             <Text style={{ color: text, fontWeight: '900', fontSize: 18 }}>{t.table}</Text>
@@ -78,6 +81,7 @@ export function TableCell({ t, onPress, blink }) {
 }
 
 export default function OwnerDineInScreen() {
+    const desk = useOwnerDesktop();   // a computer: a banner, the tables across the full width, and the settings level in two columns
     const nav = useNavigation();
     const { muted, text, primary, warn } = useBrand();
     const [v, setV] = useState(null);
@@ -145,7 +149,17 @@ export default function OwnerDineInScreen() {
     if (!v) return <FormPage title={tr('Dine in')}><ListShimmer count={2} /></FormPage>;
     const busyTables = (tables || []).filter((t) => t.state !== 'free');
     return (
-        <FormPage title={tr('Dine in')} footer={<Button label={tr('Save')} icon="checkmark" busy={busy} disabled={!dirty} onPress={save} />}>
+        <FormPage title={tr('Dine in')} wide footer={<Button label={tr('Save')} icon="checkmark" busy={busy} disabled={!dirty} onPress={save} />}>
+            {desk && v.enabled ? (
+                <Hero icon="restaurant" title={tr('Dine in')} subtitle={tr('Guests order from their table and pay at the end.')}
+                    right={<HeroBtn label={tr('Dine in report')} icon="stats-chart-outline" solid onPress={() => nav.navigate('OwnerDineInReport')} />}>
+                    <View style={{ flexDirection: 'row', marginTop: 18 }}>
+                        <GlassStat label={tr('Tables')} value={tables ? String(tables.length) : '–'} icon="grid-outline" />
+                        <GlassStat label={tr('In use now')} value={tables ? String(busyTables.length) : '–'} icon="people-outline" />
+                        <GlassStat label={tr('Unpaid bills')} value={String(debts.length)} icon="alert-circle-outline" />
+                    </View>
+                </Hero>
+            ) : null}
             {v.enabled ? (
                 <View>
                     <SectionTitle title={tr('Tables now')} />
@@ -156,7 +170,7 @@ export default function OwnerDineInScreen() {
                                     {busyTables.length ? tr('{n} of {total} tables in use. Tap a table for its bill.', { n: busyTables.length, total: tables.length }) : tr('No table is in use right now.')}
                                 </Text>
                                 <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-                                    {sortTables(tables).map((t) => <TableCell key={t.table} t={t} onPress={() => openTable(t)} />)}
+                                    {sortTables(tables).map((t) => <TableCell key={t.table} t={t} onPress={() => openTable(t)} onFree={desk ? () => showToast(tr('Table {t} is free. Its bill opens here when guests start eating.', { t: t.table })) : undefined} />)}
                                 </View>
                             </View>
                         )}
@@ -164,7 +178,7 @@ export default function OwnerDineInScreen() {
                 </View>
             ) : null}
 
-            {v.enabled ? (
+            {v.enabled && !desk ? (
                 <Card onPress={() => nav.navigate('OwnerDineInReport')}>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <Ionicons name="stats-chart" size={22} color={primary} />
@@ -176,6 +190,7 @@ export default function OwnerDineInScreen() {
                     </View>
                 </Card>
             ) : null}
+            <Masonry desk={desk} gap={-16} aligned>
             <TableRequests />
             <GuestFeedback />
 
@@ -328,6 +343,7 @@ export default function OwnerDineInScreen() {
                 <Button label={tr('Use recommended settings')} icon="refresh" kind="ghost" disabled={busy} onPress={recommended} />
                 <Text style={{ color: muted, fontSize: 12, marginTop: 10 }}>{tr('Coming here next: offers, waiting time and table service.')}</Text>
             </View>
+            </Masonry>
             <PartyPickSheet visible={!!pick} title={pick ? tr('Table {t}: which bill?', { t: pick.table }) : ''} options={(pick?.parties || []).map((p) => ({ ...p, sub: `${p.state === 'bill_asked' ? tr('Wants the bill') : tr('Eating')} · ${rs(p.due)}` }))} onPick={(p) => { setOpen({ ...pick, ...p }); setPick(null); }} onClose={() => setPick(null)} />
             <BillSheet table={open} onClose={() => setOpen(null)} onDone={() => { loadTables(); loadDebts(); }} />
         </FormPage>

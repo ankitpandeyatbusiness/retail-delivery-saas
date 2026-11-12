@@ -17,13 +17,43 @@ import { showToast } from '../../components/customers/shop';
 import { ask } from '../../components/common/dialog';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { personName } from '../../utils/owners/hubRules';
+import { useOwnerDesktop } from '../../utils/common/layout';
+import { Hero, HeroBtn, GlassStat } from '../../components/owners/RiderDesk';
 import { ago } from '../../utils/owners/riderRules';
 import { TAGS, TAG_ORDER, usualLine, sinceLine } from '../../utils/owners/customerTags';
 import { LineShimmer, ListShimmer } from '../../components/owners/shimmer';
 import { tr, tl } from '../../i18n';
 import { UpgradeNote } from '../../components/owners/PlanLock';
 
+// One customer as a card on a computer: a round letter, the name and a tag (new, regular, slipping...), when they came and what they usually order, and Remind where it helps.
+function CustomerTile({ u, onOpen, onRemind }) {
+    const { text, muted, surface, border, primary } = useBrand();
+    const tg = TAGS[u.tag];
+    const canRemind = u.id && u.orders > 0 && (u.tag === 'slipping' || u.tag === 'lost');
+    const c = tg?.color || primary;
+    return (
+        <Pressable onPress={onOpen} style={({ hovered }) => ({ borderRadius: 22, borderWidth: 1, borderColor: hovered ? primary : border, backgroundColor: hovered ? alpha(primary, 0.05) : surface, padding: 16, cursor: 'pointer', boxShadow: hovered ? `inset 0 0 0 1.5px ${primary}` : 'inset 0 0 0 0 transparent', transitionProperty: 'background-color, box-shadow', transitionDuration: '140ms' })}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <View style={{ width: 54, height: 54, borderRadius: 27, backgroundColor: alpha(c, 0.16), alignItems: 'center', justifyContent: 'center' }}>
+                    <Text style={{ color: c, fontWeight: '900', fontSize: 22 }}>{personName(u).replace(/^Customer\s*/, '').charAt(0).toUpperCase() || '?'}</Text>
+                </View>
+                <View style={{ flex: 1, minWidth: 0, marginLeft: 14 }}>
+                    <Text style={{ color: text, fontWeight: '900', fontSize: 16.5 }} numberOfLines={1}>{personName(u)}</Text>
+                    {tg ? <View style={{ alignSelf: 'flex-start', marginTop: 5, paddingHorizontal: 10, height: 24, borderRadius: 12, backgroundColor: alpha(tg.color, 0.14), justifyContent: 'center' }}><Text style={{ color: tg.color, fontSize: 11.5, fontWeight: '900' }}>{tr(tg.label)}</Text></View> : null}
+                </View>
+            </View>
+            <Text style={{ color: muted, fontSize: 13, marginTop: 12, lineHeight: 19 }} numberOfLines={2}>{u.orders !== undefined ? `${sinceLine(u)} · ${usualLine(u)}` : (u.phone || '')}</Text>
+            {canRemind ? (
+                <Pressable onPress={onRemind} style={({ hovered }) => ({ alignSelf: 'flex-start', marginTop: 12, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, height: 36, borderRadius: 18, backgroundColor: hovered ? primary : alpha(primary, 0.12), cursor: 'pointer' })}>
+                    {({ hovered }) => (<><Ionicons name="paper-plane-outline" size={15} color={hovered ? '#FFFFFF' : primary} /><Text style={{ color: hovered ? '#FFFFFF' : primary, fontWeight: '800', fontSize: 13, marginLeft: 6 }}>{tr('Remind')}</Text></>)}
+                </Pressable>
+            ) : null}
+        </Pressable>
+    );
+}
+
 export default function OwnerCustomersScreen() {
+    const desk = useOwnerDesktop();   // a computer: a banner, filter chips and the customers as cards three across
     const autopilotOk = usePlanHas('customPush');   // Autopilot is Pro
     const nav = useNavigation();
     const { background, text, muted, primary, border, onPrimary } = useBrand();
@@ -74,11 +104,40 @@ export default function OwnerCustomersScreen() {
         } finally { setLoadingMore(false); }
     }, []);
 
-    useEffect(() => { if (tag === 'blocked') return; setItems(null); load(1, q, tag); }, [q, tag, load]);
+    useEffect(() => { if (tag === 'blocked') return; if (!desk) setItems(null); load(1, q, tag); }, [q, tag, load]);
     // the numbers on the chips, and again when we come back from a customer's page
     useFocusEffect(useCallback(() => { fetchCustomerInsights({ limit: 1 }).then((r) => setCounts(r.counts)).catch(() => { }); }, []));
     const onType = (v) => { setTyped(v); clearTimeout(t.current); t.current = setTimeout(() => setQ(v.trim()), 400); };
 
+    const chips = [['all', tr('Everyone')], ...TAG_ORDER.map((k) => [k, tr(TAGS[k].label)]), ['blocked', tr('Blocked')]];
+    const deskHeader = (
+        <View style={{ paddingBottom: 6 }}>
+            <Hero icon="people" title={tr('Your customers')} subtitle={tr('Who orders from you, how often, and who has gone quiet.')}
+                right={<>
+                    {autopilotOk ? <HeroBtn label={tr('Autopilot')} icon="rocket-outline" onPress={() => nav.navigate('OwnerAutopilot')} /> : null}
+                    <HeroBtn label={tr('Excel')} icon="download-outline" solid onPress={() => setSheetOpen(true)} />
+                </>}>
+                <View style={{ flexDirection: 'row', marginTop: 18 }}>
+                    {TAG_ORDER.slice(0, 4).map((k) => <GlassStat key={k} label={tr(TAGS[k].label)} value={counts && counts[k] != null ? String(counts[k]) : '–'} icon="person-outline" />)}
+                </View>
+            </Hero>
+            <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, marginBottom: 8 }}>
+                <View style={{ width: 340 }}><Field value={typed} onChangeText={onType} placeholder={tr('Search by name or phone')} maxLength={40} style={{ minHeight: 44, borderRadius: 22, paddingHorizontal: 18 }} /></View>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1, marginLeft: 14 }}>
+                    {chips.map(([k, label]) => {
+                        const on = tag === k;
+                        return (
+                            <Pressable key={k} onPress={() => setTag(k)} style={({ hovered }) => ({ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, height: 40, borderRadius: 20, marginRight: 8, borderWidth: 1.5, borderColor: on ? primary : hovered ? alpha(primary, 0.55) : border, backgroundColor: on ? primary : hovered ? alpha(primary, 0.07) : 'transparent', cursor: 'pointer' })}>
+                                <Text style={{ color: on ? '#FFFFFF' : text, fontWeight: '800', fontSize: 13.5 }}>{label}</Text>
+                                {counts && counts[k] != null && k !== 'all' ? <Text style={{ color: on ? '#FFFFFF' : muted, fontWeight: '900', fontSize: 12.5, marginLeft: 7 }}>{counts[k]}</Text> : null}
+                            </Pressable>
+                        );
+                    })}
+                </ScrollView>
+            </View>
+            {tag === 'blocked' ? <Text style={{ color: muted, fontSize: 13, paddingHorizontal: 20, marginBottom: 6 }}>{tr('Customers you blocked: when, why, and the order it was about. You can unblock them here.')}</Text> : null}
+        </View>
+    );
     const header = (
         <View style={{ paddingBottom: 6 }}>
             <View style={{ paddingHorizontal: 16, paddingBottom: 10, flexDirection: 'row', alignItems: 'center' }}>
@@ -109,7 +168,7 @@ export default function OwnerCustomersScreen() {
                     <Pressable key={k} disabled={!!fileBusy} onPress={async () => {
                         setFileBusy(k);
                         try { await downloadAndOpen({ path: customersExportPath, params: { kind: k }, filename: `customers-${k}.xlsx`, mime: XLSX, title: tr(label) }); setSheetOpen(false); } catch (e) { showToast(e?.safe ? e.message : apiError(e)); } finally { setFileBusy(''); }
-                    }} accessibilityRole="button" style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderTopWidth: 0.5, borderTopColor: border, opacity: fileBusy && fileBusy !== k ? 0.4 : 1 }}>
+                    }} accessibilityRole="button" style={({ hovered }) => ({ ...(hovered && !fileBusy ? { backgroundColor: alpha(primary, 0.07), borderRadius: 14, marginHorizontal: -10, paddingHorizontal: 10, cursor: 'pointer' } : null), flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderTopWidth: 0.5, borderTopColor: hovered && !fileBusy ? 'transparent' : border, opacity: fileBusy && fileBusy !== k ? 0.4 : 1 })}>
                         <View style={{ flex: 1 }}>
                             <Text style={{ color: text, fontWeight: '800', fontSize: 15 }}>{tr(label)}</Text>
                             <Text style={{ color: muted, fontSize: 12.5, marginTop: 2 }}>{tr(hint)}</Text>
@@ -118,13 +177,17 @@ export default function OwnerCustomersScreen() {
                     </Pressable>
                 ))}
             </Sheet>
+            <View style={desk ? { flex: 1, width: '100%', maxWidth: 1240, alignSelf: 'center' } : { flex: 1 }}>
             <FlatList
+                key={desk ? 'g3' : 'g1'}
+                numColumns={desk ? 3 : 1}
                 data={tag === 'blocked' ? blockedShown : (items || [])}
                 keyExtractor={(u) => String(u.id)}
                 keyboardShouldPersistTaps="handled"
                 contentContainerStyle={{ paddingBottom: 32 }}
-                ListHeaderComponent={header}
+                ListHeaderComponent={desk ? deskHeader : header}
                 renderItem={({ item: u }) => {
+                    if (desk) return <View style={{ width: '33.333%', padding: 8 }}>{tag === 'blocked' ? <BlockedCard b={u} busy={busyId === u.id} onUnblock={unblock} /> : <CustomerTile u={u} onOpen={() => nav.navigate('OwnerCustomer', { id: String(u.id) })} onRemind={() => setRemind(u)} />}</View>;
                     if (tag === 'blocked') return <BlockedCard b={u} busy={busyId === u.id} onUnblock={unblock} />;
                     const tg = TAGS[u.tag];
                     const canRemind = u.id && u.orders > 0;
@@ -151,6 +214,7 @@ export default function OwnerCustomersScreen() {
                 ListEmptyComponent={tag === 'blocked' ? (blocked === null ? <ListShimmer rows count={3} /> : <Empty icon="checkmark-circle-outline" title={tr('No blocked customers')} hint={tr('Nobody is blocked right now.')} />) : items === null ? <ListShimmer rows count={6} /> : err ? <Empty icon="cloud-offline-outline" title={tr('Could not load')} hint={err} /> : <Empty icon="people-outline" title={q ? tr('No customer found') : tag === 'all' ? tr('No customers yet') : tr('No {v1} customers', { v1: TAGS[tag].label.toLowerCase() })} hint={q ? tr('Try another name or number.') : tag === 'all' ? tr('Customers appear here when they sign in to your app.') : tr('Good news: nobody is here right now.')} />}
                 ListFooterComponent={tag === 'blocked' ? null : more ? <Pressable onPress={() => { setLoadingMore(true); load(page + 1, q, tag); }} style={{ padding: 18, alignItems: 'center' }}>{loadingMore ? <LineShimmer width={90} height={16} /> : <Text style={{ color: primary, fontWeight: '800' }}>{tr('Show more')}</Text>}</Pressable> : null}
             />
+            </View>
             {remind ? <RemindSheet visible customer={remind} onClose={() => setRemind(null)} onSent={() => load(1, q, tag)} /> : null}
         </View>
     );

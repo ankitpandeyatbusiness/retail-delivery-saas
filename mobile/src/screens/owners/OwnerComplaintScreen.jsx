@@ -14,6 +14,9 @@ import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { COMPLAINT_TYPES, RESOLUTION_TEXT } from '../../utils/owners/hubRules';
 import { toPaise, ago, rupees } from '../../utils/owners/riderRules';
 import { showToast } from '../../components/customers/shop';
+import { useOwnerDesktop } from '../../utils/common/layout';
+import { Hero, HeroBtn, GlassStat } from '../../components/owners/RiderDesk';
+import Masonry from '../../components/common/Masonry';
 import { tr } from '../../i18n';
 
 const CHOICES = [['none', 'Reply only'], ['refund_full', 'Full refund'], ['refund_partial', 'Part refund'], ['no_refund', 'No refund'], ['closed', 'Just close it']];
@@ -63,6 +66,7 @@ export default function OwnerComplaintScreen() {
 }
 
 function ComplaintView({ c0 }) {
+    const desk = useOwnerDesktop();   // a computer: a banner, then what he wrote, what we know and your answer in two columns
     const [viewing, setViewing] = useState(null);   // a photo open full screen
     const nav = useNavigation();
     const { text, muted, error, ok } = useBrand();
@@ -99,7 +103,20 @@ function ComplaintView({ c0 }) {
     };
 
     return (
-        <FormPage title={c.bulkCode ? tr('Complaint · Bulk order {c}', { c: c.bulkCode }) : tr('Complaint · #{orderNo}', { orderNo: c.orderNo })} footer={!done ? <Button label={refunds ? tr('Send decision') : choice === 'no_refund' ? tr('Send decision') : choice === 'closed' ? tr('Close complaint') : tr('Send reply')} icon="send" disabled={!valid} busy={busy} onPress={submit} /> : null}>
+        <FormPage wide title={c.bulkCode ? tr('Complaint · Bulk order {c}', { c: c.bulkCode }) : tr('Complaint · #{orderNo}', { orderNo: c.orderNo })} footer={!done ? <Button label={refunds ? tr('Send decision') : choice === 'no_refund' ? tr('Send decision') : choice === 'closed' ? tr('Close complaint') : tr('Send reply')} icon="send" disabled={!valid} busy={busy} onPress={submit} /> : null}>
+            {desk ? (
+                <Hero icon="chatbubble-ellipses" title={c.bulkCode ? tr('Complaint · Bulk order {c}', { c: c.bulkCode }) : tr('Complaint · #{orderNo}', { orderNo: c.orderNo })}
+                    subtitle={`${tr(COMPLAINT_TYPES[c.type] || c.type)}  ·  ${c.customerName || tr('Customer')}  ·  ${ago(c.createdAt)}`}
+                    right={<HeroBtn label={c.bulkId ? tr('Open bulk order') : tr('Open order')} icon="receipt-outline" solid onPress={() => nav.navigate(c.bulkId ? 'OwnerBulkOrder' : 'OwnerOrder', { id: String(c.bulkId || c.orderId) })} />}>
+                    <View style={{ flexDirection: 'row', marginTop: 18 }}>
+                        <GlassStat label={tr('Status')} value={done ? (RESOLUTION_TEXT[c.resolution] || tr('Decided')) : c.status === 'in_progress' ? tr('In progress') : tr('New')} icon="flag-outline" />
+                        <GlassStat label={tr('Type')} value={tr(COMPLAINT_TYPES[c.type] || c.type)} icon="alert-circle-outline" />
+                        <GlassStat label={tr('Photos')} value={String(c.photos?.length || 0)} icon="images-outline" />
+                        <GlassStat label={tr('Refund')} value={c.refundPaise ? rupees(c.refundPaise) : '—'} icon="cash-outline" />
+                    </View>
+                </Hero>
+            ) : null}
+            <Masonry desk={desk} gap={-16}>
             <Card>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                     <Text style={{ color: text, fontWeight: '900', fontSize: 16, flex: 1 }}>{COMPLAINT_TYPES[c.type] || c.type}</Text>
@@ -157,6 +174,7 @@ function ComplaintView({ c0 }) {
                     <Field value={reply} onChangeText={setReply} multiline maxLength={500} placeholder={choice === 'no_refund' ? tr('Tell him why there is no refund') : tr('Write a short, kind reply')} />
                 </Group>
             )}
+            </Masonry>
         </FormPage>
     );
 }

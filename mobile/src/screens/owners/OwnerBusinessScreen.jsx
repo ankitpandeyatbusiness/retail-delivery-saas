@@ -16,6 +16,7 @@ import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { rupees } from '../../utils/owners/riderRules';
 import { showToast } from '../../components/customers/shop';
 import { tr } from '../../i18n';
+import { useOwnerDesktop } from '../../utils/common/layout';
 
 const lastMonthSpec = () => {
     const ist = new Date(Date.now() + 330 * 60000);
@@ -51,6 +52,7 @@ function Tip({ tip, onAction }) {
 }
 
 export default function OwnerBusinessScreen() {
+    const desk = useOwnerDesktop();   // a computer keeps what is on screen while the new list loads
     const nav = useNavigation();
     const given = useRoute().params?.range;
     const { background, text, muted, primary, ok, error, border } = useBrand();
@@ -64,7 +66,8 @@ export default function OwnerBusinessScreen() {
     if (given && !options.some(([v]) => v === String(given))) options.push([String(given), tr('That month')]);
 
     const load = useCallback(async () => {
-        setR(null); setErr('');
+        if (!desk) setR(null);
+        setErr('');
         try { setR(await fetchBusinessReport(range)); }
         catch (e) { useOwnerStore.getState().noteError(e); setErr(apiError(e, 'Could not make your report.')); }
     }, [range]);

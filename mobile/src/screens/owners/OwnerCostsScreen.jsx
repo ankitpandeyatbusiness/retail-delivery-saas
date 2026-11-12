@@ -12,6 +12,7 @@ import { showToast } from '../../components/customers/shop';
 import { StatShimmer } from '../../components/owners/shimmer';
 import { fetchCosts, addCost, updateCost, deleteCost, fetchProfit, apiError } from '../../api/owners/shopApi';
 import { tr } from '../../i18n';
+import { useOwnerDesktop } from '../../utils/common/layout';
 
 const IST = 330 * 60000;
 const ymd = (ms) => new Date(ms + IST).toISOString().slice(0, 10);
@@ -28,6 +29,7 @@ const LABEL = {
 const blank = () => ({ id: null, category: 'ingredients', amount: '', date: ymd(Date.now()), otherName: '', vendor: '', note: '', repeatMonthly: false });
 
 export default function OwnerCostsScreen() {
+    const desk = useOwnerDesktop();   // a computer keeps what is on screen while the new list loads
     const { background, text, muted, primary, errorText, ok } = useBrand();   // ok and errorText stay readable on a dark canvas (there is no "success" colour: it was undefined, so the profit drew in default black)
     const [which, setWhich] = useState('month');
     const [p, setP] = useState(null);
@@ -44,7 +46,7 @@ export default function OwnerCostsScreen() {
         } catch (e) { setErr(apiError(e, 'Could not load.')); }
     }, [which]);
     useFocusEffect(useCallback(() => { load(); }, [load]));
-    useEffect(() => { setP(null); setList(null); }, [which]);
+    useEffect(() => { if (!desk) { setP(null); setList(null); } }, [which]);
 
     const save = async () => {
         const paise = Math.round(Number(String(form.amount).replace(/,/g, '')) * 100);

@@ -16,8 +16,10 @@ import { dayTime } from '../../utils/owners/orderFlow';
 import { showToast } from '../../components/customers/shop';
 import { LineShimmer, ListShimmer } from '../../components/owners/shimmer';
 import { tr } from '../../i18n';
+import { useOwnerDesktop } from '../../utils/common/layout';
 
 export default function OwnerMonthScreen() {
+    const desk = useOwnerDesktop();   // a computer keeps what is on screen while the new list loads
     const nav = useNavigation();
     const { month } = useRoute().params || {};
     const { background, text, muted, ok, error, primary, border } = useBrand();
@@ -39,7 +41,7 @@ export default function OwnerMonthScreen() {
             setMore(r.page * r.limit < r.total); setPage(p); setErr('');
         } catch (e) { useOwnerStore.getState().noteError(e); setErr(apiError(e, 'Could not load this month.')); setItems((x) => x || []); }
     }, [month, cat]);   // eslint-disable-line react-hooks/exhaustive-deps
-    useEffect(() => { setItems(null); load(1); }, [load]);
+    useEffect(() => { if (!desk) setItems(null); load(1); }, [load]);
 
     const csv = async () => {
         setBusy('csv');

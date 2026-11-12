@@ -143,7 +143,7 @@ export default function OwnerExportBuildScreen() {
                         {!shopIds.length ? <Ionicons name="checkmark-circle" size={22} color={primary} /> : null}
                     </Pressable>
                     {cat.shops.map((s) => (
-                        <Pressable key={s.id} onPress={() => toggle(s.id)} style={{ paddingVertical: 12, flexDirection: 'row', alignItems: 'center', borderTopWidth: 0.5, borderTopColor: border }}>
+                        <Pressable key={s.id} onPress={() => toggle(s.id)} style={({ hovered }) => ({ paddingVertical: 12, flexDirection: 'row', alignItems: 'center', borderTopWidth: 0.5, borderTopColor: hovered ? 'transparent' : border, ...(hovered ? { backgroundColor: 'rgba(128,128,128,0.1)', borderRadius: 14, marginHorizontal: -10, paddingHorizontal: 10, cursor: 'pointer' } : null) })}>
                             <View style={{ flex: 1 }}>
                                 <Text style={{ color: text, fontWeight: '700', fontSize: 15 }} numberOfLines={1}>{s.name}</Text>
                                 {s.city ? <Text style={{ color: muted, fontSize: 12 }}>{s.city}</Text> : null}

@@ -6,6 +6,7 @@ import { PageHeader, Card, Chips, SectionTitle, Stat, Empty, money } from '../..
 import { StatShimmer } from '../../components/owners/shimmer';
 import { fetchDineReport, apiError } from '../../api/owners/shopApi';
 import { tr, tl } from '../../i18n';
+import { useOwnerDesktop } from '../../utils/common/layout';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const ap = (h) => (h === 0 ? '12a' : h < 12 ? h + 'a' : h === 12 ? '12p' : (h - 12) + 'p');
@@ -32,12 +33,14 @@ function Bars({ values, labels, color, height = 70 }) {
 }
 
 export default function OwnerDineInReportScreen() {
+    const desk = useOwnerDesktop();   // a computer keeps what is on screen while the new list loads
     const { background, text, muted, error, ok, primary, warn } = useBrand();
     const [days, setDays] = useState('30');
     const [r, setR] = useState(null);
     const [err, setErr] = useState('');
     const load = useCallback(async () => {
-        setR(null); setErr('');
+        if (!desk) setR(null);
+        setErr('');
         try { setR(await fetchDineReport(Number(days))); } catch (e) { setErr(apiError(e, 'Could not make the report.')); }
     }, [days]);
     useEffect(() => { load(); }, [load]);

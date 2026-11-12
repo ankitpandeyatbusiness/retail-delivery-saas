@@ -139,7 +139,7 @@ export default function OwnerHistoryScreen() {
             setData((x) => x || { items: [], hasMore: false, page: 1, summary: null, byDay: {} });
         }
     }, [params]);
-    useEffect(() => { setData(null); load(); }, [load]);
+    useEffect(() => { if (!desk) setData(null); load(); }, [load]);
     const refresh = async () => { setRefreshing(true); await load(true); setRefreshing(false); };
     const loadMore = async () => {
         if (!data?.hasMore || more) return;

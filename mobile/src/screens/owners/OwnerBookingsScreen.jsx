@@ -19,6 +19,7 @@ import { ease } from '../../utils/common/ease';
 import ChatButton from '../../components/common/ChatButton';
 import { tr } from '../../i18n';
 import { niceDate } from '../../utils/common/dayNames';
+import { useOwnerDesktop } from '../../utils/common/layout';
 
 export const BOOKING_STATUS = { held: 'Waiting for payment', confirmed: 'Booked', seated: 'Seated', no_show: 'No-show', cancelled: 'Cancelled', expired: 'Expired' };
 // what became of the deposit, in words (guest and owner screens)
@@ -28,6 +29,7 @@ const todayIst = () => new Date(Date.now() + 330 * 60000).toISOString().slice(0,
 const nice = (ymd) => niceDate(ymd);
 
 export default function OwnerBookingsScreen() {
+    const desk = useOwnerDesktop();   // a computer keeps what is on screen while the new list loads
     const nav = useNavigation();
     const params = useRoute().params || {};
     const { background, text, muted, primary, onPrimary, ok, error, border, surface } = useBrand();
@@ -36,7 +38,7 @@ export default function OwnerBookingsScreen() {
     const [pickRange, setPickRange] = useState(false);
     const [slot, setSlot] = useState('any');          // time of day
     const [state, setState] = useState('all');        // status (or 'pending': paid, waiting for Allow)
-    useEffect(() => { if (params.filter === 'pending') { setData(null); setMode('all'); setRange(null); setState('pending'); } }, [params.filter, params.stamp]);   // from the bar on the Home
+    useEffect(() => { if (params.filter === 'pending') { if (!desk) setData(null); setMode('all'); setRange(null); setState('pending'); } }, [params.filter, params.stamp]);   // from the bar on the Home
     const [date, setDate] = useState(todayIst());
     const [data, setData] = useState(null);
     const [busyId, setBusyId] = useState('');
@@ -87,7 +89,7 @@ export default function OwnerBookingsScreen() {
         </Pressable>
     );
     const tone = (s) => (s === 'seated' ? ok : s === 'confirmed' ? primary : s === 'no_show' ? error : muted);
-    const arrow = (n, icon) => <Pressable onPress={() => { setData(null); setDate((d) => shift(d, n)); }} hitSlop={10} style={{ padding: 8 }}><Ionicons name={icon} size={22} color={text} /></Pressable>;
+    const arrow = (n, icon) => <Pressable onPress={() => { if (!desk) setData(null); setDate((d) => shift(d, n)); }} hitSlop={10} style={{ padding: 8 }}><Ionicons name={icon} size={22} color={text} /></Pressable>;
 
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
@@ -95,7 +97,7 @@ export default function OwnerBookingsScreen() {
             <ClosedBookingsBanner onDone={() => load()} />
             <View style={{ flexDirection: 'row', paddingHorizontal: 16, marginBottom: 10 }}>
                 {[['day', tr('By day')], ['all', tr('All bookings')]].map(([k, l]) => (
-                    <Pressable key={k} onPress={() => { if (mode !== k) { ease(); setData(null); setMode(k); } }} style={{ flex: 1, paddingVertical: 10, alignItems: 'center', borderBottomWidth: 3, borderBottomColor: mode === k ? primary : border }}>
+                    <Pressable key={k} onPress={() => { if (mode !== k) { ease(); if (!desk) setData(null); setMode(k); } }} style={{ flex: 1, paddingVertical: 10, alignItems: 'center', borderBottomWidth: 3, borderBottomColor: mode === k ? primary : border }}>
                         <Text style={{ color: mode === k ? primary : muted, fontWeight: '900' }}>{tr(l)}</Text>
                     </Pressable>
                 ))}
@@ -103,7 +105,7 @@ export default function OwnerBookingsScreen() {
             {mode === 'day' ? (
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12 }}>
                     {arrow(-1, 'chevron-back')}
-                    <Pressable onPress={() => { setData(null); setDate(todayIst()); }} style={{ alignItems: 'center', flex: 1 }}>
+                    <Pressable onPress={() => { if (!desk) setData(null); setDate(todayIst()); }} style={{ alignItems: 'center', flex: 1 }}>
                         <Text style={{ color: text, fontWeight: '900', fontSize: 17 }}>{date === todayIst() ? tr('Today') : nice(date)}</Text>
                         <Text style={{ color: muted, fontSize: 12, textAlign: 'center' }}>{data ? tr('{n} guests booked', { n: data.seats }) + (data.waiting ? ` · ${tr('{n} waiting for a table', { n: data.waiting })}` : '') : ' '}</Text>
                     </Pressable>
@@ -114,7 +116,7 @@ export default function OwnerBookingsScreen() {
                     <Pressable onPress={() => setPickRange(true)} style={{ flexDirection: 'row', alignItems: 'center', minHeight: 46, borderRadius: 12, borderWidth: 1, borderColor: border, backgroundColor: surface, paddingHorizontal: 14 }}>
                         <Ionicons name="calendar-outline" size={18} color={primary} style={{ marginRight: 10 }} />
                         <Text style={{ flex: 1, color: range?.from ? text : muted, fontWeight: '700' }}>{range?.from ? rangeLabel(range) : tr('All dates. Tap to pick dates')}</Text>
-                        {range?.from ? <Pressable onPress={() => { setData(null); setRange(null); }} hitSlop={10}><Ionicons name="close-circle" size={20} color={muted} /></Pressable> : <Ionicons name="chevron-down" size={18} color={muted} />}
+                        {range?.from ? <Pressable onPress={() => { if (!desk) setData(null); setRange(null); }} hitSlop={10}><Ionicons name="close-circle" size={20} color={muted} /></Pressable> : <Ionicons name="chevron-down" size={18} color={muted} />}
                     </Pressable>
                 </View>
             )}
@@ -193,7 +195,7 @@ export default function OwnerBookingsScreen() {
                     <Button label={tr('Booking settings')} icon="settings-outline" kind="ghost" onPress={() => nav.navigate('OwnerBookingSettings')} />
                 </View>
             </ScrollView>
-            <DateRangeSheet visible={pickRange} value={range} ahead={365} noun="bookings" title={tr('Filter by date')} onClose={() => setPickRange(false)} onApply={(v) => { setPickRange(false); setData(null); setRange(v); }} />
+            <DateRangeSheet visible={pickRange} value={range} ahead={365} noun="bookings" title={tr('Filter by date')} onClose={() => setPickRange(false)} onApply={(v) => { setPickRange(false); if (!desk) setData(null); setRange(v); }} />
         </View>
     );
 }

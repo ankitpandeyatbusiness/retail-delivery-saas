@@ -9,10 +9,12 @@ import { fetchBrandInbox } from '../../api/owners/brandApi';
 import { useBrandStore } from '../../store/owners/useBrandStore';
 import { apiError } from '../../api/owners/shopApi';
 import { tr } from '../../i18n';
+import { useOwnerDesktop } from '../../utils/common/layout';
 
 const when = (d) => new Date(d).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
 
 export default function OwnerBranchInboxScreen() {
+    const desk = useOwnerDesktop();   // a computer keeps what is on screen while the new list loads
     const nav = useNavigation();
     const { background, text, muted, primary, border, surface } = useBrand();
     const me = useBrandStore((s) => s.me);
@@ -24,7 +26,7 @@ export default function OwnerBranchInboxScreen() {
 
     useEffect(() => { useBrandStore.getState().load(); }, []);
     const load = useCallback(async (p = 1) => {
-        if (p === 1) setRows(null);
+        if (p === 1 && !desk) setRows(null);
         setErr('');
         try {
             const r = await fetchBrandInbox({ page: p, ...(branch === 'all' ? {} : { branch }) });

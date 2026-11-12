@@ -12,10 +12,12 @@ import { rupees, ago } from '../../utils/owners/riderRules';
 import { dayTime } from '../../utils/owners/orderFlow';
 import { ListShimmer } from '../../components/owners/shimmer';
 import { tr } from '../../i18n';
+import { useOwnerDesktop } from '../../utils/common/layout';
 
 const RANGES = [['7', '7 days'], ['30', '30 days'], ['month', 'This month']];
 
 export default function OwnerPaymentsScreen() {
+    const desk = useOwnerDesktop();   // a computer keeps what is on screen while the new list loads
     const nav = useNavigation();
     const { background, muted, text, ok, error, primary } = useBrand();
     const [tab, setTab] = useState('moves');
@@ -28,7 +30,7 @@ export default function OwnerPaymentsScreen() {
     const [err, setErr] = useState('');
 
     const run = useCallback(async (p = 1) => {
-        if (p === 1) { setList(null); setErr(''); }
+        if (p === 1) { if (!desk) setList(null); setErr(''); }
         try {
             const r = periodRange(range);
             let items; let hasMore = false;

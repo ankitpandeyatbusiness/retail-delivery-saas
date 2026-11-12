@@ -15,6 +15,7 @@ import { SUPPORT_TOPICS, SUPPORT_STATUS } from '../../utils/owners/supportRules'
 import { ago } from '../../utils/owners/riderRules';
 import { showToast } from '../../components/customers/shop';
 import { tr } from '../../i18n';
+import { useOwnerDesktop } from '../../utils/common/layout';
 
 function ContactCard({ info }) {
     const { text, muted, primary } = useBrand();
@@ -41,6 +42,7 @@ function ContactCard({ info }) {
 }
 
 export default function OwnerSupportScreen() {
+    const desk = useOwnerDesktop();   // a computer keeps what is on screen while the new list loads
     const nav = useNavigation();
     const { background, text, muted, primary, error } = useBrand();
     const [info, setInfo] = useState(null);
@@ -63,7 +65,7 @@ export default function OwnerSupportScreen() {
         fetchSupportInfo().then(setInfo).catch(() => setInfo({}));
         load(1);
     }, [load]));
-    const pick = (st) => { setStatus(st); setItems(null); };
+    const pick = (st) => { setStatus(st); if (!desk) setItems(null); };
 
     return (
         <View style={{ flex: 1, backgroundColor: background }}>

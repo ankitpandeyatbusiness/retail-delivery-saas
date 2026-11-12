@@ -19,16 +19,18 @@ export default function RemindSheet({ visible, onClose, customer, onSent }) {
     const [edited, setEdited] = useState(false);
     const [busy, setBusy] = useState(false);
     const [err, setErr] = useState('');
+    const [fresh, setFresh] = useState(false);   // the words are being made again (the offer was switched): the form stays, a little dimmed, instead of disappearing and coming back
 
-    const load = (withOffer) => {
-        setP(null); setErr('');
+    const load = (withOffer, keep) => {
+        if (keep) setFresh(true); else setP(null);
+        setErr('');
         fetchRemindPreview(customer.id, withOffer)
-            .then((r) => { setP(r); setTitle(r.title); setBody(r.body); setEdited(false); })
-            .catch((e) => setErr(apiError(e, 'Could not make the message.')));
+            .then((r) => { setP(r); setTitle(r.title); setBody(r.body); setEdited(false); setFresh(false); })
+            .catch((e) => { setFresh(false); setErr(apiError(e, 'Could not make the message.')); });
     };
     useEffect(() => { if (visible && customer) { setOffer(false); load(false); } }, [visible, customer?.id]);   // eslint-disable-line react-hooks/exhaustive-deps
 
-    const toggleOffer = (v) => { setOffer(v); load(v); };
+    const toggleOffer = (v) => { setOffer(v); load(v, true); };
     const send = async () => {
         setBusy(true);
         try {
@@ -42,9 +44,9 @@ export default function RemindSheet({ visible, onClose, customer, onSent }) {
     return (
         <Sheet visible={visible} onClose={onClose} title={tr('Remind {first}', { first: first })}>
             {err ? <Text style={{ color: error, marginVertical: 12 }}>{err}</Text> : null}
-            {!p && !err ? <View style={{ paddingVertical: 12 }}><LineShimmer width={220} height={16} /><View style={{ height: 10 }} /><LineShimmer width={280} height={16} /></View> : null}
+            {!p && !err ? <View style={{ paddingVertical: 12, minHeight: 330 }}><LineShimmer width={220} height={16} /><View style={{ height: 10 }} /><LineShimmer width={280} height={16} /></View> : null}
             {p ? (
-                <>
+                <View style={{ opacity: fresh ? 0.55 : 1, transitionProperty: 'opacity', transitionDuration: '140ms' }} pointerEvents={fresh ? 'none' : 'auto'}>
                     <Hint>{tr('He gets this as a notification and in his app inbox. It is not sent by SMS or email. You can change the words.')}</Hint>
                     <View style={{ height: 8 }} />
                     <Label>{tr('Title')}</Label>
@@ -57,7 +59,7 @@ export default function RemindSheet({ visible, onClose, customer, onSent }) {
                     ) : null}
                     {!p.canSend ? <Text style={{ color: error, fontWeight: '700', marginVertical: 10 }}>{p.holdBack}</Text> : <Text style={{ color: muted, fontSize: 12, marginVertical: 10 }}>{tr('Language: {v1}. Change it in Autopilot.', { v1: p.language === 'hi' ? 'Hindi' : p.language === 'en' ? 'English' : 'Hinglish' })}</Text>}
                     <Button label={tr('Send reminder')} icon="paper-plane" busy={busy} disabled={!p.canSend || !title.trim() || !body.trim()} onPress={send} />
-                </>
+                </View>
             ) : null}
         </Sheet>
     );

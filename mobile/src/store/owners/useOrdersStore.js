@@ -7,6 +7,7 @@ import { create } from 'zustand';
 import { fetchOrders, markLooksSeen, apiError } from '../../api/owners/shopApi';
 import { boardParams, onTableNow, isFinal, boardStatus } from '../../utils/owners/orderFlow';
 import { useOwnerStore } from './useOwnerStore';
+import { isDeskNow } from '../../utils/common/layout';
 
 const PAGE = 20;
 const recent = new Map();   // order id -> { order, at }: orders changed on this phone a moment ago
@@ -29,7 +30,8 @@ export const useOrdersStore = create((set, get) => ({
 
     setFilter: (filter) => {
         if (filter === get().filter) return;
-        set({ filter, items: [], hasMore: false, page: 1, loading: true, error: null });
+        // on a computer the cards stay until the new tab's orders arrive (no empty flash); the phone clears the list as before
+        set(isDeskNow() ? { filter, hasMore: false, page: 1, error: null } : { filter, items: [], hasMore: false, page: 1, loading: true, error: null });
         get().load();
     },
     setQuery: (query) => { set({ query }); get().load({ quiet: true }); },

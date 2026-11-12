@@ -93,7 +93,7 @@ export default function OwnerTxTabScreen() {
 
     const load = useCallback(async (p = 1, quiet = false) => {
         const mine = ++seq.current;
-        if (!quiet && p === 1) { setData(null); setItems([]); }
+        if (!quiet && p === 1 && !desk) { setData(null); setItems([]); }
         setErr('');
         try {
             const r = await fetchMoneyAll({ ...params(), page: p });

@@ -9,10 +9,12 @@ import { fetchSalesReport, apiError } from '../../api/owners/shopApi';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { periodRange } from '../../utils/owners/moneyRules';
 import { tr } from '../../i18n';
+import { useOwnerDesktop } from '../../utils/common/layout';
 
 const RANGES = [['7', 'Last 7 days'], ['30', 'Last 30 days'], ['90', 'Last 3 months']];
 
 export default function OwnerPopularScreen() {
+    const desk = useOwnerDesktop();   // a computer keeps what is on screen while the new list loads
     const { background, text, muted, primary, ok } = useBrand();
     const [range, setRange] = useState('7');
     const [items, setItems] = useState(null);
@@ -20,7 +22,8 @@ export default function OwnerPopularScreen() {
     const [err, setErr] = useState('');
 
     const load = useCallback(async () => {
-        setItems(null); setErr('');
+        if (!desk) setItems(null);
+        setErr('');
         try {
             // periodRange knows 7 / 30 / today / month; 3 months is 90 days
             const r = range === '90'
