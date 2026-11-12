@@ -17,7 +17,7 @@ import { showToast } from '../../components/customers/shop';
 import { ask } from '../../components/common/dialog';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { personName } from '../../utils/owners/hubRules';
-import { useOwnerDesktop } from '../../utils/common/layout';
+import { useOwnerDesktop, useGridCols } from '../../utils/common/layout';
 import { Hero, HeroBtn, GlassStat } from '../../components/owners/RiderDesk';
 import { ago } from '../../utils/owners/riderRules';
 import { TAGS, TAG_ORDER, usualLine, sinceLine } from '../../utils/owners/customerTags';
@@ -54,6 +54,7 @@ function CustomerTile({ u, onOpen, onRemind }) {
 
 export default function OwnerCustomersScreen() {
     const desk = useOwnerDesktop();   // a computer: a banner, filter chips and the customers as cards three across
+    const gcols = useGridCols(3, 300);   // fewer, wider cards in a narrow window
     const autopilotOk = usePlanHas('customPush');   // Autopilot is Pro
     const nav = useNavigation();
     const { background, text, muted, primary, border, onPrimary } = useBrand();
@@ -179,15 +180,15 @@ export default function OwnerCustomersScreen() {
             </Sheet>
             <View style={desk ? { flex: 1, width: '100%', maxWidth: 1240, alignSelf: 'center' } : { flex: 1 }}>
             <FlatList
-                key={desk ? 'g3' : 'g1'}
-                numColumns={desk ? 3 : 1}
+                key={desk ? `g${gcols}` : 'g1'}
+                numColumns={desk ? gcols : 1}
                 data={tag === 'blocked' ? blockedShown : (items || [])}
                 keyExtractor={(u) => String(u.id)}
                 keyboardShouldPersistTaps="handled"
                 contentContainerStyle={{ paddingBottom: 32 }}
                 ListHeaderComponent={desk ? deskHeader : header}
                 renderItem={({ item: u }) => {
-                    if (desk) return <View style={{ width: '33.333%', padding: 8 }}>{tag === 'blocked' ? <BlockedCard b={u} busy={busyId === u.id} onUnblock={unblock} /> : <CustomerTile u={u} onOpen={() => nav.navigate('OwnerCustomer', { id: String(u.id) })} onRemind={() => setRemind(u)} />}</View>;
+                    if (desk) return <View style={{ width: `${100 / gcols}%`, padding: 8 }}>{tag === 'blocked' ? <BlockedCard b={u} busy={busyId === u.id} onUnblock={unblock} /> : <CustomerTile u={u} onOpen={() => nav.navigate('OwnerCustomer', { id: String(u.id) })} onRemind={() => setRemind(u)} />}</View>;
                     if (tag === 'blocked') return <BlockedCard b={u} busy={busyId === u.id} onUnblock={unblock} />;
                     const tg = TAGS[u.tag];
                     const canRemind = u.id && u.orders > 0;

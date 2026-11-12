@@ -5,7 +5,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useFocusEffect } from '../../hooks/common/useLiveFocus';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand, alpha } from '../../components/common/kit';
-import { useOwnerDesktop } from '../../utils/common/layout';
+import { useOwnerDesktop, useGridCols } from '../../utils/common/layout';
 import { Frame, Hero, HeroBtn, GlassStat } from '../../components/owners/RiderDesk';
 import { PageHeader, Card, Pill, Button, Empty } from '../../components/owners/ui';
 import { Toggle } from '../../components/owners/menuBits';
@@ -25,6 +25,7 @@ function hoursText(timings = []) {
 
 export default function OwnerCategoriesScreen() {
     const desk = useOwnerDesktop();   // a computer: a banner, and the categories as numbered cards three across
+    const gcols = useGridCols(3, 300);   // fewer, wider cards in a narrow window
     const nav = useNavigation();
     const { background, muted, text, primary, surface, border } = useBrand();
     const cats = useMenuStore((s) => s.categories);
@@ -71,7 +72,7 @@ export default function OwnerCategoriesScreen() {
                 {desk ? (
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: 8 }}>
                         {cats.map((c, i) => (
-                            <View key={c._id} style={{ width: '33.333%', padding: 8 }}>
+                            <View key={c._id} style={{ width: `${100 / gcols}%`, padding: 8 }}>
                                 <Pressable onPress={() => nav.navigate('OwnerCategory', { id: String(c._id) })} style={({ hovered }) => ({ borderRadius: 22, borderWidth: 1, borderColor: hovered ? primary : border, backgroundColor: hovered ? alpha(primary, 0.05) : surface, padding: 18, opacity: c.isActive === false ? 0.65 : 1, cursor: 'pointer', boxShadow: hovered ? `inset 0 0 0 1.5px ${primary}` : 'inset 0 0 0 0 transparent', transitionProperty: 'background-color, box-shadow', transitionDuration: '140ms' })}>
                                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                                         <View style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: primary, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: '#FFFFFF', fontWeight: '900', fontSize: 18 }}>{i + 1}</Text></View>

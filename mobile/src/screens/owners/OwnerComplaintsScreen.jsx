@@ -13,7 +13,7 @@ import { COMPLAINT_TYPES, COMPLAINT_STATUS, RESOLUTION_TEXT } from '../../utils/
 import { ago } from '../../utils/owners/riderRules';
 import { ListShimmer } from '../../components/owners/shimmer';
 import GlowBorder from '../../components/common/GlowBorder';
-import { useOwnerDesktop } from '../../utils/common/layout';
+import { useOwnerDesktop, useGridCols } from '../../utils/common/layout';
 import { Hero, GlassStat } from '../../components/owners/RiderDesk';
 import { Ionicons } from '@expo/vector-icons';
 import { tr } from '../../i18n';
@@ -22,6 +22,7 @@ const TYPE_ICON = { missing_item: 'remove-circle', wrong_item: 'swap-horizontal'
 
 export default function OwnerComplaintsScreen() {
     const desk = useOwnerDesktop();   // a computer: a banner, tabs for the three stages and the complaints as cards two across
+    const gcols = useGridCols(2, 420);   // fewer, wider cards in a narrow window
     const nav = useNavigation();
     const { background, text, muted, error, ok, primary } = useBrand();
     const [status, setStatus] = useState('open');
@@ -67,14 +68,14 @@ export default function OwnerComplaintsScreen() {
             <PageHeader title={tr('Complaints')} />
             <View style={desk ? { flex: 1, width: '100%', maxWidth: 1240, alignSelf: 'center', opacity: fetching ? 0.55 : 1, transitionProperty: 'opacity', transitionDuration: '160ms' } : { flex: 1 }}>
             <FlatList
-                key={desk ? 'g2' : 'g1'}
-                numColumns={desk ? 2 : 1}
+                key={desk ? `g${gcols}` : 'g1'}
+                numColumns={desk ? gcols : 1}
                 data={items || []}
                 keyExtractor={(c) => String(c.id)}
                 contentContainerStyle={{ paddingBottom: 32 }}
                 ListHeaderComponent={desk ? deskHeader : <FilterBar title={tr('Filter complaints')} summary={tr(COMPLAINT_STATUS[status] || 'All')} activeCount={0} style={{ paddingBottom: 16 }} sections={[{ key: 'status', title: 'Status', options: Object.entries(COMPLAINT_STATUS), value: status, onChange: pick }]} />}
                 renderItem={({ item: c }) => desk ? (
-                    <View style={{ width: '50%', padding: 8 }}>
+                    <View style={{ width: `${100 / gcols}%`, padding: 8 }}>
                         <GlowBorder active={c.status !== 'resolved'} radius={22}>
                             <Pressable onPress={() => nav.navigate('OwnerComplaint', { complaint: c })} style={({ hovered }) => ({ borderRadius: 22, borderWidth: 1, borderColor: hovered ? primary : muted + '33', backgroundColor: hovered ? primary + '0D' : background, padding: 18, cursor: 'pointer', boxShadow: hovered ? `inset 0 0 0 1.5px ${primary}` : 'inset 0 0 0 0 transparent', transitionProperty: 'background-color, box-shadow', transitionDuration: '140ms' })}>
                                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>

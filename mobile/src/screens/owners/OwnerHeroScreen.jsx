@@ -11,9 +11,12 @@ import { fetchHeroes, reorderHeroes, deleteUpload, apiError } from '../../api/ow
 import { pickImage, uploadImage } from '../../utils/owners/upload';
 import { showToast } from '../../components/customers/shop';
 import { ask } from '../../components/common/dialog';
+import { useOwnerDesktop, useGridCols } from '../../utils/common/layout';
 import { tr } from '../../i18n';
 
 export default function OwnerHeroScreen() {
+    const desk = useOwnerDesktop();   // a computer: the pictures side by side
+    const gcols = useGridCols(3, 320);
     const { primary, border, error, text, surface } = useBrand();
     const [list, setList] = useState(null);
     const [max, setMax] = useState(5);
@@ -55,11 +58,12 @@ export default function OwnerHeroScreen() {
     );
 
     return (
-        <FormPage title={tr('Login and home pictures')}>
+        <FormPage wide title={tr('Login and home pictures')}>
             <Group title={tr('Your pictures')} hint={tr('These big pictures slide on the login screen and the top of the home screen. Wide pictures look best. Up to {n}.', { n: max })}>
                 {list === null ? <Skel height={150} radius={16} /> : null}
+                <View style={desk ? { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -8 } : undefined}>
                 {(list || []).map((m, i) => (
-                    <View key={m.id} style={{ marginBottom: 14 }}>
+                    <View key={m.id} style={{ marginBottom: 14, ...(desk ? { width: `${100 / gcols}%`, paddingHorizontal: 8 } : null) }}>
                         <Image source={{ uri: m.url }} style={{ width: '100%', height: 150, borderRadius: 16, backgroundColor: surface }} contentFit="cover" />
                         <View style={{ position: 'absolute', right: 8, top: 8, flexDirection: 'row' }}>
                             <View style={{ marginRight: 6 }}>{round('arrow-up', () => move(i, -1), i === 0)}</View>
@@ -69,6 +73,7 @@ export default function OwnerHeroScreen() {
                         <Text style={{ position: 'absolute', left: 10, bottom: 8, color: '#FFFFFF', fontWeight: '900', textShadowColor: 'rgba(0,0,0,0.6)', textShadowRadius: 4 }}>{i + 1}</Text>
                     </View>
                 ))}
+                </View>
                 {list && list.length < max ? (
                     <Pressable onPress={add} style={{ height: 90, borderRadius: 16, borderWidth: 1.5, borderStyle: 'dashed', borderColor: border, backgroundColor: alpha(primary, 0.06), alignItems: 'center', justifyContent: 'center' }}>
                         {busy === 'add' ? <Skel height={24} width={120} radius={8} /> : (

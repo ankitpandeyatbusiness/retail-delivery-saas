@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useFocusEffect } from '../../hooks/common/useLiveFocus';
 import { useBrand, alpha } from '../../components/common/kit';
-import { useOwnerDesktop } from '../../utils/common/layout';
+import { useOwnerDesktop, useGridCols } from '../../utils/common/layout';
 import { Frame, Hero, HeroBtn, GlassStat } from '../../components/owners/RiderDesk';
 import { PageHeader, Card, Pill, Button, Empty } from '../../components/owners/ui';
 import { Toggle } from '../../components/owners/menuBits';
@@ -19,6 +19,7 @@ import { tr } from '../../i18n';
 
 export default function OwnerCouponsScreen() {
     const desk = useOwnerDesktop();   // a computer: a banner, and the coupons as tickets three across
+    const gcols = useGridCols(3, 340);   // fewer, wider cards in a narrow window
     const nav = useNavigation();
     const { background, text, muted, primary, error, surface, border } = useBrand();
     const [items, setItems] = useState(null);
@@ -59,7 +60,7 @@ export default function OwnerCouponsScreen() {
                 {desk ? (
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: 8 }}>
                         {(items || []).map((c) => (
-                            <View key={c._id} style={{ width: '33.333%', padding: 8 }}>
+                            <View key={c._id} style={{ width: `${100 / gcols}%`, padding: 8 }}>
                                 <Pressable onPress={() => nav.navigate('OwnerCoupon', { id: String(c._id) })} style={({ hovered }) => ({ flexDirection: 'row', borderRadius: 22, borderWidth: 1, borderColor: hovered ? primary : border, backgroundColor: hovered ? alpha(primary, 0.05) : surface, overflow: 'hidden', opacity: c.isActive === false || ended(c) ? 0.6 : 1, cursor: 'pointer', boxShadow: hovered ? `inset 0 0 0 1.5px ${primary}` : 'inset 0 0 0 0 transparent', transitionProperty: 'background-color, box-shadow', transitionDuration: '140ms' })}>
                                     <View style={{ width: 104, alignItems: 'center', justifyContent: 'center', backgroundColor: alpha(primary, 0.14), paddingVertical: 18 }}>
                                         <Text style={{ color: primary, fontWeight: '900', fontSize: 28, letterSpacing: -0.8 }}>{c.discountType === 'percent' ? `${c.discountValue}%` : `₹${c.discountValue}`}</Text>

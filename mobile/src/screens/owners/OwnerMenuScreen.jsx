@@ -10,7 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useBrand, alpha } from '../../components/common/kit';
 import { OwnerScreen, Empty, Field, Card, Pill, Button, EmbeddedCtx } from '../../components/owners/ui';
 import OwnerItemScreen from './OwnerItemScreen';
-import { useOwnerDesktop } from '../../utils/common/layout';
+import { useOwnerDesktop, useGridCols } from '../../utils/common/layout';
 import { Hero, HeroBtn, GlassStat } from '../../components/owners/RiderDesk';
 import MenuCard from '../../components/owners/MenuCard';
 import { ItemRow, SoldOutSheet } from '../../components/owners/menuBits';
@@ -45,6 +45,7 @@ export default function OwnerMenuScreen() {
     const [q, setQ] = useState('');
     const [asking, setAsking] = useState(null);       // the item being switched off
     const desk = useOwnerDesktop();
+    const gcols = useGridCols(3, 330);   // fewer, wider cards in a narrow window
     const pw = useRef(new Animated.Value(0)).current;   // the width of the edit panel: it slides open from the right and slides shut again
     const [panel, setPanel] = useState(null);           // desktop: the item being edited beside the list: { id } or { categoryId } for a new one
     const [open, setOpen] = useState(false);   // the panel's width: it is set a moment after the panel mounts, and the browser animates the change (a CSS transition, no JavaScript per frame)
@@ -227,7 +228,7 @@ export default function OwnerMenuScreen() {
                                     </View>
                                     <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
                                         {sec.items.map((it) => (
-                                            <View key={it._id} style={{ width: open ? '50%' : '33.333%', padding: 8, transitionProperty: 'width', transitionDuration: '320ms', transitionTimingFunction: 'cubic-bezier(0.22, 0.61, 0.36, 1)' }}>
+                                            <View key={it._id} style={{ width: open ? `${100 / Math.max(1, gcols - 1)}%` : `${100 / gcols}%`, padding: 8, transitionProperty: 'width', transitionDuration: '320ms', transitionTimingFunction: 'cubic-bezier(0.22, 0.61, 0.36, 1)' }}>
                                                 <MenuCard item={it} selected={!!panel && String(panel.id) === String(it._id)} onOpen={() => setPanel({ id: String(it._id) })} onSwitch={onSwitch} onStep={onStep} />
                                             </View>
                                         ))}

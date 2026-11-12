@@ -16,7 +16,7 @@ import { useOrdersStore } from '../../store/owners/useOrdersStore';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { onOrderUpdate } from '../../api/common/socket';
 import { BOARD_FILTERS, boardStatus } from '../../utils/owners/orderFlow';
-import { useOwnerDesktop } from '../../utils/common/layout';
+import { useOwnerDesktop, useGridCols } from '../../utils/common/layout';
 import { ListShimmer } from '../../components/owners/shimmer';
 import { DebtCard, DebtSheet, RemindAll, useDebts } from '../../components/owners/UnpaidBills';
 import { tr } from '../../i18n';
@@ -264,6 +264,7 @@ export default function OwnerOrdersScreen() {
     const searching = /^\d{1,9}$/.test(s.query.trim());
 
     const desk = useOwnerDesktop();
+    const gcols = useGridCols(3, 300);   // fewer, wider cards in a narrow window
     // on a computer the board shows every live stage at once: the phone's per-stage chips become columns
     useEffect(() => {
         if (desk && !unpaid && !BOARD_TABS.some((t) => t[0] === s.filter)) useOrdersStore.getState().setFilter('active');
@@ -360,14 +361,14 @@ export default function OwnerOrdersScreen() {
                     </ScrollView>
                 ) : (
                     <FlatList
-                        key="grid3"
-                        numColumns={3}
+                        key={`grid${gcols}`}
+                        numColumns={gcols}
                         style={{ flex: 1 }}
                         contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}
                         data={unpaid ? (debts || []) : (s.loading ? [] : data)}
                         keyExtractor={(o) => String(o.id)}
                         ListHeaderComponent={unpaid ? (debts?.length ? <View style={{ paddingHorizontal: 8, paddingBottom: 12 }}><RemindAll count={debts.length} onDone={loadDebts} /></View> : null) : (data.length ? <Text style={{ color: muted, fontSize: 13, fontWeight: '800', paddingHorizontal: 8, paddingBottom: 12 }}>{tr('{n} orders', { n: data.length })} · {money(shownTotal)}</Text> : null)}
-                        renderItem={({ item }) => <View style={{ width: '33.333%', paddingHorizontal: 8 }}>{unpaid ? <DebtCard d={item} onOpen={() => setOpenDebt(item)} /> : orderCard(item)}</View>}
+                        renderItem={({ item }) => <View style={{ width: `${100 / gcols}%`, paddingHorizontal: 8 }}>{unpaid ? <DebtCard d={item} onOpen={() => setOpenDebt(item)} /> : orderCard(item)}</View>}
                         ListEmptyComponent={s.loading && !unpaid ? <Skeleton /> : <Empty icon={unpaid ? 'checkmark-circle-outline' : 'receipt-outline'} title={unpaid ? tr('No unpaid bills') : searching ? tr('No order with that number') : tr('Nothing here')} hint={unpaid ? tr('Customers who leave a table without paying will show here.') : tr('Orders in this stage will show here.')} />}
                         ListFooterComponent={s.loadingMore ? <ListShimmer count={1} /> : <View style={{ height: 24 }} />}
                         onEndReachedThreshold={0.4}

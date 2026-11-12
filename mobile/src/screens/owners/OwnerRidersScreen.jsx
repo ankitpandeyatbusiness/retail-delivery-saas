@@ -19,7 +19,7 @@ import { Image } from 'expo-image';
 import { LeavePanel } from '../../components/owners/RiderLeave';
 import { RiderBadge, BADGES } from '../../components/common/RiderBadge';
 import { useMenuFlags } from '../../utils/owners/menuFlags';
-import { useOwnerDesktop } from '../../utils/common/layout';
+import { useOwnerDesktop, useGridCols } from '../../utils/common/layout';
 import { Frame, Hero, HeroBtn, GlassStat, Tile, StatusDot } from '../../components/owners/RiderDesk';
 import { tr } from '../../i18n';
 
@@ -137,6 +137,7 @@ function AddSheet({ visible, onClose }) {
 
 export default function OwnerRidersScreen() {
     const desk = useOwnerDesktop();   // a computer: the riders in two columns
+    const gcols = useGridCols(3, 310);   // fewer, wider cards in a narrow window
     const nav = useNavigation();
     useFocusEffect(useCallback(() => { setRiderAttention(false); }, []));   // he is looking at the riders now: the dot on the menu goes
     const { primary, muted, text, ok, error, warn } = useBrand();
@@ -241,7 +242,7 @@ export default function OwnerRidersScreen() {
                     <SectionTitle title={tr('Your riders ({length})', { length: s.riders.length })} />
                     {!s.riders.length ? <Empty icon="bicycle" title={tr('No riders yet')} hint={tr('Add a rider with his mobile number. He logs in to this app and gets delivery requests.')} /> : null}
                     <View style={desk ? { flexDirection: 'row', flexWrap: 'wrap' } : undefined}>
-                    {s.riders.map((r) => (desk ? <View key={r.userId} style={{ width: '33.333%' }}><RiderTile r={r} cashPaise={s.cash[String(r.userId)]?.balancePaise || 0} locked={access !== 'ok' && access !== 'paused'} onOpen={() => nav.navigate('OwnerRider', { userId: String(r.userId) })} onToggle={(on) => toggle(r, on)} /></View> : (
+                    {s.riders.map((r) => (desk ? <View key={r.userId} style={{ width: `${100 / gcols}%` }}><RiderTile r={r} cashPaise={s.cash[String(r.userId)]?.balancePaise || 0} locked={access !== 'ok' && access !== 'paused'} onOpen={() => nav.navigate('OwnerRider', { userId: String(r.userId) })} onToggle={(on) => toggle(r, on)} /></View> : (
                         <View key={r.userId}>
                         <Card onPress={() => nav.navigate('OwnerRider', { userId: String(r.userId) })} style={{ opacity: r.isActive ? 1 : 0.6 }}>
                             <View style={{ flexDirection: 'row', alignItems: 'center' }}>

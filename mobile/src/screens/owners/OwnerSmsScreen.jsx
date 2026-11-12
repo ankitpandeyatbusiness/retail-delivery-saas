@@ -15,6 +15,8 @@ import { showToast } from '../../components/customers/shop';
 import { downloadAndOpen } from '../../utils/owners/files';
 import { topupInvoicePdfPath } from '../../api/owners/shopApi';
 import { LineShimmer, ListShimmer } from '../../components/owners/shimmer';
+import { Hero, GlassStat } from '../../components/owners/RiderDesk';
+import Masonry, { Sep } from '../../components/common/Masonry';
 import { tr } from '../../i18n';
 import { useOwnerDesktop } from '../../utils/common/layout';
 
@@ -61,15 +63,26 @@ export default function OwnerSmsScreen() {
         <View style={{ flex: 1, backgroundColor: background }}>
             <PageHeader title={tr('SMS balance')} />
             <ScrollView contentContainerStyle={{ paddingTop: 6, paddingBottom: 32 }} keyboardShouldPersistTaps="handled">
-                <Card tone={wallet?.low ? error : undefined}>
+              <View style={desk ? { width: '100%', maxWidth: 1240, alignSelf: 'center' } : undefined}>
+                {desk ? (
+                    <Hero icon="chatbubble-ellipses" title={tr('SMS balance')} subtitle={wallet?.zero ? tr('Finished: SMS alerts have stopped') : wallet?.low ? tr('Running low: top up soon') : tr('Pays for the SMS alerts the shop sends.')}>
+                        <View style={{ flexDirection: 'row', marginTop: 18 }}>
+                            <GlassStat label={tr('Balance')} value={wallet ? rupees(wallet.balancePaise) : '—'} icon="wallet-outline" />
+                            <GlassStat label={tr('Messages left')} value={wallet ? String(Math.floor(wallet.balancePaise / Math.max(1, wallet.ratePerSmsPaise))) : '—'} icon="mail-outline" />
+                            <GlassStat label={tr('Each message')} value={wallet ? rupees(wallet.ratePerSmsPaise) : '—'} icon="pricetag-outline" />
+                        </View>
+                    </Hero>
+                ) : null}
+                {desk ? null : <Card tone={wallet?.low ? error : undefined}>
                     <Text style={{ color: muted, fontSize: 12, fontWeight: '700' }}>{tr('Balance')}</Text>
                     <Text style={{ color: wallet?.low ? error : text, fontSize: 34, fontWeight: '900', marginTop: 2 }}>{wallet ? rupees(wallet.balancePaise) : '—'}</Text>
                     {wallet ? (
                         <Text style={{ color: muted, marginTop: 4 }}>{tr('About {v1} messages · {rupees} each', { v1: Math.floor(wallet.balancePaise / Math.max(1, wallet.ratePerSmsPaise)), rupees: rupees(wallet.ratePerSmsPaise) })}</Text>
                     ) : null}
                     {wallet?.zero ? <View style={{ marginTop: 8 }}><Pill label={tr('Finished: SMS alerts have stopped')} color={error} /></View> : wallet?.low ? <View style={{ marginTop: 8 }}><Pill label={tr('Running low')} color={error} /></View> : null}
-                </Card>
+                </Card>}
 
+                <Masonry desk={desk} gap={-16}>
                 <BrandPayGate canPay={wallet?.canPay}>
                 <SectionTitle title={tr('Add money')} />
                 <Card>
@@ -89,7 +102,7 @@ export default function OwnerSmsScreen() {
                     </View>
                 </Card>
                 </BrandPayGate>
-
+                <Sep />
                 <SectionTitle title={tr('History')} />
                 <View style={{ paddingHorizontal: 16 }}>
                     <Chips options={[['', tr('All')], ['topup', tr('Top-ups')], ['debit', tr('Used')]]} value={type} onChange={setType} style={{ marginTop: 0 }} />
@@ -111,6 +124,8 @@ export default function OwnerSmsScreen() {
                     ))}
                     {more ? <View style={{ marginTop: 8 }}><Button label={tr('Show more')} kind="ghost" onPress={() => loadRows(page + 1)} /></View> : null}
                 </Card>
+                </Masonry>
+              </View>
             </ScrollView>
         </View>
     );

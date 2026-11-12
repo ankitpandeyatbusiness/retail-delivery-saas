@@ -15,9 +15,13 @@ import { periodRange, PERIODS, PAY_LABEL, shortDay } from '../../utils/owners/mo
 import { rupees } from '../../utils/owners/riderRules';
 import { downloadAndOpen, XLSX } from '../../utils/owners/files';
 import { showToast } from '../../components/customers/shop';
+import { useOwnerDesktop } from '../../utils/common/layout';
+import { Hero, HeroBtn, GlassStat } from '../../components/owners/RiderDesk';
+import Masonry, { Sep } from '../../components/common/Masonry';
 import { tr } from '../../i18n';
 
 export default function OwnerMoneyScreen({ page = false } = {}) {
+    const desk = useOwnerDesktop();   // a computer: a banner with the period buttons and the numbers, and the sections in two even columns
     const nav = useNavigation();
     const { muted, text, error, ok, primary } = useBrand();
     const access = useOwnerStore((s) => s.access);
@@ -45,7 +49,7 @@ export default function OwnerMoneyScreen({ page = false } = {}) {
 
     useFocusEffect(useCallback(() => { load(period); }, [load, period]));
 
-    const pick = (id) => { setPeriod(id); setSales(null); };
+    const pick = (id) => { setPeriod(id); if (!desk) setSales(null); };   // a computer keeps the numbers on screen until the new period arrives
     const refresh = async () => { setRefreshing(true); await load(period); setRefreshing(false); };
 
     const exportExcel = async () => {
@@ -60,16 +64,35 @@ export default function OwnerMoneyScreen({ page = false } = {}) {
     const series = (sales?.series || []).map((x) => ({ label: x.period, value: x.revenue }));
 
     return (
-        <OwnerScreen title={tr('Money')} onRefresh={refresh} refreshing={refreshing} page={page === true}>
-
-            <View style={{ paddingHorizontal: 16 }}>
+        <OwnerScreen title={tr('Money')} onRefresh={refresh} refreshing={refreshing} page={page === true} wide>
+            {desk ? (
+                <Hero icon="wallet" title={tr('Money')} subtitle={tr('Your sales, what came in online, and what you keep.')}
+                    right={<>
+                        {PERIODS.map(([id, label]) => (
+                            <Pressable key={id} onPress={() => pick(id)} style={({ hovered }) => ({ paddingHorizontal: 14, height: 38, borderRadius: 19, marginLeft: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: period === id ? '#FFFFFF' : hovered ? 'rgba(255,255,255,0.34)' : 'rgba(255,255,255,0.2)', cursor: 'pointer' })}>
+                                <Text style={{ color: period === id ? primary : '#FFFFFF', fontWeight: '800', fontSize: 13 }}>{label}</Text>
+                            </Pressable>
+                        ))}
+                        {t && t.orders ? <HeroBtn label={exporting ? tr('Preparing…') : tr('Excel')} icon="download-outline" solid onPress={() => { if (!exporting) exportExcel(); }} /> : null}
+                    </>}>
+                    {t ? (
+                        <View style={{ flexDirection: 'row', marginTop: 18 }}>
+                            <GlassStat label={tr('Sales')} value={money(t.revenue)} icon="cash-outline" />
+                            <GlassStat label={tr('Orders')} value={String(t.orders)} icon="receipt-outline" />
+                            <GlassStat label={tr('Average order')} value={money(t.averageOrderValue)} icon="analytics-outline" />
+                            <GlassStat label={tr('Online received (30 days)')} value={online ? rupees(online.captured.paise) : '—'} icon="card-outline" />
+                        </View>
+                    ) : null}
+                </Hero>
+            ) : null}
+            {desk ? null : <View style={{ paddingHorizontal: 16 }}>
                 <Chips options={PERIODS} value={period} onChange={pick} style={{ marginTop: 0 }} />
-            </View>
+            </View>}
 
             {salesErr && !sales ? <Empty icon="cloud-offline-outline" title={tr('Could not load')} hint={salesErr} /> : null}
             {sales ? (
                 <>
-                    <Card>
+                    {desk ? null : <Card>
                         <Text style={{ color: muted, fontSize: 12, fontWeight: '700' }}>{tr('Sales (delivered orders)')}</Text>
                         <Text style={{ color: text, fontSize: 34, fontWeight: '900', marginTop: 2 }}>{money(t.revenue)}</Text>
                         {sales.bulk?.orders > 0 ? (
@@ -84,16 +107,20 @@ export default function OwnerMoneyScreen({ page = false } = {}) {
                             <Stat label={tr('Not delivered')} value={String(sales.undelivered)} color={sales.undelivered ? error : undefined} />
                         </View>
                         {series.length > 1 ? <View style={{ marginTop: 16 }}><Bars series={series} /></View> : null}
-                    </Card>
+                    </Card>}
 
                     {t.orders ? (
                         <>
+                            <Masonry desk={desk} gap={-16}>
+                            {desk && series.length > 1 ? <Card><Text style={{ color: muted, fontSize: 12, fontWeight: '700', marginBottom: 10 }}>{tr('Sales (delivered orders)')}</Text><Bars series={series} /></Card> : null}
+                            <Sep />
                             <SectionTitle title={tr('Where it came from')} />
                             <Card>
                                 {sales.payments.map((p, i) => (
                                     <MoneyRow key={p.method} title={PAY_LABEL[p.method] || p.method} note={`${p.orders} ${p.orders === 1 ? 'order' : 'orders'}`} value={money(p.revenue)} last={i === sales.payments.length - 1} />
                                 ))}
                             </Card>
+                            <Sep />
                             {sales.topItems.length ? (
                                 <>
                                     <SectionTitle title={tr('Best selling items')} action={tr('See all')} onAction={() => nav.navigate('OwnerPopular')} />
@@ -104,6 +131,7 @@ export default function OwnerMoneyScreen({ page = false } = {}) {
                                     </Card>
                                 </>
                             ) : null}
+                            <Sep />
                             <SectionTitle title={tr('Also in these orders')} />
                             <Card>
                                 <MoneyRow title={tr('Delivery fees')} value={money(t.deliveryFees)} />
@@ -111,9 +139,10 @@ export default function OwnerMoneyScreen({ page = false } = {}) {
                                 <MoneyRow title={tr('Tips')} value={money(t.tips)} />
                                 <MoneyRow title={tr('Discounts given')} value={money(t.discount)} last />
                             </Card>
-                            <View style={{ paddingHorizontal: 16, marginBottom: 12 }}>
+                            </Masonry>
+                            {desk ? null : <View style={{ paddingHorizontal: 16, marginBottom: 12 }}>
                                 <Button label={tr('Download Excel')} icon="download" kind="ghost" working={exporting} disabled={exporting} onPress={exportExcel} />
-                            </View>
+                            </View>}
                         </>
                     ) : <Empty icon="stats-chart-outline" title={tr('No sales in this period')} hint={tr('Delivered orders show up here.')} />}
                 </>

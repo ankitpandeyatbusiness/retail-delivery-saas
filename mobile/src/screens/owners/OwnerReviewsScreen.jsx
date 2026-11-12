@@ -11,7 +11,7 @@ import { starText } from '../../utils/owners/hubRules';
 import { ago } from '../../utils/owners/riderRules';
 import { ListShimmer } from '../../components/owners/shimmer';
 import { Ionicons } from '@expo/vector-icons';
-import { useOwnerDesktop } from '../../utils/common/layout';
+import { useOwnerDesktop, useGridCols } from '../../utils/common/layout';
 import { Hero } from '../../components/owners/RiderDesk';
 import { tr } from '../../i18n';
 
@@ -44,6 +44,7 @@ function Summary({ s }) {
 
 export default function OwnerReviewsScreen() {
     const desk = useOwnerDesktop();   // a computer: a banner with the average and the star bars, star chips, and the reviews as cards two across
+    const gcols = useGridCols(2, 420);   // fewer, wider cards in a narrow window
     const nav = useNavigation();
     const { background, text, muted, primary, surface, border } = useBrand();
     const [kind, setKind] = useState('dish');
@@ -119,8 +120,8 @@ export default function OwnerReviewsScreen() {
             <PageHeader title={tr('Reviews')} />
             <View style={desk ? { flex: 1, width: '100%', maxWidth: 1240, alignSelf: 'center', opacity: fetching ? 0.55 : 1, transitionProperty: 'opacity', transitionDuration: '160ms' } : { flex: 1 }}>
             <FlatList
-                key={desk ? 'g2' : 'g1'}
-                numColumns={desk ? 2 : 1}
+                key={desk ? `g${gcols}` : 'g1'}
+                numColumns={desk ? gcols : 1}
                 data={items || []}
                 keyExtractor={(r) => String(r.id)}
                 contentContainerStyle={{ paddingBottom: 32 }}
@@ -135,7 +136,7 @@ export default function OwnerReviewsScreen() {
                     </View>
                 )}
                 renderItem={({ item: r }) => desk ? (
-                    <View style={{ width: '50%', padding: 8 }}>
+                    <View style={{ width: `${100 / gcols}%`, padding: 8 }}>
                         <Pressable onPress={r.orderId ? () => nav.navigate('OwnerOrder', { id: String(r.orderId) }) : undefined} style={({ hovered }) => ({ borderRadius: 22, borderWidth: 1, borderColor: hovered && r.orderId ? primary : border, backgroundColor: hovered && r.orderId ? primary + '0D' : surface, padding: 20, cursor: r.orderId ? 'pointer' : 'default', boxShadow: hovered && r.orderId ? `inset 0 0 0 1.5px ${primary}` : 'inset 0 0 0 0 transparent', transitionProperty: 'background-color, box-shadow', transitionDuration: '140ms' })}>
                             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                                 <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: primary + '24', alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: primary, fontWeight: '900', fontSize: 17 }}>{String(r.customer || '?').trim().charAt(0).toUpperCase() || '?'}</Text></View>

@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useFocusEffect } from '../../hooks/common/useLiveFocus';
 import { useBrand, alpha } from '../../components/common/kit';
-import { useOwnerDesktop } from '../../utils/common/layout';
+import { useOwnerDesktop, useGridCols } from '../../utils/common/layout';
 import { Frame, Hero, Tile } from '../../components/owners/RiderDesk';
 import { PageHeader, Card, Chips, Empty, Stat } from '../../components/owners/ui';
 import { Avatar } from './OwnerRidersScreen';
@@ -17,10 +17,11 @@ import { tr } from '../../i18n';
 
 // a rider on the leaderboard (computer): his rank (a medal for the first three), a bar of his deliveries against the best, his time and his rating
 function RankCard({ r, i, max, onOpen }) {
+    const gcols = useGridCols(2, 420);
     const { text, muted, surface, border, primary } = useBrand();
     const medal = ['#F59E0B', '#94A3B8', '#B45309'][i];
     return (
-        <View style={{ width: '50%', padding: 8 }}>
+        <View style={{ width: `${100 / gcols}%`, padding: 8 }}>
             <Pressable onPress={onOpen} style={({ hovered }) => ({ borderRadius: 22, borderWidth: 1, borderColor: hovered ? primary : border, backgroundColor: hovered ? alpha(primary, 0.05) : surface, padding: 18, cursor: 'pointer', boxShadow: hovered ? `inset 0 0 0 1.5px ${primary}` : 'inset 0 0 0 0 transparent', transitionProperty: 'background-color, box-shadow', transitionDuration: '140ms' })}>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                     <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: medal ? alpha(medal, 0.18) : alpha(muted, 0.12), alignItems: 'center', justifyContent: 'center' }}>

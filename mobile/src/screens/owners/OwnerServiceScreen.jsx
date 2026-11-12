@@ -13,6 +13,10 @@ import { showToast } from '../../components/customers/shop';
 import { ask } from '../../components/common/dialog';
 import { FormShimmer } from '../../components/owners/shimmer';
 import { ease } from '../../utils/common/ease';
+import { useOwnerDesktop } from '../../utils/common/layout';
+import { Hero, GlassStat } from '../../components/owners/RiderDesk';
+import Masonry from '../../components/common/Masonry';
+import { priceLine } from './OwnerServicesScreen';
 import { tr } from '../../i18n';
 
 const TYPE_LABEL = {
@@ -36,6 +40,7 @@ function Act({ icon, label, onPress, disabled }) {
 }
 
 export default function OwnerServiceScreen() {
+    const desk = useOwnerDesktop();   // a computer: a banner with the service, and the sections in two columns
     const nav = useNavigation();
     const { id: openId, kind } = useRoute().params || {};
     const [id, setId] = useState(openId || '');   // empty until a new service is saved for the first time
@@ -116,20 +121,31 @@ export default function OwnerServiceScreen() {
     const choices = (q) => q.type === 'choice' || q.type === 'multichoice';
 
     return (
-        <FormPage title={v.name || tr('Service')} footer={<Button label={tr('Save changes')} icon="checkmark" busy={saving} onPress={save} />}>
-            <Group title={tr('What customers read')}>
+        <FormPage wide title={v.name || tr('Service')} footer={<Button label={tr('Save changes')} icon="checkmark" busy={saving} onPress={save} />}>
+            {desk ? (
+                <Hero icon={v.icon || 'briefcase'} title={v.name || tr('New service')} subtitle={v.description ? String(v.description).slice(0, 140) : tr('Fill in what customers read, the price and the questions they answer.')}>
+                    <View style={{ flexDirection: 'row', marginTop: 18 }}>
+                        <GlassStat label={tr('Price')} value={priceLine(v)} icon="cash-outline" />
+                        <GlassStat label={tr('Questions')} value={String((v.questions || []).filter((q) => q.enabled).length)} icon="help-circle-outline" />
+                        <GlassStat label={tr('Photos')} value={String((v.photos || []).length)} icon="images-outline" />
+                        <GlassStat label={tr('Status')} value={v.isActive === false ? tr('Off') : v.paused ? tr('Paused') : tr('Live')} icon="radio-button-on" />
+                    </View>
+                </Hero>
+            ) : null}
+            <Masonry desk={desk} gap={-16}>
+            <Group icon="reader" title={tr('What customers read')}>
                 <TextBox label={tr('Service name')} value={v.name} onChangeText={(x) => set('name', x)} maxLength={80} placeholder={tr('e.g. Cake order')} />
                 <TextBox label={tr('About this service')} value={v.description} onChangeText={(x) => set('description', x)} multiline maxLength={1000} placeholder={tr('What is included, how it works')} />
                 <TextBox label={tr('Points to show (one per line)')} value={v.bullets} onChangeText={(x) => set('bullets', x)} multiline maxLength={800} placeholder={tr('Includes 2 sweets\nBook 2 days ahead')} last />
                 <MorePictures value={v.photos} onChange={(x) => set('photos', x)} kind="service" max={5} label={tr('Photos')} />
             </Group>
-            <Group title={tr('Price')}>
+            <Group icon="cash" title={tr('Price')}>
                 <ChoiceBox label={tr('How you charge')} options={PRICE_TYPES.map(([k, l]) => [k, tr(l)])} value={v.priceType} onChange={(x) => set('priceType', x)} />
                 {v.priceType !== 'quote' ? <NumberBox label={tr('Amount')} prefix="₹" integer value={v.price} onChange={(x) => set('price', x)} /> : null}
                 <NumberBox label={tr('Fewest guests (optional)')} integer value={v.minGuests} onChange={(x) => set('minGuests', x)} />
                 <NumberBox label={tr('Notice needed, in hours (optional)')} integer value={v.noticeHours} onChange={(x) => set('noticeHours', x)} last />
             </Group>
-            <Group title={tr('Questions the customer answers')} hint={tr('Name and phone are always asked. Switch a question off to hide it, or add your own below.')}>
+            <Group icon="help-circle" title={tr('Questions the customer answers')} hint={tr('Name and phone are always asked. Switch a question off to hide it, or add your own below.')}>
                 <Button label={tr('Use recommended settings')} icon="sparkles" kind="ghost" onPress={recommended} style={{ marginBottom: 10 }} />
                 {v.questions.map((q, i) => (
                     <Card key={q.id || `n${i}`} style={{ marginHorizontal: 0, opacity: q.enabled ? 1 : 0.6 }}>
@@ -177,14 +193,15 @@ export default function OwnerServiceScreen() {
                 ))}
                 <Button label={tr('Add my own question')} icon="add" onPress={() => { set('questions', [...v.questions, { ...BLANK_Q }]); setOpen(v.questions.length); }} />
             </Group>
-            <Group title={tr('Message helpers')}>
+            <Group icon="chatbubble-ellipses" title={tr('Message helpers')}>
                 <TextBox label={tr('Tap-to-fill texts for the customer (one per line)')} value={v.quickTexts} onChangeText={(x) => set('quickTexts', x)} multiline maxLength={1500} />
                 <TextBox label={tr('Quick replies for you (one per line)')} value={v.quickReplies} onChangeText={(x) => set('quickReplies', x)} multiline maxLength={2500} placeholder={tr('Yes, available. Price is ₹1000 per plate')} last />
             </Group>
-            <Group title={tr('Show it')}>
+            <Group icon="eye" title={tr('Show it')}>
                 <ToggleRow title={tr('Service is on')} subtitle={tr('Off: customers do not see it')} value={v.isActive} onValueChange={(x) => set('isActive', x)} />
                 <ToggleRow title={tr('Temporarily unavailable')} subtitle={tr('Customers still see it, marked "temporarily unavailable", and cannot send a new inquiry. Chats already started carry on.')} value={!!v.paused} onValueChange={(x) => set('paused', x)} last />
             </Group>
+            </Masonry>
             {id ? <View style={{ paddingHorizontal: 16, marginTop: 8 }}><Button label={tr('Remove this service')} kind="danger" icon="trash" onPress={remove} /></View> : null}
         </FormPage>
     );

@@ -34,6 +34,12 @@ export function useStaffDesktop() {
 // the same question without a hook, for the stores: a browser at least this wide right now
 export const isDeskNow = () => Platform.OS === 'web' && typeof window !== 'undefined' && window.innerWidth >= DESKTOP_MIN_WIDTH;
 
+// how many cards fit across a page on a computer, so a narrow window gets fewer, wider cards instead of squeezed ones (sidebar + page margins taken off)
+export function useGridCols(max = 3, min = 300, side = 272) {
+    const { width } = useWindowDimensions();
+    return Math.max(1, Math.min(max, Math.floor((width - side - 40) / min)));
+}
+
 export function useIsDesktopWeb() {
     const { width } = useWindowDimensions();
     return Platform.OS === 'web' && width >= DESKTOP_MIN_WIDTH;

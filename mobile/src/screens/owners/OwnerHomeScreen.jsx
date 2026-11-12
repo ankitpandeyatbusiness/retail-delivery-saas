@@ -65,7 +65,7 @@ function KpiRow({ items }) {
     return (
         <View style={{ flexDirection: 'row', marginHorizontal: 8, marginTop: 4, marginBottom: 8 }}>
             {items.map(([label, value, icon, color, sub, onPress]) => (
-                <Pressable key={label} onPress={onPress} disabled={!onPress} style={({ hovered }) => ({ flex: 1, marginHorizontal: 8, borderRadius: 22, borderWidth: 1, borderColor: onPress && hovered ? color : border, backgroundColor: onPress && hovered ? alpha(color, 0.06) : surface, overflow: 'hidden', cursor: onPress ? 'pointer' : 'default', boxShadow: onPress && hovered ? `inset 0 0 0 1.5px ${color}` : 'inset 0 0 0 0 transparent', transitionProperty: 'background-color, box-shadow, border-color', transitionDuration: '140ms' })}>
+                <Pressable key={label} onPress={onPress} disabled={!onPress} style={({ hovered }) => ({ flex: 1, minWidth: 0, marginHorizontal: 8, borderRadius: 22, borderWidth: 1, borderColor: onPress && hovered ? color : border, backgroundColor: onPress && hovered ? alpha(color, 0.06) : surface, overflow: 'hidden', cursor: onPress ? 'pointer' : 'default', boxShadow: onPress && hovered ? `inset 0 0 0 1.5px ${color}` : 'inset 0 0 0 0 transparent', transitionProperty: 'background-color, box-shadow, border-color', transitionDuration: '140ms' })}>
                     <View pointerEvents="none" style={{ position: 'absolute', right: -26, top: -26, width: 110, height: 110, borderRadius: 55, backgroundColor: alpha(color, 0.1) }} />
                     <View style={{ padding: 18 }}>
                         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -73,7 +73,7 @@ function KpiRow({ items }) {
                             <Text style={{ flex: 1, color: muted, fontWeight: '800', fontSize: 13.5, marginLeft: 12 }}>{label}</Text>
                             {onPress ? <Ionicons name="arrow-forward-circle" size={20} color={alpha(color, 0.8)} /> : null}
                         </View>
-                        <Text style={{ color: text, fontWeight: '900', fontSize: 34, letterSpacing: -0.8, marginTop: 14 }}>{value}</Text>
+                        <Text numberOfLines={1} style={{ color: text, fontWeight: '900', fontSize: String(value).length > 11 ? 24 : 34, letterSpacing: -0.8, marginTop: 14 }}>{value}</Text>
                         {sub ? <View style={{ marginTop: 6, alignSelf: 'flex-start' }}>{sub}</View> : <View style={{ height: 26 }} />}
                     </View>
                 </Pressable>

@@ -12,7 +12,7 @@ import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { fetchStaff, fetchStaffLeaves, decideStaffLeave, addStaff, updateStaff, removeStaff, apiError } from '../../api/owners/shopApi';
 import { showToast } from '../../components/customers/shop';
 import { ask } from '../../components/common/dialog';
-import { useOwnerDesktop } from '../../utils/common/layout';
+import { useOwnerDesktop, useGridCols } from '../../utils/common/layout';
 import { Frame, Hero, HeroBtn, GlassStat } from '../../components/owners/RiderDesk';
 import StaffTile from '../../components/owners/StaffTile';
 import { MiniAvatar, MiniDuty } from '../../components/owners/MiniStaff';
@@ -120,6 +120,7 @@ export function LeaveRequests({ onChanged, role }) {
 
 export default function OwnerStaffScreen() {
     const desk = useOwnerDesktop();
+    const gcols = useGridCols(3, 300);   // fewer, wider cards in a narrow window
     const { text, muted, ok, warn } = useBrand();
     const access = useOwnerStore((st) => st.access);
     const [data, setData] = useState(null);
@@ -169,7 +170,7 @@ export default function OwnerStaffScreen() {
                     {desk ? (
                         <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: 8 }}>
                             {items.map((p) => (
-                                <View key={p.userId} style={{ width: '33.333%' }}>
+                                <View key={p.userId} style={{ width: `${100 / gcols}%` }}>
                                     <StaffTile avatar={<MiniAvatar p={p} />} dot={!p.isActive ? muted : p.duty === 'on' ? ok : warn} name={p.name || p.phone} phone={p.name ? p.phone : ''} active={p.isActive}
                                         pills={<><View style={{ marginRight: 6, marginBottom: 6 }}><Pill label={tr(JOB_LABEL[p.role])} icon={p.role === 'kitchen' ? 'flame' : 'restaurant'} /></View><View style={{ marginRight: 6, marginBottom: 6 }}><MiniDuty p={p} /></View>{p.isActive && !p.panelOn ? <View style={{ marginBottom: 6 }}><Pill label={tr('Screen is off')} color={warn} /></View> : null}</>}
                                         onOpen={() => setEdit(p)} switchOn={p.isActive} onSwitch={(on) => toggle(p, on)} locked={access !== 'ok' && access !== 'paused'} />

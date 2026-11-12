@@ -15,6 +15,8 @@ import { showToast } from '../../components/customers/shop';
 import { ListShimmer } from '../../components/owners/shimmer';
 import { ask } from '../../components/common/dialog';
 import { downloadAndOpen } from '../../utils/owners/files';
+import { useOwnerDesktop } from '../../utils/common/layout';
+import { Frame, Hero, HeroBtn, GlassStat } from '../../components/owners/RiderDesk';
 import { tr } from '../../i18n';
 
 // Texts the server sends inside the extra-shop quote. They are listed here (never called) so the translation list picks them up; tr() matches the server's real values to these {v1} patterns.
@@ -79,6 +81,7 @@ const planLine = (c) => {
 };
 
 export default function OwnerPlanScreen() {
+    const desk = useOwnerDesktop();   // a computer: a banner with your plan, and the plans side by side
     const nav = useNavigation();
     const { background, text, muted, error, ok, primary, border, surface } = useBrand();
     const [o, setO] = useState(null);
@@ -96,7 +99,7 @@ export default function OwnerPlanScreen() {
     useEffect(() => {
         if (!pick) { setQ(null); return undefined; }
         let on = true;
-        setQ(null);
+        if (!desk) setQ(null);   // a computer keeps the old price box until the new quote arrives (no collapse)
         quotePlan({ to: pick, months: Number(months), coupon: coupon || undefined }).then((r) => { if (on) setQ(r); }).catch((e) => { if (on) { showToast(apiError(e)); if (coupon) setCoupon(''); else setPick(null); } });
         return () => { on = false; };
     }, [pick, months, coupon]);
@@ -127,9 +130,23 @@ export default function OwnerPlanScreen() {
         <View style={{ flex: 1, backgroundColor: background }}>
             <PageHeader title={tr('Plan')} />
             <ScrollView contentContainerStyle={{ paddingTop: 6, paddingBottom: 40 }}>
+              <Frame desk={desk}>
                 {!o ? <ListShimmer count={3} rows /> : (
                     <>
-                        <Card tone={cur?.status === 'ended' ? error : undefined}>
+                        {desk ? (
+                            <Hero icon="ribbon" title={cur?.status === 'ended' ? tr('Choose your plan') : tr('Your plan')} subtitle={planLine(cur)}
+                                right={cur?.id === 'partner' && o.wallet ? <HeroBtn label={tr('Open the wallet')} icon="wallet-outline" solid onPress={() => nav.navigate('OwnerWallet')} /> : null}>
+                                {o.scheduled ? (
+                                    <View style={{ marginTop: 16, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
+                                        <View style={{ paddingHorizontal: 14, height: 34, borderRadius: 17, backgroundColor: 'rgba(255,255,255,0.22)', justifyContent: 'center', marginRight: 10 }}>
+                                            <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 13.5 }}>{tr('{name} starts on {date}', { name: o.scheduled.to[0].toUpperCase() + o.scheduled.to.slice(1), date: day(o.scheduled.at) })}</Text>
+                                        </View>
+                                        {o.scheduled.prepaid ? <Text style={{ color: '#FFFFFF', fontWeight: '800' }}>{tr('Already paid')}</Text> : <Pressable onPress={cancelMove}><Text style={{ color: '#FFFFFF', fontWeight: '900', textDecorationLine: 'underline' }}>{tr('Cancel this move')}</Text></Pressable>}
+                                    </View>
+                                ) : null}
+                            </Hero>
+                        ) : null}
+                        {desk ? null : <Card tone={cur?.status === 'ended' ? error : undefined}>
                             <Text style={{ color: muted, fontSize: 12, fontWeight: '700' }}>{cur?.status === 'ended' ? tr('Choose your plan') : tr('Your plan')}</Text>
                             <Text style={{ color: text, fontSize: 22, fontWeight: '900', marginTop: 2 }}>{planLine(cur)}</Text>
                             {cur?.id === 'partner' && o.wallet ? (
@@ -141,7 +158,7 @@ export default function OwnerPlanScreen() {
                                     {o.scheduled.prepaid ? <Text style={{ color: ok, fontWeight: '800', marginTop: 4 }}>{tr('Already paid')}</Text> : <Pressable onPress={cancelMove}><Text style={{ color: primary, fontWeight: '800', marginTop: 4 }}>{tr('Cancel this move')}</Text></Pressable>}
                                 </View>
                             ) : null}
-                        </Card>
+                        </Card>}
 
                         {o.brand ? (
                             <>
@@ -155,11 +172,12 @@ export default function OwnerPlanScreen() {
                         ) : null}
 
                         <SectionTitle title={tr('Compare plans')} />
+                        <View style={desk ? { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'stretch' } : undefined}>
                         {o.plans.map((p) => {
                             const isCur = cur?.id === p.id; const sel = pick === p.id;
                             return (
-                                <Pressable key={p.id} onPress={() => { setPick(sel ? null : p.id); setMonths('1'); }} style={{ marginHorizontal: 16, marginBottom: 10 }}>
-                                    <View style={{ backgroundColor: surface, borderRadius: 16, padding: 14, borderWidth: 2, borderColor: sel ? primary : border }}>
+                                <Pressable key={p.id} onPress={() => { setPick(sel ? null : p.id); setMonths('1'); }} style={{ marginHorizontal: 16, marginBottom: 10, ...(desk ? { width: `calc(${100 / Math.min(4, o.plans.length)}% - 32px)`, minWidth: 260 } : null) }}>
+                                    <View style={{ backgroundColor: surface, borderRadius: 16, padding: 14, borderWidth: 2, borderColor: sel ? primary : border, ...(desk ? { flex: 1 } : null) }}>
                                         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                                             <Text style={{ color: text, fontSize: 18, fontWeight: '900', flex: 1 }}>{p.name}</Text>
                                             {isCur ? <Pill label={tr('Current')} color={ok} /> : null}
@@ -168,7 +186,7 @@ export default function OwnerPlanScreen() {
                                             {p.id === 'partner' ? tr('No monthly price. Rs {min} to Rs {max} per completed order from your wallet.', { min: p.feeRange.minRs, max: p.feeRange.maxRs }) + '*'
                                                 : tr('{rupees} + GST per month', { rupees: rupees(p.pricePaise) }) + '*'}
                                         </Text>
-                                        {sel || isCur ? (
+                                        {sel || isCur || desk ? (
                                             <View style={{ marginTop: 8 }}>
                                                 {(() => {
                                                     const inc = includedLines(p, o.plans[o.plans.findIndex((x) => x.id === p.id) - 1], o);
@@ -190,6 +208,7 @@ export default function OwnerPlanScreen() {
                                 </Pressable>
                             );
                         })}
+                        </View>
 
                         {pick && pick !== 'partner' && q?.kind !== 'upgrade' && q?.kind !== 'downgrade' ? (
                             <View style={{ paddingHorizontal: 16, marginBottom: 14 }}>
@@ -282,6 +301,7 @@ export default function OwnerPlanScreen() {
                         <Text style={{ color: muted, fontSize: 11, marginHorizontal: 16, marginTop: 10, marginBottom: 24 }}>{tr('* All payments, including plan fees, extra shops and wallet top-ups, are non-refundable. Prepaid plan time and wallet balance cannot be returned or cashed out.')}</Text>
                     </>
                 )}
+              </Frame>
             </ScrollView>
         </View>
     );

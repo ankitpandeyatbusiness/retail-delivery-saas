@@ -14,7 +14,7 @@ import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { fetchStaff, updateStaff, saveSettings, fetchSettings, apiError } from '../../api/owners/shopApi';
 import { showToast } from '../../components/customers/shop';
 import { useMenuFlags } from '../../utils/owners/menuFlags';
-import { useOwnerDesktop } from '../../utils/common/layout';
+import { useOwnerDesktop, useGridCols } from '../../utils/common/layout';
 import { Hero, HeroBtn, GlassStat } from '../../components/owners/RiderDesk';
 import StaffTile from '../../components/owners/StaffTile';
 import { tr } from '../../i18n';
@@ -45,6 +45,7 @@ export function DutyPills({ p }) {
 
 function Group({ role }) {
     const desk = useOwnerDesktop();
+    const gcols = useGridCols(3, 300);   // fewer, wider cards in a narrow window
     const nav = useNavigation();
     const { text, muted, ok } = useBrand();
     const access = useOwnerStore((st) => st.access);
@@ -126,7 +127,7 @@ function Group({ role }) {
                     {desk ? (
                         <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: 8 }}>
                             {people.map((p) => (
-                                <View key={p.userId} style={{ width: '33.333%' }}>
+                                <View key={p.userId} style={{ width: `${100 / gcols}%` }}>
                                     <StaffTile avatar={<PersonAvatar person={p} size={62} />} dot={!p.isActive ? muted : p.duty === 'on' ? ok : '#F59E0B'} name={p.name || p.phone} phone={p.name ? p.phone : ''} active={p.isActive}
                                         pills={<><View style={{ marginRight: 6, marginBottom: 6 }}><DutyPills p={p} /></View>{p.isActive && !p.panelOn ? <View style={{ marginBottom: 6 }}><Pill label={tr('Screen is off')} color={muted} /></View> : null}</>}
                                         numbers={p.stats ? [[tr(j.did), String(p.stats.today.orders)], [tr('This week'), String(p.stats.week.orders)], [tr('Avg time'), p.stats.avgMin != null ? `${p.stats.avgMin}m` : '–']] : []}

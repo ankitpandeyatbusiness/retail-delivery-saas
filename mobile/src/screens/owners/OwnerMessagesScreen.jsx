@@ -5,7 +5,7 @@ import { View, Text, ScrollView, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '../../hooks/common/useLiveFocus';
 import { useBrand, alpha } from '../../components/common/kit';
-import { useOwnerDesktop } from '../../utils/common/layout';
+import { useOwnerDesktop, useGridCols } from '../../utils/common/layout';
 import { Frame, Hero, HeroBtn, GlassStat } from '../../components/owners/RiderDesk';
 import { PageHeader, Card, Button, Pill, Sheet, Field, Chips, SectionTitle, Empty } from '../../components/owners/ui';
 import { ToggleRow, Label, Hint } from '../../components/owners/menuBits';
@@ -120,6 +120,7 @@ function Compose({ visible, onClose, onSent }) {
 
 export default function OwnerMessagesScreen() {
     const desk = useOwnerDesktop();   // a computer: a banner, and what you sent as cards two across
+    const gcols = useGridCols(2, 420);   // fewer, wider cards in a narrow window
     const pushOk = usePlanHas('customPush');   // messages to customers are the custom push (Pro); riders can always be messaged
     const { background, text, muted, ok, error, primary } = useBrand();
     const [items, setItems] = useState(null);
@@ -162,7 +163,7 @@ export default function OwnerMessagesScreen() {
                 {desk ? (
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: 8 }}>
                         {(items || []).map((m) => (
-                            <View key={m.id} style={{ width: '50%', padding: 8 }}>
+                            <View key={m.id} style={{ width: `${100 / gcols}%`, padding: 8 }}>
                                 <View style={{ borderRadius: 22, borderWidth: 1, borderColor: alpha(muted, 0.25), padding: 18 }}>
                                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                                         <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: alpha(primary, 0.14), alignItems: 'center', justifyContent: 'center' }}><Ionicons name={AUD_ICON[m.audience] || 'people'} size={22} color={primary} /></View>
