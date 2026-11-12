@@ -270,7 +270,8 @@ export default function DesktopTopBar({ navRef, routeName }) {
     const room = searchW - 46 - (voice.supported ? 32 : 0) - (q ? 26 : 0);
     const wordings = [sample ? tr('Search "{dish}"', { dish: sample }) : tr('Search for dishes'), tr('Search dishes'), tr('Search')];
     const placeholder = searchW ? (wordings.find((t) => t.length * 7.6 <= room) || wordings[wordings.length - 1]) : wordings[0];
-    const roomy = width >= 1280;
+    const roomy = width >= 1400;   // room for the shop's name next to its logo
+    const tight = width < 1280;    // a small window or a zoomed-in browser: the boxes may be narrower
     const floating = theme.tabBarStyle === 'floating';   // the shop chose the floating bar: on the website it is a pill that floats above the page
     const logo = theme.icon || theme.logo;
     const initial = String(user?.name || user?.phone || '?').trim().slice(0, 1).toUpperCase();
@@ -297,7 +298,7 @@ export default function DesktopTopBar({ navRef, routeName }) {
                     <Pressable
                         onPress={where.onPress || undefined}
                         disabled={!where.onPress}
-                        style={({ hovered }) => ({ flexDirection: 'row', alignItems: 'center', maxWidth: 250, minWidth: 120, flexShrink: 1, marginRight: 14, height: 44, paddingHorizontal: 14, borderRadius: 22, borderWidth: 1, borderColor: hovered && where.onPress ? brand.muted : brand.border, cursor: where.onPress ? 'pointer' : 'default' })}
+                        style={({ hovered }) => ({ flexDirection: 'row', alignItems: 'center', maxWidth: 250, minWidth: tight ? 92 : 120, flexShrink: 1, marginRight: tight ? 10 : 14, height: 44, paddingHorizontal: 14, borderRadius: 22, borderWidth: 1, borderColor: hovered && where.onPress ? brand.muted : brand.border, cursor: where.onPress ? 'pointer' : 'default' })}
                     >
                         <Ionicons name={where.icon} size={18} color={brand.primary} />
                         <View style={{ marginLeft: 8, flexShrink: 1 }}>
@@ -310,7 +311,7 @@ export default function DesktopTopBar({ navRef, routeName }) {
 
                 {/* search: takes the room that is left */}
                 {hasSearch ? (
-                    <View onLayout={(e) => { const w = Math.round(e.nativeEvent.layout.width); if (w && w !== searchW) setSearchW(w); }} style={{ flex: 1, minWidth: 230, height: 42, flexDirection: 'row', alignItems: 'center', paddingLeft: 14, paddingRight: 6, borderRadius: 21, overflow: 'hidden', backgroundColor: brand.background, borderWidth: 1.5, borderColor: focus ? brand.primary : brand.border }}>
+                    <View onLayout={(e) => { const w = Math.round(e.nativeEvent.layout.width); if (w && w !== searchW) setSearchW(w); }} style={{ flex: 1, minWidth: tight ? 150 : 230, height: 42, flexDirection: 'row', alignItems: 'center', paddingLeft: 14, paddingRight: 6, borderRadius: 21, overflow: 'hidden', backgroundColor: brand.background, borderWidth: 1.5, borderColor: focus ? brand.primary : brand.border }}>
                         <Ionicons name="search" size={17} color={brand.primary} />
                         <TextInput
                             value={q}
@@ -338,7 +339,7 @@ export default function DesktopTopBar({ navRef, routeName }) {
                 {vegToggleOn ? <View style={{ marginLeft: 8, flexShrink: 0 }}><VegToggle on={veg} onSet={setVeg} brand={brand} /></View> : null}
 
                 {/* delivery | pickup | dine in: only when the shop offers more than one */}
-                {modes.length > 1 ? <ModeSwitch modes={modes} value={effMode} onChange={onMode} brand={brand} compact={width < 1280} /> : null}
+                {modes.length > 1 ? <ModeSwitch modes={modes} value={effMode} onChange={onMode} brand={brand} compact={width < 1440} /> : null}
 
                 <View style={{ marginLeft: 6, flexDirection: 'row', alignItems: 'center' }}>
                     <IconBtn brand={brand} icon={routeName === 'Home' ? 'home' : 'home-outline'} label={tr('Home')} onPress={() => goTab('Home')} active={routeName === 'Home'} />
