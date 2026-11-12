@@ -105,6 +105,10 @@ export default {
     android: {
       config: { googleMaps: { apiKey: process.env.GOOGLE_MAPS_SDK_KEY || process.env.GOOGLE_MAPS_API_KEY } },   // the app's own Maps key (restricted to the app); GOOGLE_MAPS_API_KEY is the older name
       package: currentConfig.bundleId,
+      // a printed table QR opens the app straight (Android App Links). Only when the build is made with QR_LINK_HOST (the QR address' host); needs a new build. docs/smart-table-qr.md
+      ...(process.env.QR_LINK_HOST && tenant !== 'default' && {
+        intentFilters: [{ action: 'VIEW', autoVerify: true, data: [{ scheme: 'https', host: process.env.QR_LINK_HOST, pathPrefix: `/q/t/${tenant}/` }], category: ['BROWSABLE', 'DEFAULT'] }],
+      }),
       ...(googleServicesFile && { googleServicesFile }),
       // Preserves your previous manual permissions + adds Microphone
       permissions: [
@@ -126,6 +130,7 @@ export default {
     },
     ios: {
       bundleIdentifier: currentConfig.bundleId,
+      ...(process.env.QR_LINK_HOST && tenant !== 'default' && { associatedDomains: [`applinks:${process.env.QR_LINK_HOST}`] }),   // Universal Links, same idea
     },
     extra: {
       tenantId: tenant,

@@ -19,7 +19,10 @@ const tableUrl = (req, t, table) => `${baseUrl(req)}/api/dinein/t/${t.slug}/${ta
 const printUrl = (req, t) => `${baseUrl(req)}/api/dinein/print/${t.slug}?k=${sign(t._id, 'print')}`;
 
 // the page a scanned QR opens in the phone's browser
-function landingHtml({ t, table, k, scheme }) {
+function landingHtml({ t, table, k, scheme, ua }) {
+    return require('./tableLanding').html({ t, table, k, ua });   // the smart page: app, store or browser (services/tableLanding.js)
+}
+function legacyLandingHtml({ t, table, k, scheme }) {   // the first version of the page, kept only for reference
     const deep = `${scheme}://table/${table}?k=${encodeURIComponent(k)}`;
     const play = t.androidPackage ? `https://play.google.com/store/apps/details?id=${encodeURIComponent(t.androidPackage)}` : '';
     // Android: open the app, and if it is not installed go to the Play Store by itself

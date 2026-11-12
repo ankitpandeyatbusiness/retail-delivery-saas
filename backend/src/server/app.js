@@ -90,6 +90,7 @@ app.use('/api/bookings', require('../routes/bookingsRouter'));   // customers: b
 app.use('/api/chat', require('../middlewares/tenantRecognizer'), require('../middlewares/authMiddleware'), require('../routes/chatRouter').customerChat());   // customers: the chat about a bulk order, an inquiry, a booking
 app.use('/api/bulk', require('../routes/bulkRouter'));   // customers: bulk orders (request, quote)
 app.use('/api/services', require('../routes/servicesRouter'));   // customers: services and inquiries
+app.use('/.well-known', require('../routes/wellKnownRouter'));   // checks that let the app open the table QR's https address directly (docs/smart-table-qr.md)
 app.use('/q', require('../routes/qrRedirectRouter'));   // the short permanent addresses printed in QR codes (services/qrCodes.js)
 app.use('/api/demo', require('../routes/demoRouter'));   // the demo panel switcher (private demo login only)
 app.use('/api/staff', require('../routes/staffRouter'));   // kitchen and waiter logins

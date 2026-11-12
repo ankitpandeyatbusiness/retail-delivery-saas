@@ -46,6 +46,15 @@ const tenantSchema = new mongoose.Schema({
     // what kind of business this is (config/businessTypes.js). Only restaurant is open today.
     businessType: { type: String, enum: ['restaurant', 'general_store', 'stationery', 'garments'], default: 'restaurant' },
     androidPackage: String,
+    // "Opening the app" (smart table QR, services/tableLanding.js): the shop's store pages. All optional. The two links drive what a table QR shows to a guest whose
+    // phone does not have the app. androidSha256 / iosAppId only matter once the app is built with https app links (docs/smart-table-qr.md).
+    appLinks: {
+        _id: false,
+        playStoreUrl: { type: String, trim: true, maxlength: 300, validate: { validator: (v) => !v || /^https:\/\/play\.google\.com\/store\/apps\/details\?id=[\w.]+/.test(v), message: 'The Play Store link must look like https://play.google.com/store/apps/details?id=com.shop.app' } },
+        appStoreUrl: { type: String, trim: true, maxlength: 300, validate: { validator: (v) => !v || /^https:\/\/(apps|itunes)\.apple\.com\/\S+/.test(v), message: 'The App Store link must look like https://apps.apple.com/in/app/name/id1234567890' } },
+        androidSha256: { type: [String], default: undefined, validate: { validator: (a) => !a || a.every((x) => /^([0-9A-F]{2}:){31}[0-9A-F]{2}$/.test(x)), message: 'The certificate fingerprint looks like AA:BB:...: 32 pairs' } },
+        iosAppId: { type: String, trim: true, maxlength: 120, validate: { validator: (v) => !v || /^[A-Z0-9]{10}\.[\w.-]+$/.test(v), message: 'The iPhone app id looks like ABCDE12345.com.shop.app' } },
+    },
 
     // multi-branch: a branch belongs to a brand (models/Brand.js). Empty = a normal single shop, nothing changes for it.
     brandId: { type: mongoose.Schema.Types.ObjectId, ref: 'Brand', index: true },

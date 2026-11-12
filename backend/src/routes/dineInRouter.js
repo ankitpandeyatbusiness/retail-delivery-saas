@@ -19,10 +19,10 @@ const page = (res, html) => res.set({ 'Content-Type': 'text/html; charset=utf-8'
 router.get('/t/:slug/:table', wrap(async (req, res) => {
     const slug = String(req.params.slug).toLowerCase();
     const table = String(req.params.table);
-    const t = SLUG_RE.test(slug) ? await Tenant.findOne({ slug }).select('name slug androidPackage settings').lean() : null;
+    const t = SLUG_RE.test(slug) ? await Tenant.findOne({ slug }).select('name slug androidPackage appLinks settings').lean() : null;
     if (!t || !/^\d{1,3}$/.test(table) || !tableQr.check(t._id, 'table:' + table, req.query.k)) return res.status(404).send('This QR code is not valid.');
     tableBill.recordScan({ tenantId: t._id, table, key: req.ip, source: 'link' });
-    page(res, tableQr.landingHtml({ t, table, k: String(req.query.k), scheme: t.slug }));
+    page(res, tableQr.landingHtml({ t, table, k: String(req.query.k), scheme: t.slug, ua: req.headers['user-agent'] }));
 }));
 // all the stickers, ready to print (the link comes from the owner's app)
 router.get('/print/:slug', wrap(async (req, res) => {
@@ -38,9 +38,9 @@ router.post('/scan', wrap(async (req, res) => {
     const table = String(req.body?.table || '');
     const d = { ...require('../services/tenantConfigService').DEFAULTS.orders.dineIn, ...(req.tenant.settings?.orders?.dineIn || {}) };
     if (!d.enabled || !require('../services/featureGate').hasFeature(req.tenant, 'dineIn')) throw httpError(400, 'This shop is not taking dine in orders right now');
-    if (!/^\d{1,3}$/.test(table) || Number(table) < 1 || Number(table) > d.tableCount || !tableQr.check(req.tenant._id, 'table:' + table, req.body?.k)) throw httpError(400, 'This QR code is not valid');
+    if (!/^\d{1,3}$/.test(table) || Number(table) < 1 || Number(table) > d.tableCount || !(req.body?.short === true || tableQr.check(req.tenant._id, 'table:' + table, req.body?.k))) throw httpError(400, 'This QR code is not valid');
     tableBill.recordScan({ tenantId: req.tenant._id, table, key: req.ip, source: 'app' });
-    res.json({ ok: true, table });
+    res.json({ ok: true, table, ...(req.body?.short === true ? { k: tableQr.sign(req.tenant._id, 'table:' + table) } : {}) });
 }));
 // is the shop full right now (the app shows "it may take longer")
 router.get('/status', wrap(async (req, res) => {

@@ -60,7 +60,7 @@ const pickFields = (fields, body) =>
 
 const SLUG_RE = /^[a-z0-9-]{3,40}$/;
 const RESERVED_SLUGS = ['admin', 'api', 'www'];
-const TENANT_FIELDS = ['businessType', 'name', 'tagline', 'logo', 'colors', 'status', 'androidPackage', 'phone', 'address', 'delivery', 'business', 'subscription', 'contact'];
+const TENANT_FIELDS = ['businessType', 'name', 'tagline', 'logo', 'colors', 'status', 'androidPackage', 'appLinks', 'phone', 'address', 'delivery', 'business', 'subscription', 'contact'];
 
 /* ------------------------------ login (public) ------------------------------ */
 const authRoutes = require('./adminAuthRouter');

@@ -28,6 +28,8 @@ const formOf = (x) => ({
     legalName: str(x.business?.legalName), gstin: str(x.business?.gstin), fssai: str(x.business?.fssai),
     billingEmail: str(x.contact?.billingEmail),
     androidPackage: str(x.androidPackage),
+    playStoreUrl: str(x.appLinks?.playStoreUrl), appStoreUrl: str(x.appLinks?.appStoreUrl),
+    androidSha256: (x.appLinks?.androidSha256 || []).join('\n'), iosAppId: str(x.appLinks?.iosAppId),
     status: x.status || 'active',
 });
 
@@ -75,6 +77,10 @@ export default function ShopEditScreen() {
         if (f.longitude !== '' && !(Number(f.longitude) >= -180 && Number(f.longitude) <= 180)) e.longitude = 'Longitude is between -180 and 180';
         if ((f.latitude === '') !== (f.longitude === '')) e.latitude = 'Enter both latitude and longitude';
         if (f.androidPackage && !PACKAGE_RE.test(f.androidPackage)) e.androidPackage = 'Use small letters and dots, like com.mycompany.shopname';
+        if (f.playStoreUrl && !/^https:\/\/play\.google\.com\/store\/apps\/details\?id=[\w.]+/.test(f.playStoreUrl.trim())) e.playStoreUrl = 'Looks like https://play.google.com/store/apps/details?id=com.shop.app';
+        if (f.appStoreUrl && !/^https:\/\/(apps|itunes)\.apple\.com\/\S+/.test(f.appStoreUrl.trim())) e.appStoreUrl = 'Looks like https://apps.apple.com/in/app/name/id1234567890';
+        if (f.iosAppId && !/^[A-Z0-9]{10}\.[\w.-]+$/.test(f.iosAppId.trim())) e.iosAppId = 'Looks like ABCDE12345.com.shop.app';
+        if (f.androidSha256.trim() && !f.androidSha256.split(/\s+/).filter(Boolean).every((x) => /^([0-9A-Fa-f]{2}:){31}[0-9A-Fa-f]{2}$/.test(x))) e.androidSha256 = 'One fingerprint per line: 32 pairs like AA:BB:CC:...';
         setErr(e);
         return !Object.keys(e).length;
     };
@@ -88,6 +94,10 @@ export default function ShopEditScreen() {
         if (f.phone !== str(orig.phone)) body.phone = f.phone;
         if (f.status !== (orig.status || 'active')) body.status = f.status;
         if (f.androidPackage !== str(orig.androidPackage)) body.androidPackage = f.androidPackage.trim();
+        const sha = f.androidSha256.split(/\s+/).filter(Boolean).map((x) => x.toUpperCase());
+        if (f.playStoreUrl !== str(orig.appLinks?.playStoreUrl) || f.appStoreUrl !== str(orig.appLinks?.appStoreUrl) || f.iosAppId !== str(orig.appLinks?.iosAppId) || sha.join(',') !== (orig.appLinks?.androidSha256 || []).join(',')) {
+            body.appLinks = { playStoreUrl: f.playStoreUrl.trim(), appStoreUrl: f.appStoreUrl.trim(), iosAppId: f.iosAppId.trim(), androidSha256: sha };
+        }
         if (f.line !== str(orig.address?.line) || f.city !== str(orig.address?.city) || f.state !== str(orig.address?.state) || f.pincode !== str(orig.address?.pincode)) {
             body.address = { line: f.line.trim(), city: f.city.trim(), state: f.state.trim(), pincode: f.pincode };
         }
@@ -195,6 +205,17 @@ export default function ShopEditScreen() {
                     placeholder="com.mycompany.shopname"
                     style={{ marginBottom: 0 }}
                 />
+            </Card>
+
+            <SectionTitle section="settings">Opening the app from a table QR</SectionTitle>
+            <Card>
+                <Field label="Play Store link" value={f.playStoreUrl} onChangeText={set('playStoreUrl')} autoCapitalize="none" error={err.playStoreUrl} placeholder="https://play.google.com/store/apps/details?id=..." hint="Optional. A guest on Android without the app can choose Open in the store (the table is kept, and set after the first sign in). Empty = straight to the website." />
+                <Field label="App Store link" value={f.appStoreUrl} onChangeText={set('appStoreUrl')} autoCapitalize="none" error={err.appStoreUrl} placeholder="https://apps.apple.com/in/app/..." hint="Optional. The same for iPhones. After installing, the guest scans the table QR again. Empty = straight to the website." style={{ marginBottom: 0 }} />
+            </Card>
+            <Card style={{ marginTop: spacing.md }}>
+                <Text style={{ color: t.muted, fontSize: font.sm, marginBottom: spacing.md }}>Advanced, for the next app build only: lets the installed app open the QR address straight, with no page in between. Leave empty if you are not sure.</Text>
+                <Field label="Android certificate fingerprints (SHA-256)" value={f.androidSha256} onChangeText={set('androidSha256')} autoCapitalize="characters" multiline error={err.androidSha256} placeholder="AA:BB:CC:..." hint="One per line, from Play Console > App signing." />
+                <Field label="iPhone app id" value={f.iosAppId} onChangeText={set('iosAppId')} autoCapitalize="characters" error={err.iosAppId} placeholder="ABCDE12345.com.shop.app" hint="Your Apple team id, a dot, and the bundle id." style={{ marginBottom: 0 }} />
             </Card>
 
             <SectionTitle section="alerts">Shop status</SectionTitle>

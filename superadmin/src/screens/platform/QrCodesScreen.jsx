@@ -88,7 +88,7 @@ export default function QrCodesScreen() {
                         <ListRow section="shops" icon="food" title={shop.name} subtitle="Tap to choose another shop" onPress={() => setShop(null)} last />
                         <View style={{ marginTop: spacing.md }}>
                             <ToggleRow title="Shop logo in the middle" subtitle="Optional. Tables only. The picture covers a fifth of the code at most." value={logo} onValueChange={setLogo} />
-                            <Field label="Table number" hint="Leave empty for one PDF sheet with every table (the number under each code). Type a number for a single table file." value={one} onChangeText={(v) => setOne(v.replace(/D/g, '').slice(0, 3))} keyboardType="number-pad" placeholder="All tables" />
+                            <Field label="Table number" hint="Leave empty for one PDF sheet with every table (the number under each code). Type a number for a single table file." value={one} onChangeText={(v) => setOne(v.replace(/\D/g, '').slice(0, 3))} keyboardType="number-pad" placeholder="All tables" />
                             {one ? <SizeChoices v={table} set={setTable} /> : null}
                         </View>
                         <Button title={one ? `Download table ${one}` : 'Download the table sheet'} icon="copy" loading={busy === 'table'} style={{ marginTop: spacing.md }}
