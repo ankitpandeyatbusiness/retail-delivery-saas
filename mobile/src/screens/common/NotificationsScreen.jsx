@@ -21,7 +21,8 @@ import { onNotification, onNotificationRead } from '../../api/common/socket';
 import { tr } from '../../i18n';
 import { notificationTarget } from '../../utils/common/notificationTarget';
 import { useClosedStyle } from '../../components/customers/shop';
-import { useIsDesktopWeb } from '../../utils/common/layout';
+import { useIsDesktopWeb, useStaffDesktop } from '../../utils/common/layout';
+import { Hero, HeroBtn } from '../../components/owners/RiderDesk';
 
 const ICON = {
     order_status: 'receipt-outline',
@@ -46,6 +47,7 @@ export default function NotificationsScreen() {
     const closedStyle = useClosedStyle();   // the shop is closed: a customer's screen turns grey
     const nav = useNavigation();
     const { primary, text, muted, surface, border, background, error } = useBrand();
+    const staffDesk = useStaffDesktop();   // the cook and the waiter on a computer: the same page as the owner's Messages (banner and rounded cards)
     const desk = useIsDesktopWeb();   // a browser at least 1024 px wide: a centred panel with tabs and day groups (false in the phone app)
     const [tab, setTab] = useState('all');   // desktop: all | unread
     const setUnread = useNotificationStore((s) => s.set);
@@ -138,6 +140,58 @@ export default function NotificationsScreen() {
             {!n.read ? <View style={[s.dot, { backgroundColor: primary }]} /> : null}
         </Pressable>
     );
+
+    if (staffDesk) {
+        const unreadN = items.filter((n) => !n.read).length;
+        return (
+            <View style={[s.flex, { backgroundColor: background }, closedStyle]}>
+                <ScrollView
+                    showsVerticalScrollIndicator={false}
+                    scrollEventThrottle={200}
+                    onScroll={(e) => { const { contentOffset, layoutMeasurement, contentSize } = e.nativeEvent; if (contentOffset.y + layoutMeasurement.height > contentSize.height - 500) loadMore(); }}
+                    contentContainerStyle={{ paddingTop: 28, paddingBottom: 64 }}
+                >
+                    <View style={{ width: '100%', maxWidth: 900, alignSelf: 'center', paddingHorizontal: 8 }}>
+                        <Hero icon="notifications" title={tr('Notifications')} subtitle={unreadN ? tr('{n} new', { n: unreadN }) : tr('You are all caught up')}
+                            right={<>
+                                <HeroBtn icon="arrow-back" label={tr('Back')} onPress={() => (nav.canGoBack() ? nav.goBack() : nav.navigate('MainTabs'))} />
+                                {items.length ? <HeroBtn solid icon="trash-outline" label={tr('Clear all')} onPress={clear} /> : null}
+                            </>} />
+                        <View style={{ paddingHorizontal: 16 }}>
+                            {state === 'loading' ? <SkelNotifications />
+                                : state === 'error' ? (
+                                    <View style={{ alignItems: 'center', paddingVertical: 60 }}>
+                                        <Ionicons name="cloud-offline-outline" size={42} color={muted} />
+                                        <Text style={[s.emptyBig, { color: text }]}>{tr('Could not load notifications')}</Text>
+                                        <Pressable onPress={load} style={[s.btn, { backgroundColor: primary }]}><Text numberOfLines={1} style={s.btnTxt}>{tr('Try again')}</Text></Pressable>
+                                    </View>
+                                ) : !items.length ? (
+                                    <View style={{ alignItems: 'center', paddingVertical: 60 }}>
+                                        <Ionicons name="notifications-off-outline" size={44} color={muted} />
+                                        <Text style={[s.emptyBig, { color: text }]}>{tr('No notifications yet')}</Text>
+                                        <Text style={[s.body, { color: muted, textAlign: 'center' }]}>{tr('Order updates will show up here.')}</Text>
+                                    </View>
+                                ) : items.map((n) => (
+                                    <Pressable key={String(n.id)} onPress={() => open(n)} accessibilityRole="button"
+                                        style={({ hovered }) => ({ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 13, marginBottom: 8, borderRadius: 18, borderWidth: 1, borderColor: hovered ? primary : border, backgroundColor: hovered ? tint(primary) : n.read ? surface : tint(primary), cursor: 'pointer', transitionProperty: 'background-color, border-color', transitionDuration: '140ms' })}>
+                                        <View style={{ width: 42, height: 42, borderRadius: 14, marginRight: 12, backgroundColor: n.read ? tint(primary) : primary, alignItems: 'center', justifyContent: 'center' }}>
+                                            <Ionicons name={ICON[n.type] || 'notifications'} size={20} color={n.read ? primary : '#FFFFFF'} />
+                                        </View>
+                                        <View style={{ flex: 1, minWidth: 0 }}>
+                                            <Text style={{ color: text, fontWeight: n.read ? '700' : '900' }}>{n.title}</Text>
+                                            {n.body ? <Text style={{ color: muted, marginTop: 2 }}>{n.body}</Text> : null}
+                                            <Text style={{ color: muted, fontSize: 11, marginTop: 4 }}>{ago(n.createdAt)}</Text>
+                                        </View>
+                                        <Ionicons name="chevron-forward" size={18} color={muted} style={{ marginLeft: 6 }} />
+                                    </Pressable>
+                                ))}
+                            {loadingMore ? <ListShimmer count={2} /> : null}
+                        </View>
+                    </View>
+                </ScrollView>
+            </View>
+        );
+    }
 
     if (desk) {
         // the desktop panel: a header with the counts and Clear all, All / Unread tabs, and the messages grouped by day

@@ -13,6 +13,8 @@ import { useStaffStore } from '../../store/staff/useStaffStore';
 import { onNotification } from '../../api/common/socket';
 import Limited from '../../components/common/ShowMore';
 import { tr } from '../../i18n';
+import { useStaffDesktop } from '../../utils/common/layout';
+import { Hero } from '../../components/owners/RiderDesk';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const WEEK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -65,6 +67,7 @@ function DaysOffSheet({ visible, onClose, onSubmit, leave }) {
 
 export default function StaffLeaveScreen() {
     const { background, text, muted, border, ok, warn, error } = useBrand();
+    const desk = useStaffDesktop();   // a computer: the same banner as the owner's pages, Days off on the left and Leave on the right
     const [d, setD] = useState(null);
     const [offOpen, setOffOpen] = useState(false);
     const [leaveOpen, setLeaveOpen] = useState(false);
@@ -86,6 +89,10 @@ export default function StaffLeaveScreen() {
             <PageHeader title={tr('Days off and leave')} />
             {!d ? null : (
                 <ScrollView contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+                  <View style={desk ? { width: '100%', maxWidth: 1100, alignSelf: 'center' } : undefined}>
+                    {desk ? <Hero icon="calendar" title={tr('Days off and leave')} subtitle={tr('Take a holiday or ask the owner for leave')} /> : null}
+                    <View style={desk ? { flexDirection: 'row', alignItems: 'flex-start' } : undefined}>
+                    <View style={desk ? { flex: 1, minWidth: 0 } : undefined}>
                     <SectionTitle title={tr('Days off')} />
                     <Card>
                         <Text style={{ color: muted, fontSize: 12.5 }}>{tr('A holiday you take yourself. No approval needed. You get no alerts on these days.')}</Text>
@@ -100,6 +107,8 @@ export default function StaffLeaveScreen() {
                         )} />
                         <Button label={tr('Add days off')} icon="add" kind="ghost" onPress={() => setOffOpen(true)} style={{ marginTop: 12 }} />
                     </Card>
+                    </View>
+                    <View style={desk ? { flex: 1, minWidth: 0 } : undefined}>
                     <SectionTitle title={tr('Leave')} />
                     <Card>
                         <Text style={{ color: muted, fontSize: 12.5 }}>{tr('Ask the owner for leave. You are told when they decide. Approved leave is added to your days off.')}</Text>
@@ -123,6 +132,9 @@ export default function StaffLeaveScreen() {
                         }} />
                         <Button label={tr('Ask for leave')} icon="calendar-outline" kind="ghost" onPress={() => setLeaveOpen(true)} style={{ marginTop: 12 }} />
                     </Card>
+                    </View>
+                    </View>
+                  </View>
                 </ScrollView>
             )}
             <DaysOffSheet leave visible={leaveOpen} onClose={() => setLeaveOpen(false)} onSubmit={async ({ from, to, note }) => { take(await askLeave({ from, to, reason: note })); showToast(tr('Request sent to the owner')); }} />

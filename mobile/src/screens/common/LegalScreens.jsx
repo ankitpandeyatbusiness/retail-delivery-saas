@@ -11,7 +11,7 @@ import LegalText, { useLegalInk } from '../../components/common/LegalText';
 import { fetchPublicLegal, fetchPoweredBy } from '../../api/common/legalApi';
 import { useAuthStore } from '../../store/common/useAuthStore';
 import { tr, tl } from '../../i18n';
-import { useOwnerDesktop } from '../../utils/common/layout';
+import { useOwnerDesktop, useStaffDesktop } from '../../utils/common/layout';
 import { Hero } from '../../components/owners/RiderDesk';
 
 // one document. params: { key }
@@ -89,7 +89,9 @@ const B = ({ children }) => {
 // Then the documents. Everybody sees their own terms and privacy policy under it.
 export function AboutUsScreen() {
     const { background, surface, border } = useBrand();
-    const ownerDesk = useOwnerDesktop();   // the owner on a computer: a banner, and the text and the documents as two rounded cards
+    const ownDesk = useOwnerDesktop();
+    const staffDesk = useStaffDesktop();   // the cook and the waiter on a computer get the owner's look too
+    const ownerDesk = ownDesk || staffDesk;
     const role = useAuthStore((s) => s.user?.role);
     const [info, setInfo] = useState({});
     useEffect(() => { fetchPoweredBy().then((x) => setInfo(x || {})).catch(() => { }); }, []);

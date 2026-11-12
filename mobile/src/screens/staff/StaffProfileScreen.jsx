@@ -19,7 +19,8 @@ import { saveStaffName } from '../../api/staff/staffApi';
 import { takeAndUploadStaffPhoto, removeStaffPhoto } from '../../utils/riders/riderPhotos';
 import { LANGS, useLang, tr } from '../../i18n';
 import { useStaffDesktop } from '../../utils/common/layout';
-import { Frame } from '../../components/owners/RiderDesk';
+import { Frame, Hero, HeroBtn } from '../../components/owners/RiderDesk';
+import Masonry, { Sep } from '../../components/common/Masonry';
 
 export default function StaffProfileScreen() {
     const desk = useStaffDesktop();
@@ -76,15 +77,26 @@ export default function StaffProfileScreen() {
         <View style={{ flex: 1, backgroundColor: background }}>
             <StaffHeader title={tr('Profile')} />
             <ScrollView contentContainerStyle={{ paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
-              <Frame desk={desk} max={760}>
-                {/* 1. who you are */}
-                <View style={{ alignItems: 'center', marginBottom: 18, paddingHorizontal: 16 }}>
+              <Frame desk={desk} max={desk ? 1100 : 760}>
+                {/* 1. who you are (a computer: the same banner as the owner's profile, with the picture, the name and a Change photo button) */}
+                {desk ? (
+                    <Hero
+                        lead={<View style={{ marginRight: 18, borderRadius: 48, borderWidth: 3, borderColor: 'rgba(255,255,255,0.8)' }}><Avatar uri={me?.photo} size={84} onPress={changePhoto} busy={photoBusy} /></View>}
+                        title={me?.name || tr('Add your name')}
+                        subtitle={`${me?.phone || ''}${me?.shop ? `  ·  ${me.shop}` : ''}`}
+                        right={<>
+                            {me?.role ? <View style={{ paddingHorizontal: 16, height: 38, borderRadius: 19, backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', marginLeft: 8 }}><Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 13 }}>{me.role === 'kitchen' ? tr('Cook') : tr('Waiter')}</Text></View> : null}
+                            <HeroBtn solid icon="camera" label={tr('Change photo')} onPress={changePhoto} />
+                        </>} />
+                ) : null}
+                {desk ? null : <View style={{ alignItems: 'center', marginBottom: 18, paddingHorizontal: 16 }}>
                     <Avatar uri={me?.photo} size={92} onPress={changePhoto} busy={photoBusy} />
                     <Text style={{ color: text, fontSize: 21, fontWeight: '900', marginTop: 12 }}>{me?.name || tr('Add your name')}</Text>
                     <Text style={{ color: muted, fontWeight: '600', marginTop: 2 }}>{me?.phone}{me?.shop ? ` · ${me.shop}` : ''}</Text>
                     <View style={{ marginTop: 8 }}>{me?.role ? <JobBadge role={me.role} /> : null}</View>
-                </View>
+                </View>}
 
+                <Masonry desk={desk} gap={-16}>
                 {/* 2. your account */}
                 <Card>
                     <Row icon="camera-outline" title={tr('Your picture')} subtitle={me?.photo ? tr('Change or remove it') : tr('Add a picture of yourself')} onPress={changePhoto} />
@@ -93,15 +105,18 @@ export default function StaffProfileScreen() {
                 </Card>
 
                 {/* 3. working time (live or off duty, weekly hours) and the page for days off and leave */}
+                <Sep />
                 <DutyCard />
                 <Card>
                     <Row icon="calendar-outline" title={tr('Days off and leave')} subtitle={tr('Take a holiday or ask the owner for leave')} onPress={() => nav.navigate('StaffLeave')} last />
                 </Card>
 
                 {/* 4. alerts and sound */}
+                <Sep />
                 {me?.role ? <SoundSettings role={me.role} /> : null}
 
                 {/* 5. how the app looks and speaks */}
+                <Sep />
                 <SectionTitle title={tr('App')} />
                 <Card>
                     <AppearanceSwitch />
@@ -111,11 +126,13 @@ export default function StaffProfileScreen() {
                 </Card>
 
                 {/* 6. log out: always the last thing */}
+                <Sep />
                 <View style={{ marginTop: 18 }}>
                     <Card>
                         <Row icon="log-out-outline" title={tr('Log out')} color={error} onPress={signOut} last />
                     </Card>
                 </View>
+                </Masonry>
               </Frame>
             </ScrollView>
             <Sheet visible={nameOpen} onClose={() => setNameOpen(false)} title={tr('Your name')}>

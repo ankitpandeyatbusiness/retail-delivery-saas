@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, Switch, ScrollView, Linking, TextInput, Platform } from 'react-native';
 import AppOnlyNotice from '../../components/common/AppOnlyNotice';
-import { useOwnerDesktop } from '../../utils/common/layout';
+import { useOwnerDesktop, useStaffDesktop } from '../../utils/common/layout';
 import { Hero } from '../../components/owners/RiderDesk';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand, alpha } from '../../components/common/kit';
@@ -52,7 +52,9 @@ function Label({ title, hint }) {
 // The website has no Soundbox (no ringing, no voice): a browser cannot do it reliably. It says so instead of showing settings that would do nothing.
 export default function SoundboxScreen() {
     const { background, surface, border, text, muted, primary } = useBrand();
-    const desk = useOwnerDesktop();
+    const ownDesk = useOwnerDesktop();
+    const staffDesk = useStaffDesktop();   // the cook and the waiter on a computer get the owner's look too
+    const desk = ownDesk || staffDesk;
     if (Platform.OS === 'web' && desk) {
         const TILES = [
             ['notifications', tr('New-order bell'), tr('A loud bell rings until you accept or open the order.')],
