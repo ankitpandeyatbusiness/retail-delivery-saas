@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useBrand } from './kit';
 import { tint, useClosedStyle } from '../customers/shop';
 import { Press } from '../customers/cartParts';
+import { isDeskNow } from '../../utils/common/layout';
 
 const useDlg = create(() => ({ cur: null }));
 let queue = [];
@@ -58,7 +59,7 @@ function Card({ d }) {
             <View style={[s.wrap, d.noGrey ? null : closedStyle]}>
                 <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, s.backdrop, { opacity: v }]} />
                 <Pressable style={StyleSheet.absoluteFill} onPress={() => done(d.onClose ? null : cancelBtn)} />
-                <Animated.View style={[s.card, { backgroundColor: surface, borderColor: border, opacity: v, transform: [{ translateY: v.interpolate({ inputRange: [0, 1], outputRange: [28, 0] }) }, { scale: v.interpolate({ inputRange: [0, 1], outputRange: [0.88, 1] }) }] }]}>
+                <Animated.View style={[s.card, isDeskNow() ? { maxWidth: 420, padding: 28, borderRadius: 26, boxShadow: '0 30px 80px rgba(0,0,0,0.3)' } : null, { backgroundColor: surface, borderColor: border, opacity: v, transform: [{ translateY: v.interpolate({ inputRange: [0, 1], outputRange: [28, 0] }) }, { scale: v.interpolate({ inputRange: [0, 1], outputRange: [0.88, 1] }) }] }]}>
                     <View style={[s.ic, { backgroundColor: tint(accent) }]}><Ionicons name={icon} size={26} color={accent} /></View>
                     <Text style={[s.title, { color: text }]}>{d.title}</Text>
                     {d.message ? <Text style={[s.msg, { color: muted }]}>{d.message}</Text> : null}

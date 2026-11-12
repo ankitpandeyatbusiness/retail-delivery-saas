@@ -14,6 +14,8 @@ import { pushMenu, pushExtras } from '../../api/owners/brandApi';
 import { coupons, banners, collections } from '../../api/owners/shopApi';
 import { apiError } from '../../api/owners/shopApi';
 import { tr } from '../../i18n';
+import { useOwnerDesktop } from '../../utils/common/layout';
+import { Hero } from '../../components/owners/RiderDesk';
 
 const KINDS = [['dishes', tr('Dishes')], ['coupons', tr('Coupons')], ['banners', tr('Banners')], ['collections', tr('Collections')]];
 const LIST = { coupons, banners, collections };
@@ -22,6 +24,7 @@ const PRICES = [['keep', tr('Keep their prices')], ['untouched', tr('Update if u
 
 export default function OwnerPushMenuScreen() {
     const { background, text, muted, primary, border } = useBrand();
+    const desk = useOwnerDesktop();   // a computer: a banner, the choices and the Send button on the left, what to send on the right
     const products = useMenuStore((s) => s.products);
     const categories = useMenuStore((s) => s.categories);
     const loading = useMenuStore((s) => s.loading);
@@ -86,10 +89,15 @@ export default function OwnerPushMenuScreen() {
         );
     }
 
+    const sendBtn = <Button label={count ? tr('Send {n} items', { n: count }) : tr('Choose what to send')} onPress={send} disabled={!count} busy={busy} />;
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
             <PageHeader title={tr('Send dishes to branches')} />
-            <ScrollView contentContainerStyle={{ paddingTop: 6, paddingBottom: 120 }}>
+            <ScrollView contentContainerStyle={{ paddingTop: 6, paddingBottom: desk ? 32 : 120 }}>
+              <View style={desk ? { width: '100%', maxWidth: 1180, alignSelf: 'center' } : undefined}>
+                {desk ? <Hero icon="git-network" title={tr('Send dishes to branches')} subtitle={tr('Each branch keeps its own menu. Pick what to send, and where.')} /> : null}
+                <View style={desk ? { flexDirection: 'row', alignItems: 'flex-start' } : undefined}>
+                <View style={desk ? { width: 380, flexShrink: 0 } : undefined}>
                 <SectionTitle title={tr('What to send')} />
                 <View style={{ paddingHorizontal: 16 }}>
                     <Chips options={KINDS} value={kind} onChange={setKind} />
@@ -107,6 +115,9 @@ export default function OwnerPushMenuScreen() {
                                 : tr('Every chosen branch gets your prices.')}
                     </Text>
                 </View> : null}
+                {desk ? <View style={{ paddingHorizontal: 16, marginTop: 16 }}>{sendBtn}</View> : null}
+                </View>
+                <View style={desk ? { flex: 1, minWidth: 0 } : undefined}>
 
                 {kind !== 'dishes' ? (
                     <>
@@ -143,10 +154,13 @@ export default function OwnerPushMenuScreen() {
                         ))}
                     </Card>
                 )) : null}
+                </View>
+                </View>
+              </View>
             </ScrollView>
-            <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: 16, backgroundColor: background, borderTopWidth: 1, borderTopColor: border }}>
-                <Button label={count ? tr('Send {n} items', { n: count }) : tr('Choose what to send')} onPress={send} disabled={!count} busy={busy} />
-            </View>
+            {desk ? null : <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: 16, backgroundColor: background, borderTopWidth: 1, borderTopColor: border }}>
+                {sendBtn}
+            </View>}
         </View>
     );
 }

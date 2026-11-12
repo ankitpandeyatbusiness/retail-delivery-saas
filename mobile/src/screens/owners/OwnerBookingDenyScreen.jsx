@@ -37,7 +37,7 @@ export default function OwnerBookingDenyScreen() {
     };
 
     return (
-        <FormPage title={tr('Deny booking')} footer={open ? <Button label={paid ? tr('Deny and refund ₹{n}', { n: amount }) : tr('Deny booking')} icon="close-circle" kind="danger" busy={busy} onPress={send} /> : null}>
+        <FormPage title={tr('Deny booking')} hero={{ icon: 'close-circle', subtitle: tr('Tell the customer why you cannot take this booking') }} footer={open ? <Button label={paid ? tr('Deny and refund ₹{n}', { n: amount }) : tr('Deny booking')} icon="close-circle" kind="danger" busy={busy} onPress={send} /> : null}>
             <Card style={{ marginHorizontal: 0 }}>
                 <Text style={{ color: text, fontWeight: '900', fontSize: 17 }}>{b.name} · {tr('{n} guests', { n: b.party })}</Text>
                 <Text style={{ color: muted, marginTop: 2 }}>{b.date} · {b.time} · {tr('Code')} {b.code}</Text>

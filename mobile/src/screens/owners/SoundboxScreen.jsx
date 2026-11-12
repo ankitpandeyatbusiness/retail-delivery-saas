@@ -2,6 +2,8 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, Switch, ScrollView, Linking, TextInput, Platform } from 'react-native';
 import AppOnlyNotice from '../../components/common/AppOnlyNotice';
+import { useOwnerDesktop } from '../../utils/common/layout';
+import { Hero } from '../../components/owners/RiderDesk';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand, alpha } from '../../components/common/kit';
 import { PageHeader, Card, SectionTitle, Button, Pill, Chips, Option } from '../../components/owners/ui';
@@ -49,7 +51,43 @@ function Label({ title, hint }) {
 
 // The website has no Soundbox (no ringing, no voice): a browser cannot do it reliably. It says so instead of showing settings that would do nothing.
 export default function SoundboxScreen() {
-    const { background } = useBrand();
+    const { background, surface, border, text, muted, primary } = useBrand();
+    const desk = useOwnerDesktop();
+    if (Platform.OS === 'web' && desk) {
+        const TILES = [
+            ['notifications', tr('New-order bell'), tr('A loud bell rings until you accept or open the order.')],
+            ['mic', tr('Voice in your language'), tr('The order is read out: dishes, quantity and total.')],
+            ['volume-high', tr('Volume and repeat'), tr('Choose how loud it is and how often it repeats.')],
+        ];
+        return (
+            <View style={{ flex: 1, backgroundColor: background }}>
+                <PageHeader title={tr('Soundbox')} />
+                <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
+                    <View style={{ width: '100%', maxWidth: 1000, alignSelf: 'center' }}>
+                        <Hero icon="volume-high" title={tr('Soundbox')} subtitle={tr('The voice and the ringing for new orders work in the shop app on your phone.')} />
+                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', margin: 8 }}>
+                            {TILES.map(([ic, t, d]) => (
+                                <View key={t} style={{ width: '33.333%', padding: 8, minWidth: 260 }}>
+                                    <View style={{ padding: 20, minHeight: 150, borderRadius: 22, borderWidth: 1, borderColor: border, backgroundColor: surface }}>
+                                        <View style={{ width: 48, height: 48, borderRadius: 16, backgroundColor: alpha(primary, 0.14), alignItems: 'center', justifyContent: 'center' }}><Ionicons name={ic} size={24} color={primary} /></View>
+                                        <Text style={{ color: text, fontWeight: '900', fontSize: 16, marginTop: 14 }}>{t}</Text>
+                                        <Text style={{ color: muted, marginTop: 4, lineHeight: 20 }}>{d}</Text>
+                                    </View>
+                                </View>
+                            ))}
+                        </View>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, padding: 18, borderRadius: 22, backgroundColor: alpha(primary, 0.09) }}>
+                            <Ionicons name="phone-portrait-outline" size={30} color={primary} />
+                            <View style={{ flex: 1, marginLeft: 14 }}>
+                                <Text style={{ color: text, fontWeight: '900', fontSize: 15.5 }}>{tr('Soundbox is only available in the app')}</Text>
+                                <Text style={{ color: muted, marginTop: 2 }}>{tr('Open the shop app on your phone to set it up. A browser cannot ring or read orders out reliably.')}</Text>
+                            </View>
+                        </View>
+                    </View>
+                </ScrollView>
+            </View>
+        );
+    }
     if (Platform.OS === 'web') {
         return (
             <View style={{ flex: 1, backgroundColor: background }}>

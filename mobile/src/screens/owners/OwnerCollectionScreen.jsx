@@ -105,7 +105,7 @@ export default function OwnerCollectionScreen() {
     };
 
     return (
-        <FormPage title={id ? tr('Edit collection') : tr('New collection')} footer={<Button label={id ? tr('Save changes') : tr('Add collection')} icon="checkmark" busy={saving} onPress={save} />}>
+        <FormPage title={id ? tr('Edit collection') : tr('New collection')} hero={{ icon: 'layers', subtitle: tr('A row of dishes shown together on the home screen') }} footer={<Button label={id ? tr('Save changes') : tr('Add collection')} icon="checkmark" busy={saving} onPress={save} />}>
             <Group title={tr('Collection')}>
                 <ChoiceBox label={tr('Kind')} hint={tr('Festival: special items for an occasion. Combo: meal deals.')} options={[['festival', tr('Festival')], ['combo', tr('Combo')]]} value={v.kind} onChange={(x) => set('kind', x)} />
                 <TextBox label={tr('Title')} value={v.title} onChangeText={(x) => set('title', x)} error={errors.title} maxLength={60} placeholder={tr('e.g. Diwali Gift Boxes')} />

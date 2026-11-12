@@ -61,7 +61,7 @@ export default function OwnerDeliveryScreen() {
     const tipsText = v.tips.join(', ');
 
     return (
-        <FormPage title={tr('Delivery area and fees')} footer={<Button label={tr('Save')} icon="checkmark" busy={saving} onPress={save} />}>
+        <FormPage title={tr('Delivery area and fees')} hero={{ icon: 'navigate', subtitle: tr('Where you deliver, and what you charge') }} footer={<Button label={tr('Save')} icon="checkmark" busy={saving} onPress={save} />}>
             <Group title={tr('Where you deliver')} hint={pinned ? undefined : tr('Pin your shop on the map in Shop settings first. The distance is measured from it.')}>
                 <NumberBox label={tr('How far you deliver')} suffix="km" value={v.radiusKm} onChange={(x) => set('radiusKm', x)} hint={area.locked ? tr('Locked by the head office. Ask your brand owner to change the distance.') : area.by ? tr('Straight-line distance from your shop. Last changed by {who} on {date}.', { who: area.by.who, date: new Date(area.by.at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) }) : tr('Straight-line distance from your shop.')} />
                 <NumberBox label={tr('Smallest order')} prefix="₹" value={v.minOrder} onChange={(x) => set('minOrder', x)} last />

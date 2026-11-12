@@ -75,7 +75,7 @@ export default function OwnerRiderRulesScreen() {
     };
 
     return (
-        <FormPage title={tr('Delivery rules')} footer={<Button label={tr('Save rules')} icon="checkmark" busy={saving} onPress={save} />}>
+        <FormPage title={tr('Delivery rules')} hero={{ icon: 'shield-checkmark', subtitle: tr('Rules for your riders, and the cash they may carry') }} footer={<Button label={tr('Save rules')} icon="checkmark" busy={saving} onPress={save} />}>
             <Group icon="swap-horizontal" title={tr('Giving orders to riders')}>
                 <Pressable onPress={() => nav.navigate('OwnerAutomations')} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 4, marginBottom: 14 }}>
                     <Ionicons name="flash" size={20} color={primary} />

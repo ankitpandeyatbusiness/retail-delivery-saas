@@ -131,7 +131,7 @@ export default function OwnerAutopilotScreen() {
 
     const quiet = `${cfg.quietFrom}-${cfg.quietTo}`;
     return (
-        <FormPage title={tr('Autopilot')}>
+        <FormPage title={tr('Autopilot')} hero={{ icon: 'rocket', subtitle: tr('Let the shop run itself: automatic replies and reminders') }}>
             <Card>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                     <Ionicons name="rocket" size={22} color={primary} />

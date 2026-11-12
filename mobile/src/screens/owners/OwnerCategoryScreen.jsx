@@ -85,7 +85,7 @@ export default function OwnerCategoryScreen() {
     };
 
     return (
-        <FormPage title={id ? tr('Edit category') : tr('New category')} footer={<Button label={id ? tr('Save changes') : tr('Add category')} icon="checkmark" busy={saving} onPress={save} />}>
+        <FormPage title={id ? tr('Edit category') : tr('New category')} hero={{ icon: 'albums', subtitle: tr('A group of dishes on your menu') }} footer={<Button label={id ? tr('Save changes') : tr('Add category')} icon="checkmark" busy={saving} onPress={save} />}>
             <Group title={tr('Category')}>
                 <TextBox label={tr('Name')} value={v.name} onChangeText={(x) => set('name', x)} error={errors.name} placeholder={tr('e.g. Starters')} maxLength={60} />
                 <ImageField label={tr('Picture (optional)')} value={v.image} onChange={(x) => set('image', x)} kind="category" last />

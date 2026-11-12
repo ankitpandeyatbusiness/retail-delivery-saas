@@ -117,7 +117,7 @@ export default function OwnerItemScreen() {
     const sameCat = typedCat ? cats.find((c) => c.name.trim().toLowerCase() === titleCase(typedCat).toLowerCase()) : null;
 
     return (
-        <FormPage title={id ? tr('Edit item') : tr('New item')} footer={<Button label={id ? tr('Save changes') : tr('Add item')} icon="checkmark" busy={saving} onPress={save} />}>
+        <FormPage title={id ? tr('Edit item') : tr('New item')} hero={{ icon: 'fast-food', subtitle: tr('A dish on your menu') }} footer={<Button label={id ? tr('Save changes') : tr('Add item')} icon="checkmark" busy={saving} onPress={save} />}>
             {kinds.length ? (
                 <Group title={tr('What is it')} hint={tr('The kind puts the item in the right category by itself and sets how it is usually sold.')}>
                     <ChoiceBox

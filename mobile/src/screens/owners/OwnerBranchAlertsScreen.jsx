@@ -12,9 +12,12 @@ import { showToast } from '../../components/customers/shop';
 import { fetchNotifyPrefs, saveNotifyPrefs } from '../../api/owners/brandApi';
 import { apiError } from '../../api/owners/shopApi';
 import { tr } from '../../i18n';
+import { useOwnerDesktop } from '../../utils/common/layout';
+import { Hero } from '../../components/owners/RiderDesk';
 
 export default function OwnerBranchAlertsScreen() {
     const { background, text, muted, primary, border } = useBrand();
+    const desk = useOwnerDesktop();   // a computer: a banner, the main switch on the left and the branches on the right
     const [v, setV] = useState(null);
     const [err, setErr] = useState('');
     const [busy, setBusy] = useState(false);
@@ -41,6 +44,10 @@ export default function OwnerBranchAlertsScreen() {
         <View style={{ flex: 1, backgroundColor: background }}>
             <PageHeader title={tr('Alerts by branch')} />
             <ScrollView contentContainerStyle={{ paddingTop: 6, paddingBottom: 32 }}>
+              <View style={desk ? { width: '100%', maxWidth: 1100, alignSelf: 'center' } : undefined}>
+                {desk ? <Hero icon="notifications" title={tr('Alerts by branch')} subtitle={tr('Choose which branches may ring your phone.')} /> : null}
+                <View style={desk ? { flexDirection: 'row', alignItems: 'flex-start' } : undefined}>
+                <View style={desk ? { width: 360, flexShrink: 0 } : undefined}>
                 <Card>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <View style={{ flex: 1, paddingRight: 10 }}>
@@ -50,7 +57,11 @@ export default function OwnerBranchAlertsScreen() {
                         <Switch value={v.all} disabled={busy} onValueChange={(on) => save({ all: on })} trackColor={{ true: primary }} />
                     </View>
                 </Card>
-
+                <Text style={{ color: muted, fontSize: 12, marginHorizontal: 18, marginTop: 8, display: desk ? 'flex' : 'none' }}>
+                    {tr('A rider SOS, an order nobody accepted and rent trouble reach you from every branch.')}
+                </Text>
+                </View>
+                <View style={desk ? { flex: 1, minWidth: 0 } : undefined}>
                 <SectionTitle title={tr('Branches')} />
                 <Card>
                     {v.branches.map((b, i) => (
@@ -78,9 +89,12 @@ export default function OwnerBranchAlertsScreen() {
                         </View>
                     ))}
                 </Card>
-                <Text style={{ color: muted, fontSize: 12, marginHorizontal: 18, marginTop: 8 }}>
+                <Text style={{ color: muted, fontSize: 12, marginHorizontal: 18, marginTop: 8, display: desk ? 'none' : 'flex' }}>
                     {tr('A rider SOS, an order nobody accepted and rent trouble reach you from every branch.')}
                 </Text>
+                </View>
+                </View>
+              </View>
             </ScrollView>
         </View>
     );

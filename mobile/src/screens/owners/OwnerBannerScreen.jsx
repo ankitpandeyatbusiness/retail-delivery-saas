@@ -59,7 +59,7 @@ export default function OwnerBannerScreen() {
     };
 
     return (
-        <FormPage title={id ? tr('Edit banner') : tr('New banner')} footer={<Button label={id ? tr('Save changes') : tr('Add banner')} icon="checkmark" busy={saving} onPress={save} />}>
+        <FormPage title={id ? tr('Edit banner') : tr('New banner')} hero={{ icon: 'image', subtitle: tr('A picture customers see at the top of your home screen') }} footer={<Button label={id ? tr('Save changes') : tr('Add banner')} icon="checkmark" busy={saving} onPress={save} />}>
             <Group title={tr('Banner')} hint={tr('A wide picture works best, for example 1200 × 500.')}>
                 <ImageField label={tr('Picture')} value={v.image} onChange={(x) => set('image', x)} kind="banner" />
                 <TextBox label={tr('Title')} value={v.title} onChangeText={(x) => set('title', x)} maxLength={60} placeholder={tr('e.g. 20% off on sweets')} />
