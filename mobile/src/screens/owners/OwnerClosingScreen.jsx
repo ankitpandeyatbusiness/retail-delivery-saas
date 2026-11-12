@@ -2,7 +2,7 @@
 // as a message (WhatsApp, to a partner or an accountant).
 import { useMenuFlags, planHas } from '../../utils/owners/menuFlags';
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, ScrollView, Share } from 'react-native';
+import { View, Text, ScrollView, Share, Pressable } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useBrand } from '../../components/common/kit';
 import { PageHeader, Card, Chips, Button, SectionTitle, Stat, Empty, money } from '../../components/owners/ui';
@@ -14,6 +14,9 @@ import { closingText } from '../../utils/owners/settingsRules';
 import { PAY_LABEL } from '../../utils/owners/moneyRules';
 import { rupees } from '../../utils/owners/riderRules';
 import { StatShimmer } from '../../components/owners/shimmer';
+import { useOwnerDesktop } from '../../utils/common/layout';
+import { Frame, Hero, HeroBtn, GlassStat } from '../../components/owners/RiderDesk';
+import Masonry, { Sep } from '../../components/common/Masonry';
 import { tr } from '../../i18n';
 
 const istDay = (offset = 0) => new Date(Date.now() + 330 * 60000 - offset * 86400000).toISOString().slice(0, 10);
@@ -30,18 +33,21 @@ const hourName = (h) => `${h % 12 || 12} ${h < 12 ? 'AM' : 'PM'}`;
 const TYPE_NAME = { delivery: 'Home delivery', pickup: 'Pickup', dine_in: 'Dining in' };
 
 export default function OwnerClosingScreen() {
+    const desk = useOwnerDesktop();   // a computer: a banner with the numbers and the period buttons, and the sections level in two columns
     const { background, text, muted, error, primary } = useBrand();
     const name = useThemeStore((s) => s.theme.name);
     const nav = useNavigation();
     const [which, setWhich] = useState('0');
     const [r, setR] = useState(null);
     const [err, setErr] = useState('');
+    const [fetching, setFetching] = useState(false);   // a computer keeps the page you were looking at, a little dimmed, until the new period arrives (no collapse and re-draw)
     const [pf, setPf] = useState(null);   // profit of the same period: sales minus the costs written down, the rent and the SMS paid
 
     const load = useCallback(async () => {
-        setR(null); setPf(null); setErr('');
-        try { const x = rangeOf(which); const rep = await fetchClosingReport(x); setR(rep); const dd = x.date || null; (planHas(useMenuFlags.getState().plan, 'costsProfit') ? fetchProfit(dd ? { from: dd, to: dd } : x) : Promise.resolve(null)).then(setPf).catch(() => setPf(null)); }
-        catch (e) { useOwnerStore.getState().noteError(e); setErr(apiError(e, 'Could not make the report.')); }
+        if (!desk) { setR(null); setPf(null); }
+        setFetching(true); setErr('');
+        try { const x = rangeOf(which); const rep = await fetchClosingReport(x); setR(rep); setFetching(false); const dd = x.date || null; (planHas(useMenuFlags.getState().plan, 'costsProfit') ? fetchProfit(dd ? { from: dd, to: dd } : x) : Promise.resolve(null)).then(setPf).catch(() => setPf(null)); }
+        catch (e) { setFetching(false); useOwnerStore.getState().noteError(e); setErr(apiError(e, 'Could not make the report.')); }
     }, [which]);
     useEffect(() => { load(); }, [load]);
 
@@ -51,14 +57,35 @@ export default function OwnerClosingScreen() {
         <View style={{ flex: 1, backgroundColor: background }}>
             <PageHeader title={tr('Closing report')} />
             <ScrollView contentContainerStyle={{ paddingTop: 6, paddingBottom: 32 }}>
-                <View style={{ paddingHorizontal: 16 }}>
+              <Frame desk={desk}>
+                {desk ? (
+                    <Hero icon="document-text" title={tr('Closing report')} subtitle={r ? `${tr('Sales on {date}', { date: r.date })}${r.sales.bulk?.orders ? `  ·  ${tr('Includes bulk orders: {n} · {amount}', { n: r.sales.bulk.orders, amount: money(r.sales.bulk.revenue) })}` : ''}` : tr('The day in one page')}
+                        right={<>
+                            {[['0', tr('Today')], ['1', tr('Yesterday')], ['7', tr('7 days')], ['month', tr('This month')], ['lastmonth', tr('Last month')]].map(([id, label]) => (
+                                <Pressable key={id} onPress={() => setWhich(id)} style={({ hovered }) => ({ paddingHorizontal: 14, height: 38, borderRadius: 19, marginLeft: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: which === id ? '#FFFFFF' : hovered ? 'rgba(255,255,255,0.34)' : 'rgba(255,255,255,0.2)', cursor: 'pointer' })}>
+                                    <Text style={{ color: which === id ? primary : '#FFFFFF', fontWeight: '800', fontSize: 13 }}>{label}</Text>
+                                </Pressable>
+                            ))}
+                            {r ? <HeroBtn label={tr('Share')} icon="share-social-outline" solid onPress={share} /> : null}
+                        </>}>
+                        {r ? (
+                            <View style={{ flexDirection: 'row', marginTop: 18 }}>
+                                <GlassStat label={tr('Sales')} value={money(r.sales.revenue)} icon="cash-outline" />
+                                <GlassStat label={tr('Delivered')} value={String(r.orders.delivered)} icon="checkmark-done-outline" />
+                                <GlassStat label={tr('Average order')} value={money(r.sales.averageOrder)} icon="analytics-outline" />
+                                <GlassStat label={tr('Tips')} value={money(r.sales.tips)} icon="heart-outline" />
+                            </View>
+                        ) : null}
+                    </Hero>
+                ) : null}
+                {desk ? null : <View style={{ paddingHorizontal: 16 }}>
                     <Chips options={[['0', tr('Today')], ['1', tr('Yesterday')], ['7', tr('7 days')], ['month', tr('This month')], ['lastmonth', tr('Last month')]]} value={which} onChange={setWhich} style={{ marginTop: 0 }} />
-                </View>
+                </View>}
                 {!r && !err ? <StatShimmer /> : null}
                 {err ? <Empty icon="cloud-offline-outline" title={tr('Could not load')} hint={err} /> : null}
                 {r ? (
                     <>
-                        <Card>
+                        {desk ? null : <Card>
                             <Text style={{ color: muted, fontSize: 12, fontWeight: '700' }}>{tr('Sales on {date}', { date: r.date })}</Text>
                             <Text style={{ color: text, fontSize: 34, fontWeight: '900', marginTop: 2 }}>{money(r.sales.revenue)}</Text>
                             <View style={{ flexDirection: 'row', marginTop: 12 }}>
@@ -67,8 +94,10 @@ export default function OwnerClosingScreen() {
                                 <Stat label={tr('Tips')} value={money(r.sales.tips)} />
                             </View>
                             {r.sales.bulk?.orders ? <Text style={{ color: muted, marginTop: 12, fontWeight: '700' }}>{tr('Includes bulk orders: {n} · {amount}', { n: r.sales.bulk.orders, amount: money(r.sales.bulk.revenue) })}</Text> : null}
-                        </Card>
+                        </Card>}
 
+                        <View style={{ opacity: fetching ? 0.5 : 1, transitionProperty: 'opacity', transitionDuration: '160ms' }}>
+                        <Masonry desk={desk} gap={-16} aligned>
                         {r.payments.length ? (
                             <>
                                 <SectionTitle title={tr('How customers paid')} />
@@ -76,6 +105,7 @@ export default function OwnerClosingScreen() {
                             </>
                         ) : null}
 
+                        <Sep />
                         {(() => {
                             const now = r.sales.revenue - (r.sales.bulk?.revenue || 0);
                             if (!r.before || !r.before.revenue) return null;
@@ -83,6 +113,7 @@ export default function OwnerClosingScreen() {
                             return <Text style={{ color: pct >= 0 ? primary : error, fontWeight: '800', paddingHorizontal: 16, marginTop: 6 }}>{pct >= 0 ? tr('Up {n}%', { n: pct }) : tr('Down {n}%', { n: -pct })} {tr('on the {d} before ({amount})', { d: r.days === 1 ? tr('day') : `${r.days} ${tr('days')}`, amount: money(r.before.revenue) })}</Text>;
                         })()}
 
+                        <Sep />
                         <SectionTitle title={tr('Orders')} />
                         <Card>
                             <MoneyRow title={tr('Placed')} value={String(r.orders.placed)} />
@@ -91,6 +122,7 @@ export default function OwnerClosingScreen() {
                             <MoneyRow title={tr('Not delivered')} value={String(r.orders.undelivered)} color={r.orders.undelivered ? error : undefined} last />
                         </Card>
 
+                        <Sep />
                         <SectionTitle title={tr('Tax, discounts and fees')} />
                         <Card>
                             <MoneyRow title={tr('GST in the sales')} note={tr('Collected from customers')} value={money(r.sales.tax)} />
@@ -99,6 +131,7 @@ export default function OwnerClosingScreen() {
                             <MoneyRow title={tr('Tips')} value={money(r.sales.tips)} last />
                         </Card>
 
+                        <Sep />
                         {r.hours && r.hours.length ? (
                             <>
                                 <SectionTitle title={tr('Busiest hours')} />
@@ -106,6 +139,7 @@ export default function OwnerClosingScreen() {
                             </>
                         ) : null}
 
+                        <Sep />
                         {r.types && r.types.length ? (
                             <>
                                 <SectionTitle title={tr('How orders were served')} />
@@ -113,6 +147,7 @@ export default function OwnerClosingScreen() {
                             </>
                         ) : null}
 
+                        <Sep />
                         {r.customers && r.customers.total ? (
                             <>
                                 <SectionTitle title={tr('Customers')} />
@@ -124,6 +159,7 @@ export default function OwnerClosingScreen() {
                             </>
                         ) : null}
 
+                        <Sep />
                         {r.lost && r.lost.orders ? (
                             <>
                                 <SectionTitle title={tr('Lost to cancels')} />
@@ -131,6 +167,7 @@ export default function OwnerClosingScreen() {
                             </>
                         ) : null}
 
+                        <Sep />
                         {r.team && (r.team.cooks.length || r.team.riders.length) ? (
                             <>
                                 <SectionTitle title={tr('Your team')} />
@@ -141,6 +178,7 @@ export default function OwnerClosingScreen() {
                             </>
                         ) : null}
 
+                        <Sep />
                         {pf && (pf.costs.total || pf.sales.revenue) ? (
                             <>
                                 <SectionTitle title={tr('Profit after costs')} action={tr('Costs')} onAction={() => nav.navigate('OwnerCosts')} />
@@ -152,6 +190,7 @@ export default function OwnerClosingScreen() {
                             </>
                         ) : null}
 
+                        <Sep />
                         <SectionTitle title={tr('Cash and online')} />
                         <Card>
                             <MoneyRow title={tr('Cash collected by riders')} value={rupees(r.cash.collectedByRidersPaise)} />
@@ -160,16 +199,20 @@ export default function OwnerClosingScreen() {
                             <MoneyRow title={tr('Refunded online')} note={tr('{refundedCount} refunds', { refundedCount: r.online.refundedCount })} value={rupees(r.online.refundedPaise)} last />
                         </Card>
 
+                        <Sep />
                         {r.topItems.length ? (
                             <>
                                 <SectionTitle title={tr('Best sellers')} />
                                 <Card>{r.topItems.map((it, i) => <MoneyRow key={it.name} title={it.name} note={tr('{quantity} sold', { quantity: it.quantity })} value={money(it.revenue)} last={i === r.topItems.length - 1} />)}</Card>
                             </>
                         ) : null}
+                        </Masonry>
+                        </View>
                         {r.complaints ? <Text style={{ color: muted, paddingHorizontal: 16, marginBottom: 12 }}>{tr('{complaints} {v2} came in this day.', { complaints: r.complaints, v2: r.complaints === 1 ? 'complaint' : 'complaints' })}</Text> : null}
-                        <View style={{ paddingHorizontal: 16 }}><Button label={tr('Share this report')} icon="share-social" onPress={share} /></View>
+                        {desk ? null : <View style={{ paddingHorizontal: 16 }}><Button label={tr('Share this report')} icon="share-social" onPress={share} /></View>}
                     </>
                 ) : null}
+              </Frame>
             </ScrollView>
         </View>
     );
