@@ -244,14 +244,15 @@ export function useClosedStyle() {
 }
 
 // Bestseller / New: a solid label on the corner of the photo (hidden when the dish is sold out)
-export function ImageRibbon({ item }) {
+// short: only the small picture, no word (the narrow photo of the compact card, where the word reached the heart in the other corner)
+export function ImageRibbon({ item, short }) {
     if (item.isAvailable === false) return null;
     const r = item.isBestseller ? [tr('Bestseller'), 'flame', '#E8590C'] : item.isNewArrival ? [tr('New'), 'sparkles', '#059669'] : null;
     if (!r) return null;
     return (
         <View pointerEvents="none" style={[s.ribbon, { backgroundColor: r[2] }]}>
             <Ionicons name={r[1]} size={11} color="#FFFFFF" />
-            <Text numberOfLines={1} style={s.ribbonTxt}>{tr(r[0])}</Text>
+            {short ? null : <Text numberOfLines={1} style={s.ribbonTxt}>{tr(r[0])}</Text>}
         </View>
     );
 }
@@ -510,7 +511,7 @@ function ItemCardBase({ item, variant }) {
                 </View>
                 <View style={s.cWrap}>
                     <Pic item={item} style={s.cImg} />
-                    <ImageRibbon item={item} />
+                    <ImageRibbon item={item} short />
                     {heart}
                     <AddButton item={item} kind="overlap" onPress={() => quickAdd(item, nav)} style={s.overPos} />
                 </View>
