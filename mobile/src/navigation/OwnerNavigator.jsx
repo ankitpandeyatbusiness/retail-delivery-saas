@@ -13,6 +13,7 @@ import { onNotification } from '../api/common/socket';
 import useBulkLive from '../hooks/common/useBulkLive';
 import { useHomeStore } from '../store/customers/useHomeStore';
 import { FloatingTabBar, slideScenes, gate } from './tabKit';
+import { useOwnerDesktop } from '../utils/common/layout';
 import OwnerDrawer from '../components/owners/OwnerDrawer';
 import EmailPrompt from '../components/owners/EmailPrompt';
 import OwnerHomeScreen from '../screens/owners/OwnerHomeScreen';
@@ -33,6 +34,7 @@ const TABS = {
 
 export default function OwnerTabs() {
     const { background } = useBrand();
+    const deskOwner = useOwnerDesktop();   // on a computer the sidebar (components/owners/OwnerSidebar.jsx) replaces the bottom bar and the side menu
     const motion = useMotion();
     const waiting = useOwnerStore((st) => (st.live?.orders?.active?.placed || 0) + (st.live?.orders?.bulkWaiting || 0));   // New orders, and bulk requests not paid yet
     useBulkLive(() => useOwnerStore.getState().refresh?.());   // a bulk order changed anywhere: the tab's number follows at once
@@ -51,7 +53,7 @@ export default function OwnerTabs() {
                     // do not start a tab switch on top of a page that is still sliding (see tabKit)
                     tabPress: (e) => { if (gate.busy) { e.preventDefault(); gate.pending = route.name; } },
                 })}
-                tabBar={(props) => <FloatingTabBar {...props} defs={TABS} />}
+                tabBar={deskOwner ? () => null : (props) => <FloatingTabBar {...props} defs={TABS} />}
                 screenOptions={{
                     headerShown: false,
                     sceneStyle: { backgroundColor: background },
@@ -71,7 +73,7 @@ export default function OwnerTabs() {
                     />
                 ))}
             </Tab.Navigator>
-            <OwnerDrawer />
+            {deskOwner ? null : <OwnerDrawer />}
             <EmailPrompt />
         </View>
     );

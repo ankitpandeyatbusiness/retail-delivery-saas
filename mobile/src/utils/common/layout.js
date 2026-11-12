@@ -16,6 +16,14 @@ export function useCustomerDesktop() {
     return desktop && (!role || role === 'customer' || (role === 'admin' && preview));
 }
 
+// the desktop OWNER panel: a wide browser and the shop owner (not while looking at the customer app)
+export function useOwnerDesktop() {
+    const desktop = useIsDesktopWeb();
+    const role = useAuthStore((s) => s.user?.role);
+    const preview = useViewMode((s) => s.customerView);
+    return desktop && role === 'admin' && !preview;
+}
+
 export function useIsDesktopWeb() {
     const { width } = useWindowDimensions();
     return Platform.OS === 'web' && width >= DESKTOP_MIN_WIDTH;

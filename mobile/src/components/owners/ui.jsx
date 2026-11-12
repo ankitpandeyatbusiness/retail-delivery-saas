@@ -26,7 +26,7 @@ import Reanimated, { interpolate, runOnJS, useAnimatedStyle, useSharedValue, wit
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useSheetPan } from '../common/DragDown';
 import { SheetPortal } from '../common/SheetPortal';
-import { useIsDesktopWeb } from '../../utils/common/layout';
+import { useIsDesktopWeb, useOwnerDesktop } from '../../utils/common/layout';
 
 export const money = (n) => `₹${Math.round(Number(n) || 0).toLocaleString('en-IN')}`;
 
@@ -246,6 +246,7 @@ export function OwnerHeader(props) {
 
 let lastLook = 0;   // the last time any header looked at the shop's hours again
 function OwnerHeaderBase({ title }) {
+    const deskOwner = useOwnerDesktop();   // the sidebar is the menu on a computer
     const nav = useNavigation();
     const insets = useSafeAreaInsets();
     const { text, muted, background, ok, error } = useBrand();
@@ -313,7 +314,7 @@ function OwnerHeaderBase({ title }) {
 
     return (
         <View style={[s.header, { paddingTop: insets.top + 8, backgroundColor: background }]}>
-            <Pressable onPress={() => useDrawer.getState().show()} hitSlop={10} style={{ paddingRight: 12 }} accessibilityLabel={tr('Open the menu')}><Ionicons name="menu" size={26} color={text} />{riderAttention ? <View style={{ position: 'absolute', top: -2, right: 6, width: 10, height: 10, borderRadius: 5, backgroundColor: error, borderWidth: 1.5, borderColor: background }} /> : null}</Pressable>
+            {deskOwner ? null : <Pressable onPress={() => useDrawer.getState().show()} hitSlop={10} style={{ paddingRight: 12 }} accessibilityLabel={tr('Open the menu')}><Ionicons name="menu" size={26} color={text} />{riderAttention ? <View style={{ position: 'absolute', top: -2, right: 6, width: 10, height: 10, borderRadius: 5, backgroundColor: error, borderWidth: 1.5, borderColor: background }} /> : null}</Pressable>}
             <ShopLogo />
             <View style={{ flex: 1, marginLeft: 12, marginRight: 10, minWidth: 0 }}>
                 <Text style={{ color: text, fontSize: 18, fontWeight: '900' }} numberOfLines={1}>{title || name}</Text>

@@ -4,7 +4,8 @@
 import React from 'react';
 import { View } from 'react-native';
 import { useBrand } from '../common/kit';
-import { useCustomerDesktop, DESKTOP_PAGE_MAX } from '../../utils/common/layout';
+import { useCustomerDesktop, useOwnerDesktop, DESKTOP_PAGE_MAX } from '../../utils/common/layout';
+import OwnerSidebar from '../owners/OwnerSidebar';
 import GetAppBanner from './GetAppBanner';
 import DesktopTopBar from './DesktopTopBar';
 import DesktopCartBar from './DesktopCartBar';
@@ -16,14 +17,18 @@ const PAGE = DESKTOP_PAGE_MAX;
 export default function DesktopFrame({ navRef, routeName, children }) {
     const desktop = useCustomerDesktop();
     const brand = useBrand();
+    const ownerDesk = useOwnerDesktop();   // the shop owner on a computer: a sidebar on the left, no top bar
     const bare = !desktop || routeName === 'Login';   // the login screen has its own full-width desktop layout
     return (
         <View style={{ flex: 1, backgroundColor: desktop ? brand.background : undefined }}>
             {/* the website only: nothing is drawn in the phone app */}
             <GetAppBanner />
             {bare ? null : <DesktopTopBar navRef={navRef} routeName={routeName} />}
-            <View style={{ flex: 1, flexDirection: 'row', width: '100%', maxWidth: bare ? undefined : PAGE, alignSelf: 'center' }}>
-                <View style={{ flex: 1, overflow: bare ? undefined : 'hidden' }}>{children}</View>
+            <View style={{ flex: 1, flexDirection: 'row' }}>
+                {ownerDesk && routeName !== 'Login' ? <OwnerSidebar routeName={routeName} /> : null}
+                <View style={{ flex: 1, flexDirection: 'row', width: '100%', maxWidth: bare || ownerDesk ? undefined : PAGE, alignSelf: 'center' }}>
+                    <View style={{ flex: 1, overflow: bare ? undefined : 'hidden' }}>{children}</View>
+                </View>
             </View>
             {bare ? null : <DesktopCartBar navRef={navRef} routeName={routeName} />}
         </View>

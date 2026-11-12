@@ -12,10 +12,25 @@ import { OrderCard, useOrderActions } from '../../components/owners/orderBits';
 import { useOrdersStore } from '../../store/owners/useOrdersStore';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { onOrderUpdate } from '../../api/common/socket';
-import { BOARD_FILTERS } from '../../utils/owners/orderFlow';
+import { BOARD_FILTERS, boardStatus } from '../../utils/owners/orderFlow';
+import { useOwnerDesktop } from '../../utils/common/layout';
 import { ListShimmer } from '../../components/owners/shimmer';
 import { DebtCard, DebtSheet, RemindAll, useDebts } from '../../components/owners/UnpaidBills';
 import { tr } from '../../i18n';
+
+// the owner's desktop board: one column per stage of a live order, and the finished ones as a grid under their own tabs
+const BOARD_COLS = [['placed', 'New', 'alert-circle'], ['accepted', 'Accepted', 'checkmark-circle'], ['preparing', 'Preparing', 'flame'], ['ready', 'Ready', 'bag-check'], ['out_for_delivery', 'On the road', 'bicycle']];
+const BOARD_TABS = [['active', 'Live board'], ['table', 'On the table'], ['delivered', 'Delivered'], ['cancelled', 'Cancelled'], ['history', 'History']];
+
+function DeskTab({ label, count, on, urgent, onPress }) {
+    const { primary, onPrimary, text, border, error } = useBrand();
+    return (
+        <Pressable onPress={onPress} style={({ hovered }) => ({ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, height: 42, borderRadius: 21, marginRight: 8, borderWidth: 1, borderColor: on ? primary : border, backgroundColor: on ? primary : hovered ? border : 'transparent', cursor: 'pointer' })}>
+            <Text style={{ color: on ? onPrimary : text, fontWeight: '800', fontSize: 14 }}>{label}</Text>
+            {count > 0 ? <View style={{ marginLeft: 8, minWidth: 22, height: 22, borderRadius: 11, paddingHorizontal: 6, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? alpha(onPrimary, 0.25) : (urgent ? error : primary) }}><Text style={{ fontSize: 12, fontWeight: '900', color: on || urgent ? '#FFFFFF' : onPrimary }}>{count > 99 ? '99+' : count}</Text></View> : null}
+        </Pressable>
+    );
+}
 
 const ACTIVE_STAGES = ['placed', 'accepted', 'preparing', 'ready', 'out_for_delivery'];
 
@@ -124,6 +139,16 @@ export default function OwnerOrdersScreen() {
     const data = useMemo(() => arrange(s.items, s.filter), [s.items, s.filter]);
     const searching = /^\d{1,9}$/.test(s.query.trim());
 
+    const desk = useOwnerDesktop();
+    // on a computer the board shows every live stage at once: the phone's per-stage chips become columns
+    useEffect(() => {
+        if (desk && !unpaid && !BOARD_TABS.some((t) => t[0] === s.filter)) useOrdersStore.getState().setFilter('active');
+    }, [desk, unpaid, s.filter]);
+    // the board needs all the live orders, not the first page of them
+    useEffect(() => {
+        if (desk && s.filter === 'active' && s.hasMore && !s.loading && !s.loadingMore) useOrdersStore.getState().loadMore();
+    }, [desk, s.filter, s.hasMore, s.loading, s.loadingMore, s.items.length]);
+
     const header = (
         <View>
             <View style={{ paddingHorizontal: 16, paddingBottom: 10 }}>
@@ -139,6 +164,74 @@ export default function OwnerOrdersScreen() {
             {unpaid && debts?.length ? <View style={{ paddingHorizontal: 16, paddingBottom: 12 }}><RemindAll count={debts.length} onDone={loadDebts} /></View> : null}
         </View>
     );
+
+    const openOrder = (item) => {
+        nav.navigate('OwnerOrder', { id: String(item.id) });
+        setTimeout(() => useOwnerStore.getState().refresh?.(), 1200);
+    };
+    if (desk) {
+        const byCol = {};
+        BOARD_COLS.forEach(([id]) => { byCol[id] = []; });
+        data.forEach((o) => { const k = boardStatus(o); if (byCol[k]) byCol[k].push(o); });
+        const orderCard = (o) => (
+            <OrderCard key={o.id} order={o} busy={actions.busyId === o.id} onOpen={() => openOrder(o)} onAdvance={actions.advance} onFoodReady={actions.foodReady} onReject={actions.requestReject} />
+        );
+        const onBoard = !unpaid && s.filter === 'active';
+        return (
+            <OwnerScreen title={tr('Orders')} scroll={false}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, paddingBottom: 14, paddingTop: 4 }}>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }}>
+                        {BOARD_TABS.map(([id, label]) => <DeskTab key={id} label={tr(label)} count={id === 'active' ? activeTotal : countOf(id)} on={!unpaid && s.filter === id} urgent={false} onPress={() => { setUnpaid(false); useOrdersStore.getState().setFilter(id); }} />)}
+                        {debts?.length || unpaid ? <DeskTab label={tr('Unpaid bills')} count={debts?.length || 0} on={unpaid} urgent onPress={() => setUnpaid(true)} /> : null}
+                    </ScrollView>
+                    <View style={{ width: 280, marginLeft: 12 }}><Field value={typed} onChangeText={onType} placeholder={tr('Find by order number')} maxLength={9} style={{ minHeight: 42 }} /></View>
+                </View>
+                {s.error && !s.items.length ? <Empty icon="cloud-offline-outline" title={tr('Could not load the orders')} hint={s.error} /> : null}
+                {onBoard ? (
+                    <ScrollView horizontal style={{ flex: 1 }} contentContainerStyle={{ minWidth: '100%', paddingHorizontal: 16, paddingBottom: 16 }} showsHorizontalScrollIndicator={false}>
+                        {BOARD_COLS.map(([id, label, icon]) => {
+                            const list = byCol[id];
+                            const bulk = id === 'placed' && !searching ? bulkWait : [];
+                            const n = list.length + bulk.length;
+                            return (
+                                <View key={id} style={{ flex: 1, minWidth: 290, marginHorizontal: 8, borderRadius: 18, backgroundColor: alpha(id === 'placed' ? '#F59E0B' : '#808080', id === 'placed' ? 0.1 : 0.07), padding: 10 }}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 6, paddingVertical: 8 }}>
+                                        <Ionicons name={icon} size={18} color={id === 'placed' ? '#F59E0B' : muted} />
+                                        <Text style={{ flex: 1, marginLeft: 8, color: muted, fontWeight: '900', fontSize: 14, letterSpacing: 0.3 }}>{tr(label).toUpperCase()}</Text>
+                                        <View style={{ minWidth: 24, height: 24, borderRadius: 12, paddingHorizontal: 7, alignItems: 'center', justifyContent: 'center', backgroundColor: n && id === 'placed' ? '#F59E0B' : alpha('#808080', 0.2) }}><Text style={{ fontWeight: '900', fontSize: 12, color: n && id === 'placed' ? '#FFFFFF' : muted }}>{n}</Text></View>
+                                    </View>
+                                    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 8 }}>
+                                        {bulk.map((o) => <BulkWaitCard key={o.id} o={o} onOpen={() => nav.navigate('OwnerBulkOrder', { id: String(o.id) })} />)}
+                                        {list.map(orderCard)}
+                                        {n === 0 && !s.loading ? <Text style={{ color: muted, textAlign: 'center', paddingVertical: 28, fontSize: 13 }}>{tr('Nothing here')}</Text> : null}
+                                    </ScrollView>
+                                </View>
+                            );
+                        })}
+                    </ScrollView>
+                ) : (
+                    <FlatList
+                        key="grid3"
+                        numColumns={3}
+                        style={{ flex: 1 }}
+                        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}
+                        data={unpaid ? (debts || []) : (s.loading ? [] : data)}
+                        keyExtractor={(o) => String(o.id)}
+                        ListHeaderComponent={unpaid && debts?.length ? <View style={{ paddingHorizontal: 8, paddingBottom: 12 }}><RemindAll count={debts.length} onDone={loadDebts} /></View> : null}
+                        renderItem={({ item }) => <View style={{ width: '33.333%', paddingHorizontal: 8 }}>{unpaid ? <DebtCard d={item} onOpen={() => setOpenDebt(item)} /> : orderCard(item)}</View>}
+                        ListEmptyComponent={s.loading && !unpaid ? <Skeleton /> : <Empty icon={unpaid ? 'checkmark-circle-outline' : 'receipt-outline'} title={unpaid ? tr('No unpaid bills') : searching ? tr('No order with that number') : tr('Nothing here')} hint={unpaid ? tr('Customers who leave a table without paying will show here.') : tr('Orders in this stage will show here.')} />}
+                        ListFooterComponent={s.loadingMore ? <ListShimmer count={1} /> : <View style={{ height: 24 }} />}
+                        onEndReachedThreshold={0.4}
+                        onEndReached={() => useOrdersStore.getState().loadMore()}
+                        showsVerticalScrollIndicator={false}
+                        extraData={actions.busyId}
+                    />
+                )}
+                <DebtSheet debt={openDebt} onClose={() => setOpenDebt(null)} onChanged={loadDebts} />
+                {actions.sheets}
+            </OwnerScreen>
+        );
+    }
 
     return (
         <OwnerScreen title={tr('Orders')} scroll={false}>
