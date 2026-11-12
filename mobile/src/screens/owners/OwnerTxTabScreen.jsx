@@ -16,6 +16,7 @@ import { rupees } from '../../utils/owners/riderRules';
 import { downloadAndOpen } from '../../utils/owners/files';
 import { showToast } from '../../components/customers/shop';
 import { PERIODS, KIND, KIND_CHIPS, HOW_CHIPS, DIRECTION_CHIPS, periodParams, periodTitle, dayKey, dayLabel, timeOf, fullStamp, subtitle } from '../../utils/owners/txRules';
+import { useOwnerDesktop } from '../../utils/common/layout';
 import { tr, tl } from '../../i18n';
 
 function Line({ label, value, onPress, strong }) {
@@ -64,6 +65,7 @@ function Detail({ x, onClose, onOpenOrder, onOpenBulk }) {
 
 export default function OwnerTxTabScreen() {
     const nav = useNavigation();
+    const desk = useOwnerDesktop();   // a computer: the entries as columns, in a wide centred page
     const { background, text, muted, ok, primary, border, surface } = useBrand();
     const [period, setPeriod] = useState('month');
     const [pick, setPick] = useState({});
@@ -123,6 +125,7 @@ export default function OwnerTxTabScreen() {
 
     return (
         <OwnerScreen title={tr('Transactions')} onRefresh={refresh} refreshing={refreshing}>
+            <View style={desk ? { width: '100%', maxWidth: 1280, alignSelf: 'center' } : undefined}>
             {/* one funnel button: the period and the other filters are in its popup, not in rows down the page */}
             <View style={{ paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
                 <View style={{ flex: 1, paddingRight: 10 }}>
@@ -185,10 +188,17 @@ export default function OwnerTxTabScreen() {
                                                     <Text style={{ color: text, fontWeight: '800', fontSize: 14.5 }} numberOfLines={1}>{tr(x.label)}</Text>
                                                     <Text style={{ color: muted, fontSize: 12, marginTop: 1 }} numberOfLines={1}>{subtitle(x)}</Text>
                                                 </View>
-                                                <View style={{ alignItems: 'flex-end', marginLeft: 8, flexShrink: 0, maxWidth: '46%' }}>
+                                                {desk ? (
+                    <>
+                        <Text numberOfLines={1} style={{ width: 170, color: muted, fontSize: 13, marginLeft: 8 }}>{x.howLabel ? tr(x.howLabel) : ''}{x.status === 'pending' ? ` · ${tr('to pay')}` : ''}</Text>
+                        <Text style={{ width: 90, color: muted, fontSize: 13 }}>{timeOf(x.at)}</Text>
+                        <Text numberOfLines={1} style={{ width: 150, textAlign: 'right', color: x.status === 'pending' ? muted : inn ? ok : text, fontWeight: '900', fontSize: 16 }}>{inn ? '+' : '−'}{rupees(x.amountPaise)}</Text>
+                    </>
+                ) : null}
+                {desk ? null : <View style={{ alignItems: 'flex-end', marginLeft: 8, flexShrink: 0, maxWidth: '46%' }}>
                                                     <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.65} style={{ color: x.status === 'pending' ? muted : inn ? ok : text, fontWeight: '900', fontSize: 15 }}>{inn ? '+' : '−'}{rupees(x.amountPaise)}</Text>
                                                     <Text numberOfLines={1} style={{ color: muted, fontSize: 11.5, marginTop: 1 }}>{timeOf(x.at)}{x.howLabel ? ` · ${tr(x.howLabel)}` : ''}{x.status === 'pending' ? ` · ${tr('to pay')}` : ''}</Text>
-                                                </View>
+                                                </View>}
                                             </Pressable>
                                         );
                                     })}
@@ -211,6 +221,7 @@ export default function OwnerTxTabScreen() {
             <CalendarSheet visible={sheet === 'range'} mode="range" onClose={() => setSheet('')} onPick={(v) => picked('range', v)} />
             <MonthSheet visible={sheet === 'month'} onClose={() => setSheet('')} onPick={(v) => picked('monthpick', v)} />
             <Detail x={open} onClose={() => setOpen(null)} onOpenOrder={(id) => { setOpen(null); nav.navigate('OwnerOrder', { id: String(id) }); }} onOpenBulk={(id) => { setOpen(null); nav.navigate('OwnerBulkOrder', { id: String(id) }); }} />
+            </View>
         </OwnerScreen>
     );
 }

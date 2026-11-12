@@ -15,6 +15,7 @@ import { downloadAndOpen, XLSX } from '../../utils/owners/files';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { showToast } from '../../components/customers/shop';
 import { ease } from '../../utils/common/ease';
+import { useOwnerDesktop } from '../../utils/common/layout';
 import { tr } from '../../i18n';
 
 const rs = (n) => `₹${Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
@@ -104,6 +105,7 @@ function OrderCard({ o, onOpen, onCustomer }) {
 
 export default function OwnerHistoryScreen() {
     const nav = useNavigation();
+    const desk = useOwnerDesktop();   // a computer: the orders as a table
     const { text, muted, primary, border, surface, ok, error, warn } = useBrand();
     const [input, setInput] = useState('');
     const [q, setQ] = useState('');
@@ -183,7 +185,19 @@ export default function OwnerHistoryScreen() {
                 </View>
             ) : null}
             <Card style={{ overflow: 'hidden' }}>
-                {!sm ? <View><LineShimmer width={160} height={22} /><View style={{ height: 8 }} /><LineShimmer width={240} height={14} /></View> : (
+                {!sm ? <View><LineShimmer width={160} height={22} /><View style={{ height: 8 }} /><LineShimmer width={240} height={14} /></View> : desk ? (
+                    <View>
+                        <Text style={{ color: muted, fontSize: 12.5, fontWeight: '800', marginBottom: 10 }}>{timeLabel}</Text>
+                        <View style={{ flexDirection: 'row' }}>
+                            <View style={{ flex: 1.3, marginRight: 10, padding: 14, borderRadius: 14, backgroundColor: alpha(primary, 0.1) }}><Text style={{ color: muted, fontSize: 12, fontWeight: '700' }}>{tr('Sales')}</Text><Text numberOfLines={1} style={{ color: primary, fontSize: 28, fontWeight: '900' }}>{rs(sm.sales)}</Text></View>
+                            <Tile icon="receipt-outline" label={tr('Orders')} value={String(sm.orders)} />
+                            <View style={{ width: 10 }} /><Tile icon="analytics-outline" label={tr('Average')} value={rs(sm.average)} />
+                            <View style={{ width: 10 }} /><Tile icon="cash-outline" label={tr('Cash')} value={rs(sm.cash)} color={warn} />
+                            <View style={{ width: 10 }} /><Tile icon="card-outline" label={tr('Online')} value={rs(sm.online)} color={ok} />
+                            <View style={{ width: 10 }} /><Tile icon="close-circle-outline" label={tr('Cancelled')} value={`${sm.cancelled} · ${rs(sm.lost)}`} color={sm.cancelled ? error : muted} />
+                        </View>
+                    </View>
+                ) : (
                     <>
                         <View pointerEvents="none" style={{ position: 'absolute', right: -30, top: -30, width: 130, height: 130, borderRadius: 65, backgroundColor: alpha(primary, 0.1) }} />
                         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -211,6 +225,7 @@ export default function OwnerHistoryScreen() {
 
     return (
         <OwnerScreen title={tr('History')} scroll={false}>
+            <View style={desk ? { flex: 1, width: '100%', maxWidth: 1360, alignSelf: 'center' } : { flex: 1 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 10 }}>
                 <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', height: 48, borderRadius: 16, borderWidth: 1, borderColor: border, backgroundColor: surface, paddingHorizontal: 14, elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 6, shadowOffset: { width: 0, height: 2 } }}>
                     <Ionicons name="search" size={18} color={muted} />
@@ -229,7 +244,7 @@ export default function OwnerHistoryScreen() {
             <FlatList
                 data={data ? rows : []}
                 keyExtractor={(r) => r.k}
-                ListHeaderComponent={header}
+                ListHeaderComponent={desk ? <View>{header}<DeskHead /></View> : header}
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={primary} colors={[primary]} />}
                 onEndReached={loadMore}
                 onEndReachedThreshold={0.6}
@@ -245,7 +260,7 @@ export default function OwnerHistoryScreen() {
                         <View style={{ flex: 1, height: 1, backgroundColor: alpha(muted, 0.25), marginHorizontal: 10 }} />
                         {data.byDay?.[item.head] ? <Text style={{ color: muted, fontSize: 12.5, fontWeight: '700' }}>{tr('{n} orders', { n: data.byDay[item.head].orders })} · {rs(data.byDay[item.head].sales)}</Text> : null}
                     </View>
-                ) : <OrderCard o={item.o} onOpen={() => (item.o.bulk ? nav.navigate('OwnerBulkOrder', { id: item.o.bulk.id }) : nav.navigate('OwnerOrder', { id: item.o._id }))} onCustomer={() => { ease(); setRange('month'); setDates(null); setInput(item.o.customer.phone); }} />}
+                ) : desk ? <DeskOrderRow o={item.o} onOpen={() => (item.o.bulk ? nav.navigate('OwnerBulkOrder', { id: item.o.bulk.id }) : nav.navigate('OwnerOrder', { id: item.o._id }))} /> : <OrderCard o={item.o} onOpen={() => (item.o.bulk ? nav.navigate('OwnerBulkOrder', { id: item.o.bulk.id }) : nav.navigate('OwnerOrder', { id: item.o._id }))} onCustomer={() => { ease(); setRange('month'); setDates(null); setInput(item.o.customer.phone); }} />}
             />
 
             <FilterPopup
@@ -261,7 +276,50 @@ export default function OwnerHistoryScreen() {
             />
             <CalendarSheet visible={sheet === 'day'} mode="day" title={tr('Pick a date')} onClose={() => setSheet('')} onPick={(v) => { setRange('custom'); setDates({ from: v.date, to: v.date }); }} />
             <CalendarSheet visible={sheet === 'range'} mode="range" title={tr('Pick dates')} onClose={() => setSheet('')} onPick={(v) => { setRange('custom'); setDates({ from: v.from, to: v.to }); }} />
+            </View>
         </OwnerScreen>
+    );
+}
+
+const COLS = { no: 92, time: 76, cust: 190, type: 104, pay: 84, status: 124, total: 100, act: 124 };
+
+function DeskHead() {
+    const { muted, border, surface } = useBrand();
+    const h = (label, style) => <Text style={[{ color: muted, fontSize: 11.5, fontWeight: '900', letterSpacing: 0.4 }, style]}>{tr(label).toUpperCase()}</Text>;
+    return (
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginTop: 14, paddingHorizontal: 14, paddingVertical: 11, borderRadius: 12, backgroundColor: surface, borderWidth: 1, borderColor: border }}>
+            {h('Order', { width: COLS.no })}{h('Time', { width: COLS.time })}{h('Customer', { width: COLS.cust })}{h('Items', { flex: 1 })}{h('Type', { width: COLS.type })}{h('Payment', { width: COLS.pay })}{h('Status', { width: COLS.status })}{h('Total', { width: COLS.total, textAlign: 'right' })}<View style={{ width: COLS.act }} />
+        </View>
+    );
+}
+
+// one order as a row of the table
+function DeskOrderRow({ o, onOpen }) {
+    const { text, muted, primary, ok, error, warn, border } = useBrand();
+    const [inv, setInv] = useState(false);
+    const gone = ['cancelled', 'undelivered', 'declined', 'expired'].includes(o.status);
+    const tone = o.status === 'delivered' ? ok : gone ? error : primary;
+    const [ticon, tlabel] = TYPE[o.orderType] || ['receipt', o.orderType];
+    const cash = o.payment.method === 'cod';
+    return (
+        <Pressable onPress={onOpen} style={({ hovered }) => ({ flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, paddingHorizontal: 14, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: border, backgroundColor: hovered ? alpha(primary, 0.06) : 'transparent', opacity: gone ? 0.85 : 1, cursor: 'pointer' })}>
+            <Text style={{ width: COLS.no, color: text, fontWeight: '900', fontSize: 14.5 }} numberOfLines={1}>{o.bulk ? (o.bulk.code || tr('Bulk Order')) : `#${o.orderNo}`}</Text>
+            <Text style={{ width: COLS.time, color: muted, fontSize: 13 }}>{clock(o.createdAt)}</Text>
+            <View style={{ width: COLS.cust, paddingRight: 10 }}>
+                <Text numberOfLines={1} style={{ color: text, fontWeight: '800', fontSize: 14 }}>{o.customer.name || tr('Customer')}</Text>
+                {o.customer.phone ? <Text numberOfLines={1} style={{ color: muted, fontSize: 12 }}>{o.customer.phone}</Text> : null}
+            </View>
+            <Text numberOfLines={2} style={{ flex: 1, color: muted, fontSize: 13, paddingRight: 12, lineHeight: 18 }}>{o.dishes || ''}</Text>
+            <View style={{ width: COLS.type, flexDirection: 'row', alignItems: 'center' }}><Ionicons name={ticon} size={14} color={primary} /><Text style={{ color: text, fontSize: 13, marginLeft: 6 }}>{tr(tlabel)}</Text></View>
+            <View style={{ width: COLS.pay }}><Tag label={o.bulkRequest ? tr('Not paid') : cash ? tr('Cash') : tr('Online')} color={o.bulkRequest || cash ? warn : ok} /></View>
+            <View style={{ width: COLS.status }}><Tag label={tr(STATUS[o.status] || o.status)} color={tone} /></View>
+            <Text style={{ width: COLS.total, textAlign: 'right', color: gone ? muted : text, fontWeight: '900', fontSize: 15, textDecorationLine: gone ? 'line-through' : 'none' }}>{rs(o.total)}</Text>
+            <View style={{ width: COLS.act, flexDirection: 'row', justifyContent: 'flex-end' }}>
+                {o.customer.phone ? <Round icon="call" label={tr('Call')} onPress={() => callPhone(o.customer.phone)} /> : null}
+                {o.customer.phone ? <Round icon="logo-whatsapp" label={tr('WhatsApp')} onPress={() => whatsApp(o.customer.phone)} /> : null}
+                {o.status === 'delivered' ? <Round icon="document-text-outline" label={tr('Invoice (PDF)')} busy={inv} onPress={() => openInvoice({ id: o._id, orderNo: o.orderNo }, setInv)} /> : null}
+            </View>
+        </Pressable>
     );
 }
 
