@@ -2,12 +2,12 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Text, View } from 'react-native';
 import { useTheme, spacing, font } from '../../theme';
 import { Screen } from '../../components/layout';
-import { Card, Button, Badge } from '../../components/ui';
+import { Card, Button, Badge, SectionTitle } from '../../components/ui';
 import { Hero, SkeletonList } from '../../components/blocks';
 import { Field } from '../../components/inputs';
 import { Hint } from '../../components/settingsForm';
 import { ErrorBox, ConfirmSheet, toast } from '../../components/feedback';
-import { fetchDemo, saveDemo, switchDemo, removeDemo } from '../../api/platformApi';
+import { fetchDemo, saveDemo, switchDemo, removeDemo, fetchDemoReadiness } from '../../api/platformApi';
 import { errMsg } from '../../api/adminClient';
 import { dateTime } from '../../utils/format';
 import { useSupreme } from '../../hooks/useSupreme';
@@ -23,6 +23,8 @@ export default function DemoLoginScreen() {
     const [otp, setOtp] = useState('');
     const [busy, setBusy] = useState(false);
     const [confirm, setConfirm] = useState(false);
+    const [ready, setReady] = useState(null);
+    useEffect(() => { fetchDemoReadiness().then(setReady).catch(() => { }); }, []);
 
     const load = useCallback(async () => {
         try { const r = await fetchDemo(); setD(r); setPhone((p) => p || r.phone || ''); setError(''); } catch (e) { setError(errMsg(e)); }
@@ -44,6 +46,23 @@ export default function DemoLoginScreen() {
                     {d.logins ? `${d.logins} demo logins so far${d.lastLoginAt ? `, last ${dateTime(d.lastLoginAt)}` : ''}` : 'No demo login yet'}
                 </Text>
             </Hero>
+
+            {ready ? (
+                <>
+                    <SectionTitle section={ready.ready ? 'money' : 'alerts'}>{ready.ready ? 'Go-live checks: ready' : `Go-live checks: ${ready.todo} to do`}</SectionTitle>
+                    <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
+                        {ready.checks.map((c, i) => (
+                            <View key={c.key} style={{ paddingVertical: spacing.md, borderBottomWidth: i === ready.checks.length - 1 ? 0 : 1, borderBottomColor: t.border }}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                                    <Text style={{ color: t.text, fontWeight: '800', flex: 1 }}>{c.label}</Text>
+                                    <Badge label={c.status === 'ok' ? 'Ready' : c.status === 'warn' ? 'Check' : 'To do'} tone={c.status === 'ok' ? 'success' : c.status === 'warn' ? 'warn' : 'danger'} />
+                                </View>
+                                <Text style={{ color: t.muted, fontSize: font.sm, marginTop: 2 }}>{c.detail}</Text>
+                            </View>
+                        ))}
+                    </Card>
+                </>
+            ) : null}
 
             {!supreme ? <Hint tone="warn">Only the supreme admin can change the demo login. You can look at it.</Hint> : (
                 <>

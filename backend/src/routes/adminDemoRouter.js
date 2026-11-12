@@ -12,6 +12,9 @@ const router = express.Router();
 
 router.get('/demo', wrap(async (req, res) => res.json(await demo.status())));
 
+// what is ready and what is still to do before the banners are printed and the link is handed out
+router.get('/demo/readiness', wrap(async (req, res) => res.json(await require('../services/demoReadiness').build(req))));
+
 router.put('/demo', requireSupreme, wrap(async (req, res) => {
     try {
         res.json(await demo.set({ phone: req.body?.phone, otp: req.body?.otp, enabled: req.body?.enabled !== false }));

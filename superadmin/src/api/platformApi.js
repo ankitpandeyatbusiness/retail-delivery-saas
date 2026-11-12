@@ -46,3 +46,5 @@ export const removeDemo = () => data(api.delete('/admin/demo'));
 export const fetchDemoLeads = (params) => data(api.get('/admin/demo-leads', { params }));              // { status?: 'new'|'called', q?, page? }
 export const updateDemoLead = (id, body) => data(api.patch(`/admin/demo-leads/${id}`, body));           // { status?, note? }
 export const deleteDemoLead = (id) => data(api.delete(`/admin/demo-leads/${id}`));
+
+export const fetchDemoReadiness = () => data(api.get('/admin/demo/readiness'));   // { ready, todo, warn, checks: [{ key, label, status: 'ok'|'warn'|'todo', detail }] }
