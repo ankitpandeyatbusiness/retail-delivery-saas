@@ -1,5 +1,6 @@
 // Orders: the live board. Chips for each stage (with counts), search by order number, and the orders as cards with
 // Accept / Reject and the next step right on them. It refreshes by itself when an order changes anywhere.
+import { CoachTarget } from '../../tutorial/CoachTarget';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, FlatList, Pressable, ScrollView, RefreshControl, LayoutAnimation, ActivityIndicator } from 'react-native';
 import GlowBorder from '../../components/common/GlowBorder';
@@ -179,7 +180,7 @@ function DeskOrderCard({ order, busy, onOpen, onAdvance, onFoodReady, onReject }
                 {isNew && next ? (
                     <View style={{ flexDirection: 'row', marginTop: 12 }}>
                         {flow.canCancel(order) ? <Act label={tr('Reject')} icon="close" iconOnly ghost color={error} onPress={() => onReject(order)} busy={busy} style={{ marginRight: 8 }} /> : null}
-                        <Act label={tr('Accept')} icon="checkmark" color={ok} onPress={() => onAdvance(order)} busy={busy} style={{ flex: 1 }} />
+                        <CoachTarget id="accept-order" style={{ flex: 1 }}><Act label={tr('Accept')} icon="checkmark" color={ok} onPress={() => onAdvance(order)} busy={busy} style={{ flex: 1 }} /></CoachTarget>
                     </View>
                 ) : null}
                 {!isNew && order.orderType === 'delivery' && order.status === 'preparing' && order.foodReady === false && onFoodReady ? (

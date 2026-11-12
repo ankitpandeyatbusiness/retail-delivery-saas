@@ -10,6 +10,7 @@ import { Sheet } from '../owners/ui';
 import { fetchDemoPanels, switchDemoPanel, resetDemo } from '../../utils/common/demoSwitch';
 import { themedAlert, ask } from './dialog';
 import { tr } from '../../i18n';
+import { useTutorialStore } from '../../tutorial/store';
 
 const ICON = { customer: 'bag-handle-outline', owner: 'storefront-outline', cook: 'restaurant-outline', waiter: 'cafe-outline', rider: 'bicycle-outline' };
 const ROLE_PANEL = { customer: 'customer', admin: 'owner', kitchen: 'cook', waiter: 'waiter', rider: 'rider' };
@@ -63,6 +64,11 @@ export default function DemoBar() {
                 <Text style={{ color: muted, fontSize: 13, marginBottom: 12 }}>
                     {tr('You are in a demo. Nothing is real: no real orders, money or messages. Pick who you want to be.')}
                 </Text>
+                <Pressable onPress={() => { setOpen(false); useTutorialStore.getState().openMenu(); }} style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', paddingVertical: 13, paddingHorizontal: 14, marginBottom: 12, borderRadius: 16, backgroundColor: alpha(primary, 0.1), borderWidth: 1, borderColor: primary }, pressed && { opacity: 0.7 }]}>
+                    <Ionicons name="book-outline" size={20} color={primary} />
+                    <Text style={{ flex: 1, marginLeft: 12, color: text, fontSize: 15, fontWeight: '800' }}>{tr('Stories: show me around')}</Text>
+                    <Ionicons name="chevron-forward" size={18} color={muted} />
+                </Pressable>
                 {!panels ? <ActivityIndicator color={primary} style={{ marginVertical: 20 }} /> : panels.map((p) => {
                     const on = ROLE_PANEL[role] === p.key;
                     return (

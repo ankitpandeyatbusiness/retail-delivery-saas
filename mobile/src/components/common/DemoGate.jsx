@@ -8,7 +8,7 @@ import { useThemeStore } from '../../store/common/useThemeStore';
 import { useAuthStore } from '../../store/common/useAuthStore';
 import { useBrand } from './kit';
 import api from '../../api/common/client';
-import { reloadApp } from '../../utils/common/switchBranch';
+import { tr } from '../../i18n';
 
 const WELCOME = ['Welcome', 'स्वागत है', 'स्वागत आहे', 'સ્વાગત છે', 'স্বাগতম'];   // English, Hindi, Marathi, Gujarati, Bengali
 const SEEN_KEY = 'demoWelcomeSeen';
@@ -67,7 +67,7 @@ export default function DemoGate() {
             const { data } = await api.post('/demo/enter');
             await login(data.user, data.accessToken, data.refreshToken);
         } catch (e) {
-            setError(e.response?.data?.error || 'Could not open the demo. Please try again.');
+            setError(e.response?.data?.error || tr('Could not open the demo. Please try again.'));
             setBusy(false);
         }
     };
@@ -79,7 +79,7 @@ export default function DemoGate() {
             {phase === 'welcome' ? (
                 <>
                     <Pressable onPress={skip} accessibilityLabel="Skip" style={{ position: 'absolute', top: insets.top + 16, right: 20, paddingVertical: 8, paddingHorizontal: 14, borderRadius: 16, borderWidth: 1, borderColor: border }}>
-                        <Text style={{ color: muted, fontWeight: '700' }}>Skip</Text>
+                        <Text style={{ color: muted, fontWeight: '700' }}>{tr('Skip')}</Text>
                     </Pressable>
                     <Animated.View style={{ alignItems: 'center', opacity: pop, transform: [{ scale: pop.interpolate({ inputRange: [0, 1], outputRange: [0.85, 1] }) }] }}>
                         {logo ? <Image source={{ uri: logo }} style={{ width: 96, height: 96, borderRadius: 24, marginBottom: 20 }} resizeMode="contain" /> : (
@@ -97,16 +97,16 @@ export default function DemoGate() {
                 <View style={{ alignItems: 'center', width: '100%', maxWidth: 420 }}>
                     {logo ? <Image source={{ uri: logo }} style={{ width: 72, height: 72, borderRadius: 20, marginBottom: 14 }} resizeMode="contain" /> : null}
                     <Text style={{ color: muted, fontSize: 13, fontWeight: '700', letterSpacing: 0.5, marginBottom: 6 }}>{name}</Text>
-                    <Text style={{ color: text, fontSize: 28, fontWeight: '900', textAlign: 'center' }}>Try the {shop || 'Demo Shop'} app</Text>
+                    <Text style={{ color: text, fontSize: 28, fontWeight: '900', textAlign: 'center' }}>{tr('Try the {shop} app', { shop: shop || 'Demo Shop' })}</Text>
                     <Text style={{ color: muted, fontSize: 15, textAlign: 'center', marginTop: 10, marginBottom: 28, lineHeight: 22 }}>
-                        See what your customers, your cooks and your riders see. Nothing here is real: no real orders, money or messages.
+                        {tr('See what your customers, your cooks and your riders see. Nothing here is real: no real orders, money or messages.')}
                     </Text>
                     <Pressable onPress={enter} disabled={busy} style={({ pressed }) => [{ width: '100%', paddingVertical: 16, borderRadius: 18, backgroundColor: primary, alignItems: 'center', opacity: pressed || busy ? 0.8 : 1 }]}>
-                        {busy ? <ActivityIndicator color={onPrimary} /> : <Text style={{ color: onPrimary, fontSize: 17, fontWeight: '800' }}>Start the demo</Text>}
+                        {busy ? <ActivityIndicator color={onPrimary} /> : <Text style={{ color: onPrimary, fontSize: 17, fontWeight: '800' }}>{tr('Start the demo')}</Text>}
                     </Pressable>
                     {error ? <Text style={{ color: '#C62828', marginTop: 14, textAlign: 'center' }}>{error}</Text> : null}
                     <View style={{ marginTop: 22, paddingVertical: 10, paddingHorizontal: 14, borderRadius: 14, backgroundColor: surface, borderWidth: 1, borderColor: border }}>
-                        <Text style={{ color: muted, fontSize: 12, textAlign: 'center' }}>After you start, tap the Demo button at the top to become the Owner, Cook, Waiter or Rider.</Text>
+                        <Text style={{ color: muted, fontSize: 12, textAlign: 'center' }}>{tr('After you start, tap the Demo button at the top to become the Owner, Cook, Waiter or Rider.')}</Text>
                     </View>
                 </View>
             )}

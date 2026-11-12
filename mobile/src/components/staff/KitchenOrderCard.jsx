@@ -1,5 +1,6 @@
 // One order on the kitchen screen: big number, where it goes, the dishes the way a cook reads them, and one big button for the next step.
 // It follows the light and dark look (every colour comes from the shop's theme), and a late order turns red.
+import { CoachTarget } from '../../tutorial/CoachTarget';
 import React from 'react';
 import { View, Text, Pressable, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -120,7 +121,7 @@ export default function KitchenOrderCard({ o, lateMin, busy, onAct, onProblem, o
                                     <Text style={{ color: primary, fontWeight: '800', fontSize: 12.5 }}>{tr('In your queue')}</Text>
                                 </View>
                             ) : null}
-                            <ActionButton label={tr('Start cooking')} icon="flame" busy={busy} bg={primary} ink={onPrimary} onPress={() => onAct('start')} />
+                            <CoachTarget id="start-cooking"><ActionButton label={tr('Start cooking')} icon="flame" busy={busy} bg={primary} ink={onPrimary} onPress={() => onAct('start')} /></CoachTarget>
                             {o.bulk ? <View style={{ marginTop: 8 }}><ActionButton label={tr('Already made: mark Ready')} icon="checkmark-done" busy={busy} bg={alpha(ok, 0.16)} ink={ok} onPress={() => onAct('ready')} height={48} /></View> : null}
                             {!o.queued && !o.bulk ? <View style={{ marginTop: 8 }}><ActionButton label={tr('Add to queue')} icon="time" busy={busy} bg={alpha(primary, 0.14)} ink={primary} onPress={() => onAct('queue')} height={48} /></View> : null}
                         </View>

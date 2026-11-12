@@ -1,4 +1,5 @@
 // src/components/ui/shop.jsx
+import { CoachTarget } from '../../tutorial/CoachTarget';
 import { isMeasured, priceSuffix } from '../../utils/customers/measure';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, Animated, Easing, PanResponder, Platform } from 'react-native';
@@ -445,7 +446,7 @@ export function AddButton({ item, onPress, kind = 'pill', style }) {
         );
     }
     // `style` (the absolute position on photos) now sits on the wrapper, so the pop never moves the button
-    return <Pop mode={mode} style={style} onClick={Platform.OS === 'web' ? (e) => e.stopPropagation() : undefined}>{inner}</Pop>;
+    return <Pop mode={mode} style={style} onClick={Platform.OS === 'web' ? (e) => e.stopPropagation() : undefined}><CoachTarget id="add-item">{inner}</CoachTarget></Pop>;
 }
 
 // Adds a dish straight to the cart, or opens the Item page when it needs a choice.
