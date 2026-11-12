@@ -17,6 +17,9 @@ import { useOpenInquiry } from '../../store/owners/useOpenInquiry';
 import { showToast } from '../../components/customers/shop';
 import { ask } from '../../components/common/dialog';
 import { FormShimmer } from '../../components/owners/shimmer';
+import { useOwnerDesktop } from '../../utils/common/layout';
+import { Frame, Hero, HeroBtn, GlassStat } from '../../components/owners/RiderDesk';
+import Masonry from '../../components/common/Masonry';
 import { tr } from '../../i18n';
 
 const digits = (p) => String(p || '').replace(/\D/g, '');
@@ -24,6 +27,7 @@ const intl = (p) => { const d = digits(p); return d.length === 10 ? `91${d}` : d
 const STEPS = ['quoted', 'confirmed', 'rejected'];
 
 export default function OwnerInquiryScreen() {
+    const desk = useOwnerDesktop();   // a computer: a banner with the customer, then the answers, status, note and the end button in two columns
     const { id } = useRoute().params || {};
     const { text, muted, primary, border, surface } = useBrand();
     const [i, setI] = useState(null);
@@ -50,7 +54,7 @@ export default function OwnerInquiryScreen() {
 
     return (
         <FormPage fixed title={i.name}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 8 }}>
+            {desk ? null : <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 8 }}>
                 <View style={{ flex: 1, minWidth: 0 }}>
                     <Text numberOfLines={1} style={{ color: text, fontWeight: '900', fontSize: 15 }}>{tr(i.serviceName)}</Text>
                     <Text numberOfLines={1} style={{ color: muted, fontSize: 12 }}>{i.phone} · {tr(STATUS_LABEL[i.status] || 'New')}</Text>
@@ -61,10 +65,25 @@ export default function OwnerInquiryScreen() {
                 <Pressable onPress={() => Linking.openURL(`https://wa.me/${intl(i.phone)}`)} accessibilityLabel={tr('WhatsApp')} style={{ width: 42, height: 42, borderRadius: 21, borderWidth: 1, borderColor: border, backgroundColor: surface, alignItems: 'center', justifyContent: 'center', marginLeft: 8 }}>
                     <Ionicons name="logo-whatsapp" size={22} color={text} />
                 </Pressable>
-            </View>
-            <View style={{ paddingHorizontal: 16, marginTop: 8, marginBottom: 12 }}><ChatButton kind="inquiry" refId={id} title={i.name} label={tr('Chat with the customer')} /></View>
+            </View>}
+            {desk ? null : <View style={{ paddingHorizontal: 16, marginTop: 8, marginBottom: 12 }}><ChatButton kind="inquiry" refId={id} title={i.name} label={tr('Chat with the customer')} /></View>}
             {(
                 <ScrollView contentContainerStyle={{ paddingTop: 8, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
+                  <Frame desk={desk} max={1180}>
+                    {desk ? (
+                        <Hero icon="chatbubbles" title={i.name} subtitle={`${tr(i.serviceName)}  ·  ${i.phone}`}
+                            right={<>
+                                <HeroBtn label={tr('Call')} icon="call" onPress={() => Linking.openURL(`tel:${digits(i.phone)}`)} />
+                                <HeroBtn label={tr('WhatsApp')} icon="logo-whatsapp" solid onPress={() => Linking.openURL(`https://wa.me/${intl(i.phone)}`)} />
+                            </>}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 18 }}>
+                                <GlassStat label={tr('Where it stands')} value={tr(STATUS_LABEL[i.status] || 'New')} icon="flag-outline" />
+                                <GlassStat label={tr('Answers')} value={String(i.answers?.length || 0)} icon="list-outline" />
+                                <View style={{ flex: 1, marginRight: 12 }}><ChatButton kind="inquiry" refId={id} title={i.name} label={tr('Chat with the customer')} /></View>
+                            </View>
+                        </Hero>
+                    ) : null}
+                    <Masonry desk={desk} gap={-16}>
                     {i.answers?.length || i.estimate ? <Group title={tr('Their answers')}><Answers answers={i.answers} estimate={i.estimate} /></Group> : null}
                     <Group title={tr('Where it stands')} hint={tr('Now: {s}', { s: tr(STATUS_LABEL[i.status]) })}>
                         <Chips options={STEPS.map((s) => [s, tr(STATUS_LABEL[s])])} value={i.status} onChange={setStatus} />
@@ -76,6 +95,8 @@ export default function OwnerInquiryScreen() {
                     <View style={{ paddingHorizontal: 16, marginTop: 8 }}>
                         {closed ? <Button label={tr('Open it again')} icon="refresh" kind="ghost" onPress={() => setStatus('replied')} /> : <Button label={tr('End conversation')} icon="close-circle-outline" kind="danger" onPress={end} />}
                     </View>
+                    </Masonry>
+                  </Frame>
                 </ScrollView>
             )}
         </FormPage>

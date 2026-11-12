@@ -14,11 +14,15 @@ import { showToast } from '../../components/customers/shop';
 import { maskTime } from '../../utils/owners/menuRules';
 import { FormShimmer } from '../../components/owners/shimmer';
 import { ease } from '../../utils/common/ease';
+import { useOwnerDesktop } from '../../utils/common/layout';
+import { Hero, GlassStat } from '../../components/owners/RiderDesk';
+import Masonry from '../../components/common/Masonry';
 import { tr } from '../../i18n';
 
 const dayText = (k) => { const [y, m, d] = String(k).split('-').map(Number); return new Date(y, m - 1, d).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }); };
 
 export default function OwnerBookingSettingsScreen() {
+    const desk = useOwnerDesktop();   // a computer: a banner with the switch and the key numbers, and the settings in two columns
     const nav = useNavigation();
     const { text, muted, border, error, surface, primary } = useBrand();
     const [v, setV] = useState(null);
@@ -90,8 +94,19 @@ export default function OwnerBookingSettingsScreen() {
     ];
 
     return (
-        <FormPage title={tr('Table booking')} scrollRef={scroll} footer={<Button label={tr('Save changes')} icon="checkmark" busy={saving} onPress={save} />}>
-            <Card style={{ marginHorizontal: 0 }}>
+        <FormPage wide title={tr('Table booking')} scrollRef={scroll} footer={<Button label={tr('Save changes')} icon="checkmark" busy={saving} onPress={save} />}>
+            {desk ? (
+                <Hero icon="calendar" title={v.enabled ? tr('Guests can book a table') : tr('Table booking is off')} subtitle={tr('Set the times and the deposit first, then switch it on.')}
+                    right={<LiveToggle on={!!v.enabled} busy={flipping} onPress={flip} />}>
+                    <View style={{ flexDirection: 'row', marginTop: 18 }}>
+                        <GlassStat label={tr('Tables')} value={String((v.tables || []).length)} icon="grid-outline" />
+                        <GlassStat label={tr('Seats')} value={String((v.tables || []).reduce((n, t) => n + (Number(t.seats) || 0), 0))} icon="people-outline" />
+                        <GlassStat label={tr('Deposit')} value={v.depositAmount ? `₹${v.depositAmount}${v.depositType === 'per_person' ? tr(' / person') : ''}` : '—'} icon="cash-outline" />
+                        <GlassStat label={tr('Booking lasts')} value={v.slotMinutes ? tr('{m} min', { m: v.slotMinutes }) : '—'} icon="time-outline" />
+                    </View>
+                </Hero>
+            ) : null}
+            {desk ? null : <Card style={{ marginHorizontal: 0 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                     <View style={{ flex: 1, paddingRight: 8 }}>
                         <Text style={{ color: text, fontWeight: '900', fontSize: 16 }}>{v.enabled ? tr('Guests can book a table') : tr('Table booking is off')}</Text>
@@ -99,12 +114,13 @@ export default function OwnerBookingSettingsScreen() {
                     </View>
                     <LiveToggle on={!!v.enabled} busy={flipping} onPress={flip} />
                 </View>
-            </Card>
+            </Card>}
             {v.featureOn === false ? <Text style={{ color: error, fontWeight: '800', marginTop: 10 }}>{tr('Table booking is not switched on for your shop yet. Ask us to switch it on.')}</Text> : null}
-            <Group title={tr('When guests can book')} hint={tr('Add a time for lunch and another for dinner. Days left empty means every day.')} flash={flash('windows')} flashText={tr('Add the times guests can reserve')} onLayout={(e) => { ys.current.windows = e.nativeEvent.layout.y; }}>
+            <Masonry desk={desk} gap={-16}>
+            <Group icon="time" title={tr('When guests can book')} hint={tr('Add a time for lunch and another for dinner. Days left empty means every day.')} flash={flash('windows')} flashText={tr('Add the times guests can reserve')} onLayout={(e) => { ys.current.windows = e.nativeEvent.layout.y; }}>
                 <TimingEditor value={v.windows} onChange={(x) => set('windows', x)} />
             </Group>
-            <Group title={tr('Your tables')} hint={tr('Guests pick one of these, like seats in a cinema. Use the same numbers as your table QR codes.')} flash={flash('tables')} flashText={tr('Add at least one table guests can reserve')} onLayout={(e) => { ys.current.tables = e.nativeEvent.layout.y; }}>
+            <Group icon="grid" title={tr('Your tables')} hint={tr('Guests pick one of these, like seats in a cinema. Use the same numbers as your table QR codes.')} flash={flash('tables')} flashText={tr('Add at least one table guests can reserve')} onLayout={(e) => { ys.current.tables = e.nativeEvent.layout.y; }}>
                 {!v.tables.length && v.dineTableCount > 0 ? <Button label={tr('Add my {n} dine in tables', { n: v.dineTableCount })} icon="grid-outline" kind="ghost" onPress={fillFromDineIn} style={{ marginBottom: 10 }} /> : null}
                 {v.tables.map((t, i) => (
                     <View key={i} style={{ flexDirection: 'row', alignItems: 'flex-end', marginBottom: 6, opacity: t.bookable ? 1 : 0.6 }}>
@@ -117,20 +133,20 @@ export default function OwnerBookingSettingsScreen() {
                 <Button label={tr('Add a table')} icon="add" kind="ghost" onPress={() => set('tables', [...v.tables, { no: nextNo(), seats: 4, bookable: true }])} />
                 <Text style={{ color: muted, fontSize: 12, marginTop: 8 }}>{tr('The switch decides if guests can book that table.')}</Text>
             </Group>
-            <Group title={tr('Groups and times')}>
+            <Group icon="people" title={tr('Groups and times')}>
                 <ChoiceBox label={tr('How long a booking lasts')} options={[30, 45, 60, 90, 120].map((m) => [m, tr('{m} min', { m })])} value={v.slotMinutes} onChange={(x) => set('slotMinutes', x)} />
                 <NumberBox label={tr('Smallest group')} integer value={v.minParty} onChange={(x) => set('minParty', x)} />
                 <NumberBox label={tr('Largest group')} integer value={v.maxParty} onChange={(x) => set('maxParty', x)} />
                 <NumberBox label={tr('How many working days ahead can they book (4 at most)')} integer value={v.advanceDays} onChange={(x) => set('advanceDays', x)} />
                 <NumberBox label={tr('Notice needed, in minutes')} integer value={v.minNoticeMinutes} onChange={(x) => set('minNoticeMinutes', x)} last />
             </Group>
-            <Group title={tr('Deposit guests must pay')} hint={tr('A booking counts only once the deposit is paid.')} flash={flash('deposit')} flashText={tr('Set the deposit amount guests pay')} onLayout={(e) => { ys.current.deposit = e.nativeEvent.layout.y; }}>
+            <Group icon="cash" title={tr('Deposit guests must pay')} hint={tr('A booking counts only once the deposit is paid.')} flash={flash('deposit')} flashText={tr('Set the deposit amount guests pay')} onLayout={(e) => { ys.current.deposit = e.nativeEvent.layout.y; }}>
                 <ChoiceBox label={tr('How it is worked out')} options={[['per_person', tr('Per person')], ['flat', tr('One amount')]]} value={v.depositType} onChange={(x) => set('depositType', x)} />
                 <NumberBox label={v.depositType === 'per_person' ? tr('Amount per person') : tr('Amount')} prefix="₹" integer value={v.depositAmount || undefined} onChange={(x) => set('depositAmount', x ?? 0)} />
                 <ChoiceBox label={tr('What happens to it')} options={[['adjust', tr('Taken off the bill')], ['keep', tr('You keep it')]]} value={v.depositMode} onChange={(x) => set('depositMode', x)} />
                 <NumberBox label={tr('Full refund if cancelled this many hours before')} integer value={v.refundHours} onChange={(x) => set('refundHours', x)} last />
             </Group>
-            <Group title={tr('Who can reserve')} hint={tr('A guest who is blocked can still order food, but cannot reserve a table.')}>
+            <Group icon="shield-checkmark" title={tr('Who can reserve')} hint={tr('A guest who is blocked can still order food, but cannot reserve a table.')}>
                 <Pressable onPress={() => nav.navigate('OwnerAutomations')} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 4, marginBottom: 14 }}>
                     <Ionicons name="flash" size={20} color={primary} />
                     <Text style={{ flex: 1, color: text, fontWeight: '800', marginHorizontal: 10 }}>{tr('Allowing, no-shows and the deposit on the bill are in Automations')}</Text>
@@ -147,7 +163,7 @@ export default function OwnerBookingSettingsScreen() {
                     </View>
                 ))}
             </Group>
-            <Group title={tr('Close a day or a time')} hint={tr('Leave the time empty to close the whole day. Guests can also never book when your shop is closed: your opening hours and holidays count here too.')}>
+            <Group icon="close-circle" title={tr('Close a day or a time')} hint={tr('Leave the time empty to close the whole day. Guests can also never book when your shop is closed: your opening hours and holidays count here too.')}>
                 <View style={{ marginBottom: 16 }}>
                     <Label>{tr('Date')}</Label>
                     <Pressable onPress={() => setPicking(true)} style={{ minHeight: 46, borderRadius: 12, borderWidth: 1, borderColor: border, backgroundColor: surface, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center' }}>
@@ -165,6 +181,7 @@ export default function OwnerBookingSettingsScreen() {
                     </View>
                 ))}
             </Group>
+            </Masonry>
         </FormPage>
     );
 }

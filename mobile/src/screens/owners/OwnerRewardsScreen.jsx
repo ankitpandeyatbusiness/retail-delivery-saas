@@ -10,9 +10,13 @@ import { fetchRewards, saveRewards, apiError } from '../../api/owners/shopApi';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { showToast } from '../../components/customers/shop';
 import { ask } from '../../components/common/dialog';
+import { useOwnerDesktop } from '../../utils/common/layout';
+import { Hero, HeroBtn, GlassStat } from '../../components/owners/RiderDesk';
+import Masonry from '../../components/common/Masonry';
 import { tr } from '../../i18n';
 
 export default function OwnerRewardsScreen() {
+    const desk = useOwnerDesktop();   // a computer: a banner with the key numbers, and the two sets of rules side by side
     const { muted } = useBrand();
     const [v, setV] = useState(null);            // what is on the screen
     const [rec, setRec] = useState(null);        // the recommended numbers
@@ -42,8 +46,20 @@ export default function OwnerRewardsScreen() {
     const cu = v.customer;
     const ri = v.rider;
     return (
-        <FormPage title={tr('Rewards and points')} footer={<Button label={tr('Save')} icon="checkmark" busy={busy} disabled={!dirty} onPress={save} />}>
-            <Group title={tr('Customer points')} hint={tr('Customers earn points on their orders and use them for money off. Points reach them after the waiting time, so a refund never takes spent points back.')}>
+        <FormPage wide title={tr('Rewards and points')} footer={<Button label={tr('Save')} icon="checkmark" busy={busy} disabled={!dirty} onPress={save} />}>
+            {desk ? (
+                <Hero icon="gift" title={tr('Rewards and points')} subtitle={tr('Recognition for customers who come back and riders who do good work.')}
+                    right={<HeroBtn label={tr('Use the recommended numbers')} icon="refresh-outline" solid onPress={() => { if (!busy) reset(); }} />}>
+                    <View style={{ flexDirection: 'row', marginTop: 18 }}>
+                        <GlassStat label={tr('Customer points')} value={cu.enabled ? tr('On') : tr('Off')} icon="people-outline" />
+                        <GlassStat label={tr('Points per ₹10')} value={cu.enabled ? String(cu.pointsPerTen) : '—'} icon="star-outline" />
+                        <GlassStat label={tr('Rider points')} value={ri.enabled ? tr('On') : tr('Off')} icon="bicycle" />
+                        <GlassStat label={tr('Per delivery')} value={ri.enabled ? String(ri.perDelivery) : '—'} icon="trophy-outline" />
+                    </View>
+                </Hero>
+            ) : null}
+            <Masonry desk={desk} gap={-16}>
+            <Group icon="people" title={tr('Customer points')} hint={tr('Customers earn points on their orders and use them for money off. Points reach them after the waiting time, so a refund never takes spent points back.')}>
                 <ToggleRow title={tr('Give customers points')} value={cu.enabled} onValueChange={(x) => c('enabled', x)} last={!cu.enabled} />
                 {cu.enabled ? (
                     <View>
@@ -67,7 +83,7 @@ export default function OwnerRewardsScreen() {
                 ) : null}
             </Group>
 
-            <Group title={tr('Rider points and badges')} hint={tr('Riders earn points for good work. The badge (Bronze, Silver, Gold, Platinum) comes from the points of the last 30 days and the rating. Customers, you and the rider can see it. The app does not pay money: use the points to decide your own reward.')}>
+            <Group icon="bicycle" title={tr('Rider points and badges')} hint={tr('Riders earn points for good work. The badge (Bronze, Silver, Gold, Platinum) comes from the points of the last 30 days and the rating. Customers, you and the rider can see it. The app does not pay money: use the points to decide your own reward.')}>
                 <ToggleRow title={tr('Use rider points and badges')} value={ri.enabled} onValueChange={(x) => r('enabled', x)} last={!ri.enabled} />
                 {ri.enabled ? (
                     <View>
@@ -89,10 +105,11 @@ export default function OwnerRewardsScreen() {
                     </View>
                 ) : null}
             </Group>
+            </Masonry>
 
-            <View style={{ paddingHorizontal: 16 }}>
+            {desk ? null : <View style={{ paddingHorizontal: 16 }}>
                 <Button label={tr('Use the recommended numbers')} icon="refresh" kind="ghost" disabled={busy} onPress={reset} />
-            </View>
+            </View>}
         </FormPage>
     );
 }

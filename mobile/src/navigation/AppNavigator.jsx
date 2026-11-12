@@ -42,7 +42,7 @@ import TableBillStrip from '../components/customers/TableBillStrip';
 import BookingStrip from '../components/customers/BookingStrip';
 import BottomDock from '../components/customers/BottomDock';
 import DesktopFrame from '../components/customers/DesktopFrame';
-import { useCustomerDesktop } from '../utils/common/layout';
+import { useCustomerDesktop, useOwnerDesktop } from '../utils/common/layout';
 import TableLinkHost from '../components/customers/TableLinkHost';
 import OwedReminder from '../components/customers/OwedReminder';
 import TableFeedbackHost from '../components/customers/TableFeedbackHost';
@@ -163,7 +163,9 @@ const DMyBookings = deskColumn(MyBookingsScreen, 1120);
 const DMyBulkOrders = deskColumn(MyBulkOrdersScreen, 1120);
 const DServices = deskColumn(ServicesScreen, 1120);
 const DMyInquiries = deskColumn(MyInquiriesScreen, 1120);
-const DChat = deskColumn(ChatScreen, 860);
+const DChatNarrow = deskColumn(ChatScreen, 860);
+const DChatWide = deskColumn(ChatScreen, 1260);   // the shop owner on a computer: the chat with a side panel beside it
+function DChat(props) { return useOwnerDesktop() ? <DChatWide {...props} /> : <DChatNarrow {...props} />; }
 const DAboutUs = deskColumn(AboutUsScreen, 820);
 const DLegalList = deskColumn(LegalListScreen, 820);
 const DLegalDoc = deskColumn(LegalDocScreen, 820);

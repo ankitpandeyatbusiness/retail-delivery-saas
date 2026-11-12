@@ -1,9 +1,13 @@
 // Inquiries: what customers sent from your service forms. Newest conversation first; a dot means they wrote and you have not opened it.
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, ScrollView } from 'react-native';
+import { View, Text, ScrollView, Pressable } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useFocusEffect } from '../../hooks/common/useLiveFocus';
-import { useBrand } from '../../components/common/kit';
+import { useBrand, alpha } from '../../components/common/kit';
+import { useOwnerDesktop } from '../../utils/common/layout';
+import { Frame, Hero, GlassStat } from '../../components/owners/RiderDesk';
+import Masonry from '../../components/common/Masonry';
 import { PageHeader, Card, Pill, Chips, Empty } from '../../components/owners/ui';
 import { ListShimmer } from '../../components/owners/shimmer';
 import { STATUS_LABEL } from '../../components/common/InquiryThread';
@@ -13,6 +17,7 @@ import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { tr } from '../../i18n';
 
 export default function OwnerInquiriesScreen() {
+    const desk = useOwnerDesktop();   // a computer: a banner, status tabs with counts, and the inquiries as cards in two columns
     const nav = useNavigation();
     const { background, text, muted, primary, ok, error } = useBrand();
     const [status, setStatus] = useState('all');
@@ -35,10 +40,30 @@ export default function OwnerInquiriesScreen() {
         <View style={{ flex: 1, backgroundColor: background }}>
             <PageHeader title={tr('Inquiries')} />
             <ScrollView contentContainerStyle={{ paddingBottom: 32 }}>
-                <View style={{ paddingHorizontal: 16 }}><Chips options={opts} value={status} onChange={setStatus} /></View>
+              <Frame desk={desk}>
+                {desk ? (
+                    <>
+                        <Hero icon="chatbubbles" title={tr('Inquiries')} subtitle={tr('What customers sent from your service forms. A dot means they wrote and you have not opened it.')}>
+                            <View style={{ flexDirection: 'row', marginTop: 18 }}>
+                                <GlassStat label={tr('All')} value={String(total)} icon="list-outline" />
+                                <GlassStat label={tr('Not opened')} value={String(data?.unread || 0)} icon="mail-unread-outline" />
+                                <GlassStat label={tr(STATUS_LABEL.new || 'New')} value={String(counts.new || 0)} icon="sparkles-outline" />
+                            </View>
+                        </Hero>
+                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, marginBottom: 4 }}>
+                            {opts.map(([k, label]) => (
+                                <Pressable key={k} onPress={() => setStatus(k)} style={({ hovered }) => ({ paddingHorizontal: 16, height: 38, borderRadius: 19, marginRight: 8, marginBottom: 8, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center', borderColor: status === k ? primary : hovered ? alpha(primary, 0.55) : alpha(muted, 0.3), backgroundColor: status === k ? primary : hovered ? alpha(primary, 0.07) : 'transparent', cursor: 'pointer' })}>
+                                    <Text style={{ color: status === k ? '#FFFFFF' : text, fontWeight: '800', fontSize: 13.5 }}>{label}</Text>
+                                </Pressable>
+                            ))}
+                        </View>
+                    </>
+                ) : null}
+                {desk ? null : <View style={{ paddingHorizontal: 16 }}><Chips options={opts} value={status} onChange={setStatus} /></View>}
                 {data === null ? <ListShimmer /> : null}
                 {err && !data?.items?.length ? <Empty icon="cloud-offline-outline" title={tr('Could not load')} hint={err} /> : null}
                 {data && !data.items.length && !err ? <Empty icon="chatbubbles-outline" title={tr('No inquiries here')} hint={tr('When a customer sends an inquiry from a service, it appears here.')} /> : null}
+                <Masonry desk={desk} gap={-16}>
                 {(data?.items || []).map((i) => {
                     const last = i.messages?.[i.messages.length - 1];
                     return (
@@ -53,6 +78,8 @@ export default function OwnerInquiriesScreen() {
                         </Card>
                     );
                 })}
+                </Masonry>
+              </Frame>
             </ScrollView>
         </View>
     );

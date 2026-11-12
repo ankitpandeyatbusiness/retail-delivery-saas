@@ -7,7 +7,7 @@ import Animated from 'react-native-reanimated';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useRoute, useNavigation } from '@react-navigation/native';
-import { useIsDesktopWeb } from '../../utils/common/layout';
+import { useIsDesktopWeb, useOwnerDesktop } from '../../utils/common/layout';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { createAudioPlayer, setAudioModeAsync, requestRecordingPermissionsAsync, useAudioRecorder, RecordingPresets } from 'expo-audio';
 import { useBrand, alpha } from './kit';
@@ -186,6 +186,7 @@ export default function ChatScreen() {
     const { kind, refId, title: given } = useRoute().params || {};
     const nav = useNavigation();
     const desk = useIsDesktopWeb();   // the desktop website: the chat is a rounded panel with its own header, like WhatsApp Web (false in the phone app)
+    const ownerDesk = useOwnerDesktop();   // the shop owner on a computer: a side panel beside the chat (who, what it is about, a way to the order, quick replies)
     const role = useAuthStore((s) => s.user?.role);
     const insets = useSafeAreaInsets();
     const { background, text, muted, primary, onPrimary, surface, border, error } = useBrand();
@@ -407,8 +408,15 @@ export default function ChatScreen() {
     const closes = meta.closesAt ? new Date(meta.closesAt) : null;
     const daysLeft = closes && !meta.closed ? Math.max(0, Math.ceil((closes - Date.now()) / 86400000)) : null;
 
+    // what the owner can open from here, by what the chat is about
+    const about = kind === 'inquiry' ? { label: 'Service inquiry', icon: 'chatbubbles', open: tr('Open the inquiry'), go: () => nav.navigate('OwnerInquiry', { id: String(refId) }) }
+        : kind === 'bulk' ? { label: 'Bulk order', icon: 'cube', open: tr('Open the bulk order'), go: () => nav.navigate('OwnerBulkOrder', { id: String(refId) }) }
+            : kind === 'booking' ? { label: 'Table booking', icon: 'calendar', open: tr('Open reservations'), go: () => nav.navigate('OwnerBookings') }
+                : { label: 'Order', icon: 'receipt', open: tr('Open the order'), go: () => nav.navigate('OwnerOrder', { id: String(refId) }) };
+    const QUICK = [tr('Thank you! We are on it.'), tr('Your order is on the way.'), tr('Sorry for the wait. It will be ready soon.'), tr('Can you confirm your address, please?'), tr('Is there anything else we can do?')];
+
     return (
-        <View style={{ flex: 1, backgroundColor: background }}>
+        <View style={{ flex: 1, backgroundColor: background, flexDirection: ownerDesk ? 'row' : 'column' }}>
             {desk ? null : (
                 <>
             <PageHeader title={meta.title || tr('Chat')} right={canManage ? <Pressable onPress={() => setMenu(true)} hitSlop={12} accessibilityRole="button" accessibilityLabel={tr('More')}><Ionicons name="ellipsis-vertical" size={22} color={text} /></Pressable> : null} />
@@ -478,6 +486,35 @@ export default function ChatScreen() {
                     </View>
                 )}
             </Animated.View>
+            {ownerDesk ? (
+                <View style={{ width: 340, margin: 20, marginLeft: 0, marginTop: 24, borderRadius: 26, borderWidth: 1, borderColor: border, backgroundColor: surface, padding: 22 }}>
+                    <View style={{ alignItems: 'center' }}>
+                        <View style={{ width: 76, height: 76, borderRadius: 38, backgroundColor: primary, alignItems: 'center', justifyContent: 'center' }}>
+                            <Text style={{ color: onPrimary, fontSize: 32, fontWeight: '900' }}>{String(meta.title || 'C').trim().slice(0, 1).toUpperCase()}</Text>
+                        </View>
+                        <Text style={{ color: text, fontSize: 19, fontWeight: '900', marginTop: 12, textAlign: 'center' }} numberOfLines={2}>{meta.title || tr('Chat')}</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8, paddingHorizontal: 12, height: 28, borderRadius: 14, backgroundColor: primary + '1F' }}>
+                            <Ionicons name={about.icon} size={14} color={primary} />
+                            <Text style={{ color: primary, fontWeight: '800', fontSize: 12.5, marginLeft: 6 }}>{tr(about.label)}</Text>
+                        </View>
+                        {meta.closed ? <Text style={{ color: error, fontWeight: '800', fontSize: 12.5, marginTop: 8 }}>{tr('This chat is closed.')}</Text> : daysLeft !== null && daysLeft <= 2 ? <Text style={{ color: muted, fontSize: 12.5, marginTop: 8 }}>{tr('This chat closes in {n} day(s)', { n: Math.max(1, daysLeft) })}</Text> : null}
+                    </View>
+                    <Pressable onPress={about.go} style={({ hovered }) => ({ marginTop: 18, height: 46, borderRadius: 16, backgroundColor: hovered ? primary : primary + '1F', alignItems: 'center', justifyContent: 'center', flexDirection: 'row', cursor: 'pointer' })}>
+                        {({ hovered }) => (<><Ionicons name="open-outline" size={18} color={hovered ? onPrimary : primary} /><Text style={{ color: hovered ? onPrimary : primary, fontWeight: '900', marginLeft: 8 }}>{about.open}</Text></>)}
+                    </Pressable>
+                    {meta.closed ? null : (
+                        <>
+                            <Text style={{ color: muted, fontSize: 11.5, fontWeight: '900', letterSpacing: 0.6, marginTop: 22, marginBottom: 8 }}>{tr('Quick replies').toUpperCase()}</Text>
+                            {QUICK.map((q) => (
+                                <Pressable key={q} onPress={() => setInput(q)} style={({ hovered }) => ({ paddingVertical: 10, paddingHorizontal: 14, borderRadius: 14, marginBottom: 6, borderWidth: 1, borderColor: hovered ? primary : border, backgroundColor: hovered ? primary + '12' : 'transparent', cursor: 'pointer' })}>
+                                    <Text style={{ color: text, fontSize: 13.5 }}>{q}</Text>
+                                </Pressable>
+                            ))}
+                            <Text style={{ color: muted, fontSize: 12, marginTop: 6 }}>{tr('Tap one to put it in the message box, then press send.')}</Text>
+                        </>
+                    )}
+                </View>
+            ) : null}
 
             <Sheet visible={attach} onClose={() => setAttach(false)} title={tr('Send a photo')}>
                 <Pressable onPress={() => sendPhoto('camera')} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 14 }}><Ionicons name="camera-outline" size={24} color={primary} /><Text style={{ color: text, fontWeight: '800', fontSize: 16, marginLeft: 14 }}>{tr('Take a photo')}</Text></Pressable>

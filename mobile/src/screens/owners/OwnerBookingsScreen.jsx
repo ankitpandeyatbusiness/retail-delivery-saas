@@ -20,6 +20,8 @@ import ChatButton from '../../components/common/ChatButton';
 import { tr } from '../../i18n';
 import { niceDate } from '../../utils/common/dayNames';
 import { useOwnerDesktop } from '../../utils/common/layout';
+import { Hero, HeroBtn, GlassStat } from '../../components/owners/RiderDesk';
+import Masonry from '../../components/common/Masonry';
 
 export const BOOKING_STATUS = { held: 'Waiting for payment', confirmed: 'Booked', seated: 'Seated', no_show: 'No-show', cancelled: 'Cancelled', expired: 'Expired' };
 // what became of the deposit, in words (guest and owner screens)
@@ -91,9 +93,25 @@ export default function OwnerBookingsScreen() {
     const tone = (s) => (s === 'seated' ? ok : s === 'confirmed' ? primary : s === 'no_show' ? error : muted);
     const arrow = (n, icon) => <Pressable onPress={() => { if (!desk) setData(null); setDate((d) => shift(d, n)); }} hitSlop={10} style={{ padding: 8 }}><Ionicons name={icon} size={22} color={text} /></Pressable>;
 
+    const toAllow = (data?.items || []).filter((b) => b.status === 'confirmed' && !b.approvedAt).length;
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
             <PageHeader title={tr('Reservations')} />
+            <View style={desk ? { flex: 1, width: '100%', maxWidth: 1240, alignSelf: 'center' } : { flex: 1 }}>
+            {desk ? (
+                <Hero icon="calendar" title={tr('Reservations')} subtitle={tr('Guests who booked a table, and what to do with each booking.')}
+                    right={<>
+                        <HeroBtn label={tr('Booking settings')} icon="settings-outline" onPress={() => nav.navigate('OwnerBookingSettings')} />
+                        <HeroBtn label={tr('Scan booking')} icon="qr-code-outline" solid onPress={() => nav.navigate('BookingScan', { who: 'owner' })} />
+                    </>}>
+                    <View style={{ flexDirection: 'row', marginTop: 18 }}>
+                        <GlassStat label={tr('Bookings shown')} value={data ? String(shown.length) : '–'} icon="list-outline" />
+                        <GlassStat label={tr('Guests booked')} value={data && data.seats != null ? String(data.seats) : '–'} icon="people-outline" />
+                        <GlassStat label={tr('To allow')} value={data ? String(toAllow) : '–'} icon="checkmark-done-outline" />
+                        <GlassStat label={tr('Waiting for a table')} value={data && data.waiting != null ? String(data.waiting) : '–'} icon="hourglass-outline" />
+                    </View>
+                </Hero>
+            ) : null}
             <ClosedBookingsBanner onDone={() => load()} />
             <View style={{ flexDirection: 'row', paddingHorizontal: 16, marginBottom: 10 }}>
                 {[['day', tr('By day')], ['all', tr('All bookings')]].map(([k, l]) => (
@@ -130,6 +148,7 @@ export default function OwnerBookingsScreen() {
                 {data === null ? <ListShimmer /> : null}
                 {data && !shown.length ? <Empty icon="calendar-outline" title={mode === 'all' || slot !== 'any' || state !== 'all' ? tr('No bookings match') : tr('No bookings this day')} hint={mode === 'day' && data.upcoming && slot === 'any' && state === 'all' ? tr('{n} more are coming on other days.', { n: data.upcoming }) : tr('Bookings guests make will appear here.')} /> : null}
                 {data?.truncated ? <Text style={{ color: muted, fontSize: 12, textAlign: 'center', marginBottom: 6 }}>{tr('Showing the first 300. Pick fewer dates to see the rest.')}</Text> : null}
+                <Masonry desk={desk} gap={-16}>
                 {shown.map((b) => (
                     <Card key={b._id} style={{ opacity: b.status === 'cancelled' ? 0.6 : 1 }}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -190,11 +209,13 @@ export default function OwnerBookingsScreen() {
                         ) : null}
                     </Card>
                 ))}
-                <View style={{ paddingHorizontal: 16, marginTop: 4 }}>
+                </Masonry>
+                {desk ? null : <View style={{ paddingHorizontal: 16, marginTop: 4 }}>
                     <Button label={tr('Scan booking')} icon="qr-code-outline" onPress={() => nav.navigate('BookingScan', { who: 'owner' })} style={{ marginBottom: 8 }} />
                     <Button label={tr('Booking settings')} icon="settings-outline" kind="ghost" onPress={() => nav.navigate('OwnerBookingSettings')} />
-                </View>
+                </View>}
             </ScrollView>
+            </View>
             <DateRangeSheet visible={pickRange} value={range} ahead={365} noun="bookings" title={tr('Filter by date')} onClose={() => setPickRange(false)} onApply={(v) => { setPickRange(false); if (!desk) setData(null); setRange(v); }} />
         </View>
     );
