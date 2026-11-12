@@ -428,7 +428,7 @@ export default function OwnerHomeScreen() {
                 [tr('Average order'), money(d?.today.averageOrderValue), 'stats-chart-outline', warn, null],
                 [tr('Live orders'), String(PIPELINE.reduce((n, p) => n + countOf(p[0]), 0)), 'flash-outline', error, <Text style={{ color: muted, fontSize: 12.5, fontWeight: '700' }}>{tr('Tap to see them')}</Text>, () => setPeek('live')],
             ]} /> : null}
-            <Masonry desk={desk} gap={16}>
+            <Masonry desk={desk} gap={0}>
             {/* what is happening to the orders, right at the top */}
             <SectionTitle title={tr('Order pipeline')} action={tr('Open orders')} onAction={() => toOrders('active')} />
             <View style={{ flexDirection: 'row', paddingHorizontal: 13 }}>

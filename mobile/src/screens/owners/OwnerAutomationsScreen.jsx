@@ -19,7 +19,12 @@ import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { showToast } from '../../components/customers/shop';
 import { ask } from '../../components/common/dialog';
 import { ease } from '../../utils/common/ease';
+import { useOwnerDesktop } from '../../utils/common/layout';
+import { Hero, HeroBtn, GlassStat } from '../../components/owners/RiderDesk';
+import Masonry from '../../components/common/Masonry';
 import { tr } from '../../i18n';
+
+const SECTION_ICON = { orders: 'receipt', delivery: 'bicycle', kitchen: 'flame', tables: 'restaurant', bills: 'wallet', pickup: 'walk', reservations: 'calendar', inquiries: 'chatbubbles', customers: 'megaphone', staff: 'people', platform: 'shield-checkmark' };
 
 const mins = (n) => (n >= 60 && n % 60 === 0 ? (n === 60 ? tr('1 hour') : tr('{n} hours', { n: n / 60 })) : tr('{n} minutes', { n }));
 const opts = (list) => list.map((n) => (n === 0 ? [0, tr('Off')] : [n, mins(n)]));
@@ -36,6 +41,7 @@ const SECTIONS = [
 ];
 
 export default function OwnerAutomationsScreen() {
+    const desk = useOwnerDesktop();   // a computer: a banner with the counts, and the sections in two even columns
     const nav = useNavigation();
     const { muted, text, primary, border, surface } = useBrand();
     const bookingOn = useMenuFlags((s) => s.bookingOn);
@@ -175,6 +181,9 @@ export default function OwnerAutomationsScreen() {
     const needle = q.trim().toLowerCase();
     const matches = (r) => !needle || `${r.title} ${r.sub || ''} ${r.note || ''} ${r.words || ''} ${tr(SECTIONS.find((s) => s[0] === r.section)?.[1] || '')}`.toLowerCase().includes(needle);
     const shown = rows.filter(matches);
+    const onCount = rows.filter((r) => r.kind === 'toggle' && r.value).length;
+    const offCount = rows.filter((r) => r.kind === 'toggle' && !r.value).length;
+    const fixedCount = rows.filter((r) => r.kind === 'info').length;
 
     const renderRow = (r, last) => {
         if (r.kind === 'toggle') return <ToggleRow key={r.id} title={r.title} subtitle={r.sub} value={r.value} onValueChange={r.onChange} last={last} />;
@@ -207,31 +216,53 @@ export default function OwnerAutomationsScreen() {
     };
 
     return (
-        <FormPage title={tr('Automations')}>
+        <FormPage title={tr('Automations')} wide>
+            {desk ? (
+                <Hero icon="flash" title={tr('Automations')} subtitle={tr('What the shop does by itself, so you do not have to.')}
+                    right={<>
+                        <HeroBtn label={tr('Recommended settings')} icon="sparkles-outline" solid onPress={recommended} />
+                        <HeroBtn label={tr('All by hand')} icon="hand-left-outline" onPress={byHand} />
+                    </>}>
+                    <View style={{ flexDirection: 'row', marginTop: 18 }}>
+                        <GlassStat label={tr('Switched on')} value={String(onCount)} icon="flash-outline" />
+                        <GlassStat label={tr('Switched off')} value={String(offCount)} icon="power-outline" />
+                        <GlassStat label={tr('Always on')} value={String(fixedCount)} icon="shield-checkmark-outline" />
+                    </View>
+                </Hero>
+            ) : null}
             <Text style={{ color: muted, fontSize: 13, paddingHorizontal: 18, marginBottom: 8, lineHeight: 19 }}>{tr('What is switched on is done for you after the time you choose, and you are told afterwards. What is off, you do by hand. Whatever you do first always wins.')}</Text>
             <View style={{ marginHorizontal: 16, marginBottom: 10, flexDirection: 'row', alignItems: 'center', height: 46, borderWidth: 1, borderColor: border, backgroundColor: surface, borderRadius: 14, paddingHorizontal: 12 }}>
                 <Ionicons name="search" size={18} color={muted} />
                 <TextInput value={q} onChangeText={(x) => { ease(); setQ(x); }} placeholder={tr('Search automations')} placeholderTextColor={muted} autoCorrect={false} autoCapitalize="none" style={{ flex: 1, height: 46, color: text, fontSize: 15, paddingHorizontal: 8, paddingVertical: 0, textAlignVertical: 'center', includeFontPadding: false }} />
                 {q ? <Pressable onPress={() => { ease(); setQ(''); }} hitSlop={8}><Ionicons name="close-circle" size={18} color={muted} /></Pressable> : null}
             </View>
-            {!needle ? (
+            {!needle && !desk ? (
                 <View style={{ flexDirection: 'row', paddingHorizontal: 16, marginBottom: 6 }}>
                     <Button label={tr('Recommended settings')} icon="sparkles" kind="ghost" onPress={recommended} style={{ flex: 3, marginRight: 8 }} />
                     <Button label={tr('All by hand')} icon="hand-left" kind="ghost" onPress={byHand} style={{ flex: 2 }} />
                 </View>
             ) : null}
             {needle && !shown.length ? <Empty icon="search-outline" title={tr('Nothing found')} hint={tr('Try another word, like refund, reminder, no-show or rider.')} /> : null}
+            <Masonry desk={desk} gap={-16} aligned>
             {SECTIONS.map(([key, title]) => {
                 const list = shown.filter((r) => r.section === key);
                 if (!list.length) return null;
                 return (
                     <View key={key} style={{ marginBottom: 4 }}>
+                        {desk ? (
+                            <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, marginTop: 10, marginBottom: 10 }}>
+                                <View style={{ width: 34, height: 34, borderRadius: 11, backgroundColor: primary, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}><Ionicons name={SECTION_ICON[key] || 'flash'} size={18} color="#FFFFFF" /></View>
+                                <Text style={{ color: text, fontSize: 18, fontWeight: '900', letterSpacing: -0.3 }}>{tr(title)}</Text>
+                            </View>
+                        ) : (
                         <Text style={{ color: text, fontSize: 16, fontWeight: '900', paddingHorizontal: 16, marginTop: 10, marginBottom: 8 }}>{tr(title)}</Text>
+                        )}
                         {list.filter((r) => r.kind === 'custom').map((r) => <View key={r.id}>{r.node}</View>)}
-                        {list.some((r) => r.kind !== 'custom') ? <Card>{list.filter((r) => r.kind !== 'custom').map((r, i, all) => renderRow(r, i === all.length - 1))}</Card> : null}
+                        {list.some((r) => r.kind !== 'custom') ? <Card style={desk ? { borderRadius: 22, padding: 18 } : undefined}>{list.filter((r) => r.kind !== 'custom').map((r, i, all) => renderRow(r, i === all.length - 1))}</Card> : null}
                     </View>
                 );
             })}
+            </Masonry>
         </FormPage>
     );
 }

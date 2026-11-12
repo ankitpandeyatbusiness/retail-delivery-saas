@@ -5,7 +5,8 @@ import { View, ScrollView, TextInput, Pressable, Text, Animated, Easing, Platfor
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useFocusEffect } from '../../hooks/common/useLiveFocus';
-import { useBrand } from '../../components/common/kit';
+import { useBrand, alpha } from '../../components/common/kit';
+import { useOwnerDesktop } from '../../utils/common/layout';
 import { searchMenu } from '../../utils/owners/menuSearch';
 import AppearanceSwitch from '../../components/owners/AppearanceSwitch';
 import { PageHeader, Card, Row, SectionTitle, Sheet, Button, Pill, Chips } from '../../components/owners/ui';
@@ -141,6 +142,8 @@ const GROUPS = [
 
 // Busy mode: the kitchen is rushed, customers see a longer wait for a while. It ends by itself.
 export function BusySheet({ visible, busy, onClose, onChanged }) {
+    const desk = useOwnerDesktop();   // a computer: big choice tiles instead of the phone's chips and buttons
+    const { text, muted, border, primary, onPrimary } = useBrand();
     const [extra, setExtra] = useState(15);
     const [work, setWork] = useState(false);
     const go = async (body) => {
@@ -154,6 +157,41 @@ export function BusySheet({ visible, busy, onClose, onChanged }) {
     };
     return (
         <Sheet visible={visible} onClose={onClose} title={tr('Busy mode')}>
+            {desk ? (
+                <View>
+                    <View style={{ alignItems: 'center', marginBottom: 18 }}>
+                        <View style={{ width: 70, height: 70, borderRadius: 35, backgroundColor: alpha('#F59E0B', 0.16), alignItems: 'center', justifyContent: 'center' }}><Ionicons name="flame" size={34} color="#F59E0B" /></View>
+                        <Text style={{ color: muted, textAlign: 'center', marginTop: 12, lineHeight: 20, maxWidth: 400 }}>{tr('Customers see a longer waiting time, so nobody expects food too soon. It ends by itself.')}</Text>
+                    </View>
+                    <Text style={{ color: text, fontWeight: '900', fontSize: 14, marginBottom: 10 }}>{tr('How much longer')}</Text>
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -5 }}>
+                        {BUSY_EXTRA.map(([v]) => {
+                            const on = extra === v;
+                            return (
+                                <View key={v} style={{ width: '25%', padding: 5 }}>
+                                    <Pressable onPress={() => setExtra(v)} style={({ hovered }) => ({ height: 64, borderRadius: 18, borderWidth: 1.5, borderColor: on ? primary : hovered ? alpha(primary, 0.55) : border, backgroundColor: on ? primary : hovered ? alpha(primary, 0.07) : 'transparent', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transitionProperty: 'background-color, border-color', transitionDuration: '140ms' })}>
+                                        <Text style={{ color: on ? onPrimary : text, fontWeight: '900', fontSize: 20 }}>{v === 60 ? '+1' : `+${v}`}</Text>
+                                        <Text style={{ color: on ? onPrimary : muted, fontWeight: '700', fontSize: 11.5 }}>{v === 60 ? tr('hour') : tr('min')}</Text>
+                                    </Pressable>
+                                </View>
+                            );
+                        })}
+                    </View>
+                    <Text style={{ color: text, fontWeight: '900', fontSize: 14, marginTop: 14, marginBottom: 10 }}>{tr('For how long')}</Text>
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -5 }}>
+                        {BUSY_FOR.map(([id, label, when]) => (
+                            <View key={id} style={{ width: '50%', padding: 5 }}>
+                                <Pressable disabled={work} onPress={() => go({ extraMin: extra, ...when })} style={({ hovered }) => ({ flexDirection: 'row', alignItems: 'center', height: 56, paddingHorizontal: 16, borderRadius: 18, borderWidth: 1.5, borderColor: hovered ? primary : border, backgroundColor: hovered ? alpha(primary, 0.07) : 'transparent', opacity: work ? 0.5 : 1, cursor: 'pointer', transitionProperty: 'background-color, border-color', transitionDuration: '140ms' })}>
+                                    <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: alpha(primary, 0.14), alignItems: 'center', justifyContent: 'center', marginRight: 12 }}><Ionicons name="time-outline" size={18} color={primary} /></View>
+                                    <Text style={{ flex: 1, color: text, fontWeight: '800', fontSize: 14.5 }} numberOfLines={2}>{tr(label)}</Text>
+                                </Pressable>
+                            </View>
+                        ))}
+                    </View>
+                    {busy ? <View style={{ marginTop: 14 }}><Button label={tr('Switch busy mode off')} kind="danger" icon="power" disabled={work} onPress={() => go({ off: true })} /></View> : null}
+                </View>
+            ) : (
+            <>
             <Label hint={tr('Customers see a longer waiting time, so nobody expects food too soon. It ends by itself.')}>{tr('How much longer')}</Label>
             <Chips options={BUSY_EXTRA.map(([v]) => [v, v === 60 ? tr('+1 hour') : tr('+{n} min', { n: v })])} value={extra} onChange={setExtra} style={{ marginTop: 0 }} />
             <Label>{tr('For how long')}</Label>
@@ -161,6 +199,8 @@ export function BusySheet({ visible, busy, onClose, onChanged }) {
                 <View key={id} style={{ marginBottom: 8 }}><Button label={tr(label)} kind="ghost" disabled={work} onPress={() => go({ extraMin: extra, ...when })} /></View>
             ))}
             {busy ? <View style={{ marginTop: 6 }}><Button label={tr('Switch busy mode off')} kind="danger" disabled={work} onPress={() => go({ off: true })} /></View> : null}
+            </>
+            )}
         </Sheet>
     );
 }

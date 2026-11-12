@@ -147,7 +147,7 @@ export default function OwnerStaffPersonScreen() {
                     {!cook ? <Text style={{ color: muted, fontSize: 12.5, marginTop: 10 }}>{tr('Tables served today: {n}', { n: s.tables })}</Text> : null}
                 </Card>}
 
-                <Masonry desk={desk} gap={16}>
+                <Masonry desk={desk} gap={0}>
                 {cook ? (
                     <>
                         <SectionTitle title={tr('Making now')} />

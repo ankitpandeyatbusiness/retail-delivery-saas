@@ -187,7 +187,7 @@ export function FormPage({ title, children, footer, right, scrollRef, fixed, bar
                         if (deskOwner && wide) return <View style={{ width: '100%', maxWidth: 1240, alignSelf: 'center' }}>{kids}</View>;   // the page lays itself out
                         if (deskOwner && !cols && kids.length < 5) return <View style={{ width: '100%', maxWidth: 760, alignSelf: 'center', paddingHorizontal: 24 }}>{kids}</View>;   // a short form: one centred column
                         // the owner's forms: each section goes under the shorter column, so one side never stays empty while the other scrolls
-                        if (deskOwner && !cols) return <View style={{ width: '100%', maxWidth: 1180, alignSelf: 'center', paddingHorizontal: 24 }}><Masonry desk gap={24}>{kids}</Masonry></View>;
+                        if (deskOwner && !cols) return <View style={{ width: '100%', maxWidth: 1180, alignSelf: 'center', paddingHorizontal: 24 }}><Masonry desk gap={-8}>{kids}</Masonry></View>;
                         return (
                             <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 24, width: '100%', maxWidth: 1180, alignSelf: 'center', paddingHorizontal: 24 }}>
                                 <View style={{ flex: 1, minWidth: 0 }}>{kids.slice(0, mid)}</View>

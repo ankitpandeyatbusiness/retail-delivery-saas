@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Linking, Pressable, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand, alpha } from '../common/kit';
-import { Button, Sheet, Pill } from './ui';
+import { Button, Sheet, Pill, Field } from './ui';
 import { blockCustomer, apiError } from '../../api/owners/shopApi';
 import { showToast } from '../customers/shop';
 import { tr } from '../../i18n';
@@ -17,7 +17,7 @@ const STATUS = { placed: 'Placed', accepted: 'Accepted', preparing: 'Preparing',
 
 // the form: reasons to tap, a note, and Block. orderId / sessionId: the order or table bill this is about (kept with the block).
 export function BlockSheet({ visible, customer, orderId, sessionId, onClose, onBlocked }) {
-    const { text, muted, border, primary, onPrimary } = useBrand();
+    const { text, muted, border, error } = useBrand();
     const [pick, setPick] = useState('');
     const [note, setNote] = useState('');
     const [busy, setBusy] = useState(false);
@@ -35,22 +35,27 @@ export function BlockSheet({ visible, customer, orderId, sessionId, onClose, onB
     };
     return (
         <Sheet visible={visible} onClose={onClose} title={tr('Block this customer?')}>
-            <Text style={{ color: muted, marginBottom: 10 }}>{tr('He will not be able to use the app of your shop. You can unblock him later from Customers > Blocked.')}</Text>
+            <View style={{ alignItems: 'center', marginBottom: 14 }}>
+                <View style={{ width: 68, height: 68, borderRadius: 34, backgroundColor: alpha(error, 0.12), alignItems: 'center', justifyContent: 'center' }}><Ionicons name="ban" size={32} color={error} /></View>
+                <Text style={{ color: muted, textAlign: 'center', marginTop: 12, lineHeight: 20, maxWidth: 380 }}>{tr('He will not be able to use the app of your shop. You can unblock him later from Customers > Blocked.')}</Text>
+            </View>
+            <Text style={{ color: text, fontWeight: '900', fontSize: 14, marginBottom: 8 }}>{tr('Why?')}</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
                 {REASONS.map((r) => {
                     const on = pick === r;
                     return (
-                        <Pressable key={r} onPress={() => setPick(on ? '' : r)} style={{ marginRight: 8, marginBottom: 8, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 18, borderWidth: 1, borderColor: on ? primary : border, backgroundColor: on ? primary : 'transparent' }}>
-                            <Text style={{ color: on ? onPrimary : text, fontWeight: '700', fontSize: 13 }}>{tr(r)}</Text>
+                        <Pressable key={r} onPress={() => setPick(on ? '' : r)} style={({ hovered }) => ({ flexDirection: 'row', alignItems: 'center', marginRight: 8, marginBottom: 8, paddingHorizontal: 14, height: 38, borderRadius: 19, borderWidth: 1.5, borderColor: on ? error : hovered ? alpha(error, 0.55) : border, backgroundColor: on ? alpha(error, 0.12) : hovered ? alpha(error, 0.06) : 'transparent', cursor: 'pointer' })}>
+                            {on ? <Ionicons name="checkmark-circle" size={16} color={error} style={{ marginRight: 6 }} /> : null}
+                            <Text style={{ color: on ? error : text, fontWeight: '800', fontSize: 13.5 }}>{tr(r)}</Text>
                         </Pressable>
                     );
                 })}
             </View>
-            <TextInput
-                value={note} onChangeText={setNote} placeholder={tr('More details (optional)')} placeholderTextColor={muted} maxLength={200} multiline
-                style={{ marginTop: 4, borderWidth: 1, borderColor: border, borderRadius: 12, padding: 12, color: text, minHeight: 48, maxHeight: 90 }}
-            />
-            <Button label={tr('Block')} icon="ban" kind="danger" busy={busy} onPress={go} style={{ marginTop: 12 }} />
+            <Field value={note} onChangeText={setNote} placeholder={tr('More details (optional)')} maxLength={200} multiline style={{ marginTop: 6, minHeight: 64, borderRadius: 16 }} />
+            <View style={{ flexDirection: 'row', marginTop: 16 }}>
+                <Button label={tr('Cancel')} kind="ghost" onPress={onClose} style={{ flex: 1, marginRight: 10 }} />
+                <Button label={tr('Block')} icon="ban" kind="danger" busy={busy} onPress={go} style={{ flex: 1.4 }} />
+            </View>
         </Sheet>
     );
 }

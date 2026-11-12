@@ -16,6 +16,7 @@ import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { showToast } from '../../components/customers/shop';
 import { ease } from '../../utils/common/ease';
 import { useOwnerDesktop } from '../../utils/common/layout';
+import { Hero, GlassStat } from '../../components/owners/RiderDesk';
 import { tr } from '../../i18n';
 
 const rs = (n) => `₹${Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
@@ -184,7 +185,18 @@ export default function OwnerHistoryScreen() {
                     {pay ? <Chip label={tr({ cash: 'Cash', online: 'Online', unpaid: 'Unpaid' }[pay])} onClear={() => { ease(); setPay(''); }} /> : null}
                 </View>
             ) : null}
-            <Card style={{ overflow: 'hidden' }}>
+            {desk && sm ? (
+                <Hero icon="time" title={tr('Order history')} subtitle={timeLabel}>
+                    <View style={{ flexDirection: 'row', marginTop: 18 }}>
+                        <GlassStat label={tr('Sales')} value={rs(sm.sales)} icon="cash-outline" />
+                        <GlassStat label={tr('Orders')} value={String(sm.orders)} icon="receipt-outline" />
+                        <GlassStat label={tr('Average')} value={rs(sm.average)} icon="analytics-outline" />
+                        <GlassStat label={tr('Cash')} value={rs(sm.cash)} icon="cash" />
+                        <GlassStat label={tr('Online')} value={rs(sm.online)} icon="card-outline" />
+                        <GlassStat label={tr('Cancelled')} value={`${sm.cancelled} · ${rs(sm.lost)}`} icon="close-circle-outline" />
+                    </View>
+                </Hero>
+            ) : <Card style={{ overflow: 'hidden' }}>
                 {!sm ? <View><LineShimmer width={160} height={22} /><View style={{ height: 8 }} /><LineShimmer width={240} height={14} /></View> : desk ? (
                     <View>
                         <Text style={{ color: muted, fontSize: 12.5, fontWeight: '800', marginBottom: 10 }}>{timeLabel}</Text>
@@ -219,7 +231,7 @@ export default function OwnerHistoryScreen() {
                         </View>
                     </>
                 )}
-            </Card>
+            </Card>}
         </View>
     );
 
@@ -254,9 +266,16 @@ export default function OwnerHistoryScreen() {
                 ListFooterComponent={more ? <ListShimmer count={1} /> : null}
                 renderItem={({ item }) => item.head ? (
                     <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 18, paddingBottom: 4 }}>
+                        {desk ? (
+                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                <View style={{ width: 34, height: 34, borderRadius: 11, backgroundColor: primary, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}><Ionicons name="calendar-outline" size={18} color="#FFFFFF" /></View>
+                                <Text style={{ color: text, fontWeight: '900', fontSize: 18, letterSpacing: -0.3 }}>{dayName(item.head)}</Text>
+                            </View>
+                        ) : (
                         <View style={{ paddingHorizontal: 12, paddingVertical: 5, borderRadius: 14, backgroundColor: alpha(primary, 0.13) }}>
                             <Text style={{ color: primary, fontWeight: '900', fontSize: 13 }}>{dayName(item.head)}</Text>
                         </View>
+                        )}
                         <View style={{ flex: 1, height: 1, backgroundColor: alpha(muted, 0.25), marginHorizontal: 10 }} />
                         {data.byDay?.[item.head] ? <Text style={{ color: muted, fontSize: 12.5, fontWeight: '700' }}>{tr('{n} orders', { n: data.byDay[item.head].orders })} · {rs(data.byDay[item.head].sales)}</Text> : null}
                     </View>
@@ -281,7 +300,17 @@ export default function OwnerHistoryScreen() {
     );
 }
 
-const COLS = { no: 92, time: 76, cust: 190, type: 104, pay: 84, status: 124, total: 100, act: 124 };
+const COLS = { no: 92, time: 76, cust: 190, type: 112, pay: 100, status: 140, total: 112, act: 152 };
+
+// a tag for a table cell: one line, no outer margins, so it sits level with the rest of the row
+function DeskTag({ label, color, icon }) {
+    return (
+        <View style={{ flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', height: 28, paddingHorizontal: 11, borderRadius: 14, backgroundColor: alpha(color, 0.13) }}>
+            {icon ? <Ionicons name={icon} size={13} color={color} style={{ marginRight: 5 }} /> : null}
+            <Text numberOfLines={1} style={{ color, fontSize: 12.5, fontWeight: '800' }}>{label}</Text>
+        </View>
+    );
+}
 
 function DeskHead() {
     const { muted, border, surface } = useBrand();
@@ -310,10 +339,10 @@ function DeskOrderRow({ o, onOpen }) {
                 {o.customer.phone ? <Text numberOfLines={1} style={{ color: muted, fontSize: 12 }}>{o.customer.phone}</Text> : null}
             </View>
             <Text numberOfLines={2} style={{ flex: 1, color: muted, fontSize: 13, paddingRight: 12, lineHeight: 18 }}>{o.dishes || ''}</Text>
-            <View style={{ width: COLS.type, flexDirection: 'row', alignItems: 'center' }}><Ionicons name={ticon} size={14} color={primary} /><Text style={{ color: text, fontSize: 13, marginLeft: 6 }}>{tr(tlabel)}</Text></View>
-            <View style={{ width: COLS.pay }}><Tag label={o.bulkRequest ? tr('Not paid') : cash ? tr('Cash') : tr('Online')} color={o.bulkRequest || cash ? warn : ok} /></View>
-            <View style={{ width: COLS.status }}><Tag label={tr(STATUS[o.status] || o.status)} color={tone} /></View>
-            <Text style={{ width: COLS.total, textAlign: 'right', color: gone ? muted : text, fontWeight: '900', fontSize: 15, textDecorationLine: gone ? 'line-through' : 'none' }}>{rs(o.total)}</Text>
+            <View style={{ width: COLS.type }}><DeskTag label={tr(tlabel)} color={primary} icon={ticon} /></View>
+            <View style={{ width: COLS.pay }}><DeskTag label={o.bulkRequest ? tr('Not paid') : cash ? tr('Cash') : tr('Online')} color={o.bulkRequest || cash ? warn : ok} icon={o.bulkRequest ? 'time-outline' : cash ? 'cash-outline' : 'card-outline'} /></View>
+            <View style={{ width: COLS.status }}><DeskTag label={tr(STATUS[o.status] || o.status)} color={tone} icon={o.status === 'delivered' ? 'checkmark-circle' : gone ? 'close-circle' : 'ellipse'} /></View>
+            <Text numberOfLines={1} style={{ width: COLS.total, paddingRight: 16, textAlign: 'right', color: gone ? muted : text, fontWeight: '900', fontSize: 15, textDecorationLine: gone ? 'line-through' : 'none' }}>{rs(o.total)}</Text>
             <View style={{ width: COLS.act, flexDirection: 'row', justifyContent: 'flex-end' }}>
                 {o.customer.phone ? <Round icon="call" label={tr('Call')} onPress={() => callPhone(o.customer.phone)} /> : null}
                 {o.customer.phone ? <Round icon="logo-whatsapp" label={tr('WhatsApp')} onPress={() => whatsApp(o.customer.phone)} /> : null}

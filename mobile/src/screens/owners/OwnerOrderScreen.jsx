@@ -24,6 +24,7 @@ import RiderLiveMap from '../../components/owners/RiderLiveMap';
 import TripClock from '../../components/riders/TripClock';
 import { Avatar } from './OwnerRidersScreen';
 import { useOwnerDesktop } from '../../utils/common/layout';
+import { Hero, HeroBtn, GlassStat } from '../../components/owners/RiderDesk';
 import { tr } from '../../i18n';
 import { trNote } from '../../utils/common/noteText';
 
@@ -32,6 +33,55 @@ import { trNote } from '../../utils/common/noteText';
 const Frame = ({ desk, children }) => (desk ? <View style={{ width: '100%', maxWidth: 1200, alignSelf: 'center' }}>{children}</View> : <>{children}</>);
 const TwoCol = ({ desk, children }) => (desk ? <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>{children}</View> : <>{children}</>);
 const Col = ({ desk, grow, children }) => (desk ? <View style={{ flex: grow, minWidth: 0 }}>{children}</View> : <>{children}</>);
+
+// The top of the page on a computer: the order number, when it came, a row of steps showing how far it has got, and the numbers that matter.
+function OrderHero({ order, now, busy, onInvoice }) {
+    const { onPrimary, primary } = useBrand();
+    const delivery = order.orderType === 'delivery';
+    const steps = delivery ? ['placed', 'accepted', 'preparing', 'ready', 'out_for_delivery', 'delivered'] : ['placed', 'accepted', 'preparing', 'ready', 'delivered'];
+    const here = steps.indexOf(flow.boardStatus(order));
+    const gone = ['cancelled', 'undelivered', 'declined', 'expired'].includes(order.status);
+    const pay = flow.paymentLabel(order);
+    return (
+        <Hero icon={delivery ? 'bicycle' : order.orderType === 'pickup' ? 'walk' : 'restaurant'} title={tr('Order #{orderNo}', { orderNo: order.ref || order.orderNo })}
+            subtitle={tr('Placed {v1} · {v2}', { v1: flow.dayTime(order.createdAt), v2: flow.ago(order.createdAt, now) })}
+            right={<>
+                {order.customer?.phone ? <HeroBtn label={tr('Call')} icon="call" onPress={() => callPhone(order.customer.phone)} /> : null}
+                {order.status === 'delivered' ? <HeroBtn label={busy ? tr('Preparing…') : tr('Invoice')} icon="document-text-outline" solid onPress={onInvoice} /> : null}
+            </>}>
+            {gone ? (
+                <View style={{ marginTop: 16, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, height: 34, borderRadius: 17, backgroundColor: 'rgba(255,255,255,0.22)' }}>
+                    <Ionicons name="close-circle" size={17} color={onPrimary} /><Text style={{ color: onPrimary, fontWeight: '900', marginLeft: 7 }}>{flow.statusLabel(order.status)}</Text>
+                </View>
+            ) : (
+                <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginTop: 20 }}>
+                    {steps.map((st, i) => {
+                        const done = i < here;
+                        const now2 = i === here;
+                        return (
+                            <View key={st} style={{ flex: 1, alignItems: 'center' }}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', width: '100%' }}>
+                                    <View style={{ flex: 1, height: 3, backgroundColor: i === 0 ? 'transparent' : i <= here ? '#FFFFFF' : 'rgba(255,255,255,0.3)' }} />
+                                    <View style={{ width: now2 ? 30 : 24, height: now2 ? 30 : 24, borderRadius: 15, backgroundColor: done || now2 ? '#FFFFFF' : 'rgba(255,255,255,0.25)', alignItems: 'center', justifyContent: 'center', borderWidth: now2 ? 4 : 0, borderColor: 'rgba(255,255,255,0.45)' }}>
+                                        {done ? <Ionicons name="checkmark" size={15} color={primary} /> : now2 ? <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: primary }} /> : null}
+                                    </View>
+                                    <View style={{ flex: 1, height: 3, backgroundColor: i === steps.length - 1 ? 'transparent' : i < here ? '#FFFFFF' : 'rgba(255,255,255,0.3)' }} />
+                                </View>
+                                <Text style={{ color: onPrimary, opacity: done || now2 ? 1 : 0.65, fontWeight: now2 ? '900' : '700', fontSize: 12.5, marginTop: 8, textAlign: 'center' }}>{flow.statusLabel(st)}</Text>
+                            </View>
+                        );
+                    })}
+                </View>
+            )}
+            <View style={{ flexDirection: 'row', marginTop: 20 }}>
+                <GlassStat label={tr('Total')} value={money(order.pricing?.total)} icon="cash-outline" />
+                <GlassStat label={tr('Items')} value={String(flow.itemCount(order))} icon="restaurant-outline" />
+                <GlassStat label={tr('Payment')} value={pay} icon="card-outline" />
+                <GlassStat label={tr('Customer')} value={order.customer?.name || tr('Customer')} icon="person-outline" />
+            </View>
+        </Hero>
+    );
+}
 
 // Everything that happened to the order, newest first: every step, and the kitchen's and the delivery partner's own moments
 function timeline(o) {
@@ -169,6 +219,7 @@ export default function OwnerOrderScreen() {
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={pull} />}
             >
                 <Frame desk={desk}>
+                {desk ? <OrderHero order={order} now={now} busy={invoiceBusy} onInvoice={() => openInvoice(order, setInvoiceBusy)} /> : null}
                 {order.bulkId ? (
                     <Card tone={primary} style={{ marginTop: 6 }} onPress={() => nav.navigate('OwnerBulkOrder', { id: String(order.bulkId) })}>
                         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -196,12 +247,12 @@ export default function OwnerOrderScreen() {
                     </Card>
                 ) : null}
 
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, marginTop: 10, marginBottom: 4 }}>
+                {desk ? null : <View style={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, marginTop: 10, marginBottom: 4 }}>
                     <View style={{ marginRight: 6, marginBottom: 6 }}><Pill label={flow.typeLabel(order.orderType)} color={muted} /></View>
                     <View style={{ marginRight: 6, marginBottom: 6 }}><PayBadge order={order} /></View>
                     {order.scheduledFor ? <View style={{ marginBottom: 6 }}><Pill label={tr('For {v1}', { v1: flow.dayTime(order.scheduledFor) })} color={warn} icon="calendar-outline" /></View> : null}
-                </View>
-                <Text style={{ color: muted, fontSize: 12, paddingHorizontal: 16, marginBottom: 8 }}>{tr('Placed {v1} · {v2}', { v1: flow.dayTime(order.createdAt), v2: flow.ago(order.createdAt, now) })}</Text>
+                </View>}
+                {desk ? null : <Text style={{ color: muted, fontSize: 12, paddingHorizontal: 16, marginBottom: 8 }}>{tr('Placed {v1} · {v2}', { v1: flow.dayTime(order.createdAt), v2: flow.ago(order.createdAt, now) })}</Text>}
 
                 <TwoCol desk={desk}>
                 <Col desk={desk} grow={3}>
