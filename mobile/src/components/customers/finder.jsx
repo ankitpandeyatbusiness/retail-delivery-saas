@@ -17,6 +17,7 @@ import { useHomeStore } from '../../store/customers/useHomeStore';
 import { useFilterStore, countActive } from '../../store/customers/useFilterStore';
 import { useMenuStore } from '../../store/customers/shopStores';
 import { tr } from '../../i18n';
+import { useIsDesktopWeb } from '../../utils/common/layout';
 
 /* ---------- smooth collapse (height + fade) ---------- */
 export function Collapse({ hide, children }) {
@@ -285,10 +286,51 @@ function CatPill({ c, on, onPress }) {
     );
 }
 
+// The website's category row (Search): pills with a small round photo, wrapping over the whole width, the chosen ones filled with the shop's colour, and a
+// "Clear all" at the end. The shop's circles / tiles / pills choice is for the phone and for Home; a row of big items looked lost on a wide page.
+function DeskCats({ chips, sel, toggle, clear }) {
+    const { primary, onPrimary, text, surface, border } = useBrand();
+    return (
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', paddingHorizontal: 16, paddingTop: 14, paddingBottom: 4 }}>
+            {chips.map((c) => {
+                const id = String(c._id);
+                const on = sel.includes(id);
+                return (
+                    <Pressable
+                        key={id}
+                        onPress={() => toggle(id)}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected: on }}
+                        style={({ hovered }) => ({
+                            flexDirection: 'row', alignItems: 'center', height: 46, paddingLeft: 6, paddingRight: 18, borderRadius: 23, borderWidth: 1.5, marginRight: 10, marginBottom: 10,
+                            borderColor: on || hovered ? primary : border, backgroundColor: on ? primary : hovered ? tint(primary) : surface, cursor: 'pointer',
+                            boxShadow: on ? `0 6px 16px ${primary}40` : hovered ? `0 4px 12px ${primary}26` : '0 0 0 rgba(0,0,0,0)', transform: [{ scale: hovered && !on ? 1.04 : 1 }],
+                            transitionProperty: 'background-color, border-color, box-shadow, transform', transitionDuration: '170ms',
+                        })}
+                    >
+                        <View style={{ width: 34, height: 34, borderRadius: 17, overflow: 'hidden', backgroundColor: tint(primary), alignItems: 'center', justifyContent: 'center' }}>
+                            {c.image ? <Image source={{ uri: c.image }} style={{ width: 34, height: 34 }} contentFit="cover" /> : <Text style={{ fontWeight: '900', color: primary, fontSize: 14 }}>{(c.name || '?')[0].toUpperCase()}</Text>}
+                        </View>
+                        <Text numberOfLines={1} style={{ color: on ? onPrimary : text, fontSize: 14.5, fontWeight: '800', marginLeft: 10 }}>{c.name}</Text>
+                        {on ? <Ionicons name="checkmark-circle" size={17} color={onPrimary} style={{ marginLeft: 8 }} /> : null}
+                    </Pressable>
+                );
+            })}
+            {sel.length ? (
+                <Pressable onPress={clear} accessibilityRole="button" style={({ hovered }) => ({ flexDirection: 'row', alignItems: 'center', height: 46, paddingHorizontal: 16, marginBottom: 10, borderRadius: 23, backgroundColor: hovered ? tint(primary) : 'transparent', cursor: 'pointer', transitionProperty: 'background-color', transitionDuration: '150ms' })}>
+                    <Ionicons name="close-circle" size={18} color={primary} />
+                    <Text style={{ color: primary, fontWeight: '900', fontSize: 14, marginLeft: 6 }}>{tr('Clear all')}</Text>
+                </Pressable>
+            ) : null}
+        </View>
+    );
+}
+
 // The category row. Drawn as circles (the original), photo tiles, or pills, as the shop's settings say.
 // loading: the menu has not arrived yet, so show the shape of the row instead of nothing.
 export function Cats({ loading = false }) {
     const { primary, onPrimary, background } = useBrand();
+    const desk = useIsDesktopWeb();   // the desktop website: the categories wrap over the width as pills, instead of one sideways row with a lot of empty space (false in the phone app)
     const style = useThemeStore((st) => st.theme.categoryStyle) || 'circles';
     const allChips = useHomeStore((st) => st.categories);
     const vegOnly = useFilterStore((st) => st.active.includes('veg_only'));
@@ -306,6 +348,7 @@ export function Cats({ loading = false }) {
     const w = useOn(any, 220);   // opacity / slide only: nothing in the row is ever pushed sideways
 
     if (!chips.length) return loading ? <SkelCats style={style} /> : null;
+    if (desk) return <DeskCats chips={chips} sel={sel} toggle={toggle} clear={clear} />;
 
     const clearW = style === 'circles' ? 84 : style === 'tiles' ? 70 : 52;
     const contentStyle = style === 'pills' ? s.catsPills : s.cats;
@@ -501,7 +544,7 @@ const s = StyleSheet.create({
     chipBadge: { minWidth: 17, height: 17, borderRadius: 9, paddingHorizontal: 4, marginLeft: 6, alignItems: 'center', justifyContent: 'center' },
     cBadgeTxt: { fontSize: 10, fontWeight: '800' },
     vBack: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center', padding: 24 },
-    vCard: { width: '100%', borderRadius: 24, padding: 24, alignItems: 'center' },
+    vCard: { width: '100%', maxWidth: 440, borderRadius: 24, padding: 24, alignItems: 'center' },   // (440: wider than any phone's popup, so a phone is unchanged; on the website it is no longer as wide as the window)
     vTitle: { fontSize: 18, fontWeight: '800' },
     vText: { fontSize: 17, fontWeight: '600', textAlign: 'center', marginTop: 12, minHeight: 50 },
     vMicWrap: { width: 120, height: 120, alignItems: 'center', justifyContent: 'center', marginTop: 12 },
