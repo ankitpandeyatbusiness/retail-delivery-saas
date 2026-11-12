@@ -211,7 +211,7 @@ export default function OwnerHomeScreen() {
 
     return (
         <View style={{ flex: 1 }}>
-        <OwnerScreen onRefresh={pull} refreshing={refreshing}>
+        <OwnerScreen onRefresh={pull} refreshing={refreshing} wide>
             <Frame desk={desk}>
             <PlanChip />
             {loadError && !d ? <Card tone={error}><Text style={{ color: error, fontWeight: '700' }}>{loadError}</Text></Card> : null}

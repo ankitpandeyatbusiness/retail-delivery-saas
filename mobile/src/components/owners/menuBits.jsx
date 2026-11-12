@@ -1,13 +1,13 @@
 // The menu screens' building blocks: form fields, the picture box, choice groups, quick sizes, category hours,
 // the "sold out for how long" sheet, and the item row. All of it wears the shop's brand through useBrand().
 import React, { useEffect, useRef, useState } from 'react';
-import { useIsDesktopWeb } from '../../utils/common/layout';
+import { useIsDesktopWeb, useOwnerDesktop } from '../../utils/common/layout';
 import { View, Text, Pressable, ScrollView, Switch, TextInput, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBrand, alpha } from '../common/kit';
-import { PageHeader, Card, Pill, Chips, Button, Field, Sheet, Row, money } from './ui';
+import { PageHeader, Card, Pill, Chips, Button, Field, Sheet, Row, money, EmbeddedCtx } from './ui';
 import { showToast, useSlideTick, seedOf } from '../customers/shop';
 import { pickImage, pickImages, uploadImage } from '../../utils/owners/upload';
 import UploadThumb from '../common/UploadThumb';
@@ -157,7 +157,9 @@ export function Group({ title, hint, children, flush, flash, flashText, onLayout
 // bare: no bar at the top and no gap: the first child is a picture header that has its own back button (the service pages)
 export function FormPage({ title, children, footer, right, scrollRef, fixed, bare, hideableFooter, footerKey, cols }) {
     const { background, border, muted } = useBrand();
-    const desk = useIsDesktopWeb() && !!cols;   // the desktop website, for a page that asked for two columns (false in the phone app)
+    const embedded = React.useContext(EmbeddedCtx);   // inside a side panel (the menu's item editor): keep it one column
+    const deskOwner = useOwnerDesktop() && !embedded;   // the owner on a computer: every form is a centred page, and a long one runs in two columns
+    const desk = useIsDesktopWeb() && (!!cols || deskOwner);   // the desktop website, for a page that asked for two columns (false in the phone app)
     const [down, setDown] = useState(false);   // hideableFooter: the bar is slid down to a thin strip
     useEffect(() => { setDown(false); }, [footerKey]);   // it comes back when what it shows changes (a dish was added)
     const insets = useSafeAreaInsets();
@@ -172,6 +174,7 @@ export function FormPage({ title, children, footer, right, scrollRef, fixed, bar
                     {desk ? (() => {
                         const kids = React.Children.toArray(children).filter(Boolean);
                         const mid = Math.ceil(kids.length / 2);
+                        if (deskOwner && !cols && kids.length < 5) return <View style={{ width: '100%', maxWidth: 760, alignSelf: 'center', paddingHorizontal: 24 }}>{kids}</View>;   // a short form: one centred column
                         return (
                             <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 24, width: '100%', maxWidth: 1180, alignSelf: 'center', paddingHorizontal: 24 }}>
                                 <View style={{ flex: 1, minWidth: 0 }}>{kids.slice(0, mid)}</View>

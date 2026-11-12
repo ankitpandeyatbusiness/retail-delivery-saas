@@ -377,16 +377,22 @@ export function AccessBanner() {
 
 /* ------------------------------ screen frame ------------------------------ */
 // Header + banner + pull to refresh, for the five tab screens.
-export function OwnerScreen({ title, children, onRefresh, refreshing, scroll = true, page = false }) {
+// wide: a page that lays itself out for a computer (Home, Transactions); every other scrolling page is held in a centred column there
+export function OwnerScreen({ title, children, onRefresh, refreshing, scroll = true, page = false, wide = false }) {
     const { background, primary } = useBrand();
+    const deskOwner = useOwnerDesktop();
     const body = scroll ? (
         <ScrollView
             contentContainerStyle={{ paddingBottom: 24 }}
             showsVerticalScrollIndicator={false}
             refreshControl={onRefresh ? <RefreshControl refreshing={!!refreshing} onRefresh={onRefresh} tintColor={primary} colors={[primary]} /> : undefined}
         >
-            <AccessBanner />
-            {children}
+            {deskOwner ? (
+                <View style={{ width: '100%', maxWidth: wide ? 1360 : 900, alignSelf: 'center' }}><AccessBanner />{children}</View>
+            ) : (<>
+                <AccessBanner />
+                {children}
+            </>)}
         </ScrollView>
     ) : (<><AccessBanner />{children}</>);
     return (

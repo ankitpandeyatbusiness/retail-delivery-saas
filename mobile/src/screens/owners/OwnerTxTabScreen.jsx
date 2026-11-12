@@ -124,7 +124,7 @@ export default function OwnerTxTabScreen() {
     const clearFilters = () => { setDirection(''); setHow(''); setCategory(''); };
 
     return (
-        <OwnerScreen title={tr('Transactions')} onRefresh={refresh} refreshing={refreshing}>
+        <OwnerScreen title={tr('Transactions')} onRefresh={refresh} refreshing={refreshing} wide>
             <View style={desk ? { width: '100%', maxWidth: 1280, alignSelf: 'center' } : undefined}>
             {/* one funnel button: the period and the other filters are in its popup, not in rows down the page */}
             <View style={{ paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
