@@ -36,4 +36,34 @@ const js = fs.readdirSync(path.join(out, '_expo', 'static', 'js', 'web')).filter
 const bundle = fs.readFileSync(path.join(out, '_expo', 'static', 'js', 'web', js.sort((a, b) => fs.statSync(path.join(out, '_expo', 'static', 'js', 'web', b)).size - fs.statSync(path.join(out, '_expo', 'static', 'js', 'web', a)).size)[0]), 'utf8');
 if (/localhost:5000/.test(bundle) && !api.includes('localhost')) fail('the build still points at localhost:5000');
 if (!bundle.includes(api)) fail('the built website does not contain the API address you gave (check WEB_API_URL)');
-console.log(`\nDone: ${out}\nNext: cd ../deploy/cloudflare && npx wrangler deploy   (docs/web-hosting.md)`);
+// The shop's own name, colour and icon for "Add to Home Screen" / "Install app" (the installed website takes them from the manifest, and iPhones from the
+// apple-touch-icon). On Cloudflare the Worker answers /manifest.webmanifest per shop; on a host without it (Netlify: ONE site = ONE shop, APP_TENANT) the
+// same answer is fetched from the API now, while building, and written into the site. If the API cannot be reached the generic one stays, with a warning.
+async function shopIdentity() {
+    const slug = String(process.env.APP_TENANT || ((envFile.match(/^APP_TENANT=(.+)$/m) || [])[1] || '')).trim().replace(/^["']|["']$/g, '').toLowerCase();
+    if (!slug || slug === 'default') { console.warn('Warning: APP_TENANT is not set to a shop: the installed website keeps the generic name and icon.'); return; }
+    try {
+        const res = await fetch(`${api}/tenants/manifest`, { headers: { 'x-tenant-slug': slug } });
+        if (!res.ok) throw new Error(`the API answered ${res.status}`);
+        const manifest = await res.json();
+        if (!manifest || !manifest.name || !Array.isArray(manifest.icons) || !manifest.icons.length) throw new Error('the answer has no name or icon');
+        fs.writeFileSync(path.join(out, 'manifest.webmanifest'), JSON.stringify(manifest, null, 2));
+        const icon = manifest.icons[0].src;
+        const file = path.join(out, 'index.html');
+        let html = fs.readFileSync(file, 'utf8');
+        const esc = (x) => String(x).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+        html = html
+            .replace(/(<link rel="icon" href=")[^"]*(")/, (m, a, b) => a + esc(icon) + b)
+            .replace(/(<link rel="apple-touch-icon" href=")[^"]*(")/, (m, a, b) => a + esc(icon) + b)
+            .replace(/(<meta name="theme-color" content=")[^"]*(")/, (m, a, b) => a + esc(manifest.theme_color || '#111111') + b);
+        if (!/apple-mobile-web-app-title/.test(html)) html = html.replace('</head>', () => '<meta name="apple-mobile-web-app-title" content="' + esc(manifest.short_name || manifest.name) + '" /></head>');
+        fs.writeFileSync(file, html);
+        console.log(`Installed-website identity for "${slug}": ${manifest.name}, icon ${icon}`);
+    } catch (e) {
+        console.warn(`Warning: could not get the shop's name and icon for "${slug}" (${e.message}): the installed website keeps the generic ones.`);
+    }
+}
+
+shopIdentity().then(() => {
+    console.log(`\nDone: ${out}\nNext: cd ../deploy/cloudflare && npx wrangler deploy   (docs/web-hosting.md), or push to Netlify (netlify.toml)`);
+});
