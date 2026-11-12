@@ -11,18 +11,18 @@ export const TwoCol = ({ desk, children }) => (desk ? <View style={{ flexDirecti
 export const Col = ({ desk, grow = 1, children }) => (desk ? <View style={{ flex: grow, minWidth: 0 }}>{children}</View> : <>{children}</>);
 
 // the banner at the top of a page: the shop's gradient, a round icon, a title and a line under it, buttons on the right, and anything under them
-export function Hero({ icon, lead, title, subtitle, right, children, style }) {
+export function Hero({ icon, lead, title, subtitle, right, children, style, compact }) {
     const { primary, primaryDark, onPrimary } = useBrand();
     return (
-        <LinearGradient colors={[primary, primaryDark || primary]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[{ marginHorizontal: 16, marginTop: 8, marginBottom: 14, borderRadius: 28, overflow: 'hidden', padding: 26 }, style]}>
+        <LinearGradient colors={[primary, primaryDark || primary]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[{ marginHorizontal: 16, marginTop: 8, marginBottom: compact ? 10 : 14, borderRadius: compact ? 22 : 28, overflow: 'hidden', padding: compact ? 16 : 26 }, style]}>
             <View pointerEvents="none" style={{ position: 'absolute', right: -50, top: -70, width: 260, height: 260, borderRadius: 130, backgroundColor: 'rgba(255,255,255,0.1)' }} />
             <View pointerEvents="none" style={{ position: 'absolute', right: 240, bottom: -100, width: 200, height: 200, borderRadius: 100, backgroundColor: 'rgba(255,255,255,0.07)' }} />
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 {lead || null}
-                {!lead && icon ? <View style={{ width: 58, height: 58, borderRadius: 29, backgroundColor: 'rgba(255,255,255,0.22)', alignItems: 'center', justifyContent: 'center', marginRight: 16 }}><Ionicons name={icon} size={29} color={onPrimary} /></View> : null}
+                {!lead && icon ? <View style={{ width: compact ? 42 : 58, height: compact ? 42 : 58, borderRadius: compact ? 21 : 29, backgroundColor: 'rgba(255,255,255,0.22)', alignItems: 'center', justifyContent: 'center', marginRight: compact ? 12 : 16 }}><Ionicons name={icon} size={compact ? 21 : 29} color={onPrimary} /></View> : null}
                 <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={{ color: onPrimary, fontSize: 28, fontWeight: '900', letterSpacing: -0.6 }} numberOfLines={1}>{title}</Text>
-                    {subtitle ? <Text style={{ color: onPrimary, opacity: 0.85, fontSize: 14.5, marginTop: 3 }} numberOfLines={2}>{subtitle}</Text> : null}
+                    <Text style={{ color: onPrimary, fontSize: compact ? 21 : 28, fontWeight: '900', letterSpacing: -0.6 }} numberOfLines={1}>{title}</Text>
+                    {subtitle ? <Text style={{ color: onPrimary, opacity: 0.85, fontSize: compact ? 13 : 14.5, marginTop: compact ? 1 : 3 }} numberOfLines={compact ? 1 : 2}>{subtitle}</Text> : null}
                 </View>
                 {right ? <View style={{ flexDirection: 'row', alignItems: 'center' }}>{right}</View> : null}
             </View>
@@ -32,10 +32,10 @@ export function Hero({ icon, lead, title, subtitle, right, children, style }) {
 }
 
 // a pill button for the banner
-export function HeroBtn({ label, icon, onPress, solid }) {
+export function HeroBtn({ label, icon, onPress, solid, compact }) {
     const { primary, onPrimary } = useBrand();
     return (
-        <Pressable onPress={onPress} accessibilityRole="button" style={({ hovered }) => ({ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, height: 44, borderRadius: 22, marginLeft: 10, backgroundColor: solid ? (hovered ? '#F3F3F3' : '#FFFFFF') : (hovered ? 'rgba(255,255,255,0.34)' : 'rgba(255,255,255,0.2)'), cursor: 'pointer', transitionProperty: 'background-color', transitionDuration: '140ms' })}>
+        <Pressable onPress={onPress} accessibilityRole="button" style={({ hovered }) => ({ flexDirection: 'row', alignItems: 'center', paddingHorizontal: compact ? 13 : 16, height: compact ? 38 : 44, borderRadius: compact ? 19 : 22, marginLeft: 8, backgroundColor: solid ? (hovered ? '#F3F3F3' : '#FFFFFF') : (hovered ? 'rgba(255,255,255,0.34)' : 'rgba(255,255,255,0.2)'), cursor: 'pointer', transitionProperty: 'background-color', transitionDuration: '140ms' })}>
             {icon ? <Ionicons name={icon} size={18} color={solid ? primary : onPrimary} /> : null}
             <Text style={{ color: solid ? primary : onPrimary, fontWeight: '800', fontSize: 14, marginLeft: icon ? 8 : 0 }}>{label}</Text>
         </Pressable>
@@ -43,14 +43,14 @@ export function HeroBtn({ label, icon, onPress, solid }) {
 }
 
 // a frosted number inside the banner
-export function GlassStat({ label, value, icon }) {
+export function GlassStat({ label, value, icon, compact }) {
     const { onPrimary } = useBrand();
     return (
-        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', marginRight: 12, paddingHorizontal: 16, height: 70, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.18)' }}>
-            {icon ? <Ionicons name={icon} size={24} color={onPrimary} style={{ marginRight: 12, opacity: 0.9 }} /> : null}
+        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', marginRight: compact ? 10 : 12, paddingHorizontal: compact ? 12 : 16, height: compact ? 48 : 70, borderRadius: compact ? 14 : 18, backgroundColor: 'rgba(255,255,255,0.18)' }}>
+            {icon ? <Ionicons name={icon} size={compact ? 19 : 24} color={onPrimary} style={{ marginRight: compact ? 9 : 12, opacity: 0.9 }} /> : null}
             <View style={{ minWidth: 0 }}>
-                <Text style={{ color: onPrimary, opacity: 0.85, fontSize: 12, fontWeight: '800' }} numberOfLines={1}>{label}</Text>
-                <Text style={{ color: onPrimary, fontSize: 24, fontWeight: '900', letterSpacing: -0.4 }} numberOfLines={1}>{value}</Text>
+                <Text style={{ color: onPrimary, opacity: 0.85, fontSize: compact ? 11 : 12, fontWeight: '800' }} numberOfLines={1}>{label}</Text>
+                <Text style={{ color: onPrimary, fontSize: compact ? 18 : 24, fontWeight: '900', letterSpacing: -0.4 }} numberOfLines={1}>{value}</Text>
             </View>
         </View>
     );

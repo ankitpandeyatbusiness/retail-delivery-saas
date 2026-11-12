@@ -515,7 +515,7 @@ function DeskSheet({ visible, onClose, title, children }) {
                             <Ionicons name="close" size={19} color={text} />
                         </Pressable>
                     </View>
-                    <ScrollView style={{ flexShrink: 1 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>{children}</ScrollView>
+                    <ScrollView style={{ flexShrink: 1 }} contentContainerStyle={{ paddingHorizontal: 12 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>{children}</ScrollView>
                 </View>
             </View>
         </SheetPortal>
@@ -575,6 +575,7 @@ export function Sheet({ visible, onClose, title, children, noPull }) {
 // a text box: for a reason the owner types himself
 export function Field({ value, onChangeText, placeholder, multiline, maxLength = 200, autoFocus, style, keyboardType, returnKeyType, onSubmitEditing }) {
     const { text, muted, border, surface } = useBrand();
+    const inPanel = React.useContext(EmbeddedCtx);   // inside the Menu page's side panel the boxes are soft and filled, without a hard outline
     return (
         <TextInput
             value={value}
@@ -590,7 +591,7 @@ export function Field({ value, onChangeText, placeholder, multiline, maxLength =
             style={[{
                 borderWidth: 1, borderColor: border, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11, color: text, fontSize: 15,
                 backgroundColor: surface, minHeight: multiline ? 84 : 46, textAlignVertical: multiline ? 'top' : 'center',
-            }, style]}
+            }, inPanel ? { borderWidth: 0, borderRadius: 14, backgroundColor: alpha(muted, 0.1) } : null, style]}
         />
     );
 }

@@ -89,7 +89,7 @@ function SecHead({ title, sub, onSee, icon }) {
                     {({ hovered }) => (
                         <>
                             <Text style={{ color: hovered ? onPrimary : primary, fontWeight: '800', fontSize: 14, transitionProperty: 'color', transitionDuration: '170ms' }}>{tr('See all')}</Text>
-                            <Ionicons name="chevron-forward" size={16} color={hovered ? onPrimary : primary} style={{ marginLeft: 2, transform: [{ translateX: hovered ? 3 : 0 }], transitionProperty: 'transform', transitionDuration: '170ms' }} />
+                            <Ionicons name="chevron-forward" size={16} color={hovered ? onPrimary : primary} style={{ marginLeft: 2, transform: [{ translateX: hovered ? 3 : 0 }], transitionProperty: 'filter, transform', transitionDuration: '170ms' }} />
                         </>
                     )}
                 </Pressable>
@@ -200,7 +200,7 @@ function Hero({ list, onOrder }) {
                     {b.subtitle ? <Text numberOfLines={2} style={{ color: fg, opacity: 0.9, fontSize: 15, lineHeight: 21, marginTop: 8 }}>{b.subtitle}</Text> : null}
                     <Pressable
                         onPress={() => onOrder(b)}
-                        style={({ hovered }) => ({ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', height: 40, paddingHorizontal: 20, borderRadius: 20, marginTop: 18, backgroundColor: fg, transform: [{ scale: hovered ? 1.05 : 1 }], cursor: 'pointer' })}
+                        style={({ hovered }) => ({ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', height: 40, paddingHorizontal: 20, borderRadius: 20, marginTop: 18, backgroundColor: fg, filter: hovered ? 'brightness(1.08)' : 'none', cursor: 'pointer' })}
                     >
                         <Text style={{ color: onColor(fg), fontSize: 14, fontWeight: '900' }}>{tr('Order now')}</Text>
                         <Ionicons name="arrow-forward" size={15} color={onColor(fg)} style={{ marginLeft: 7 }} />
@@ -228,7 +228,7 @@ function VisitBar() {
     if (!spot.on || (!spot.address && !spot.pinned)) return null;
     const go = spot.pinned ? () => openDirections(spot) : undefined;
     const addr = spot.address || tr('On the map');
-    const T = { transitionProperty: 'background-color, border-color, box-shadow, transform, opacity', transitionDuration: '180ms' };
+    const T = { transitionProperty: 'background-color, border-color, box-shadow, filter, transform, opacity', transitionDuration: '180ms' };
 
     // chip: one small pill
     if (variant === 'chip') {
@@ -283,7 +283,7 @@ function VisitBar() {
                 <Ionicons name="location-sharp" size={22} color={onPrimary} />
                 <Text numberOfLines={2} style={{ flex: 1, color: onPrimary, fontSize: 15.5, fontWeight: '800', marginLeft: 12 }}>{addr}</Text>
                 {go ? (
-                    <Pressable onPress={go} accessibilityRole="button" style={({ hovered }) => ({ flexDirection: 'row', alignItems: 'center', height: 38, paddingHorizontal: 18, borderRadius: 19, backgroundColor: onPrimary, transform: [{ scale: hovered ? 1.05 : 1 }], cursor: 'pointer', ...T })}>
+                    <Pressable onPress={go} accessibilityRole="button" style={({ hovered }) => ({ flexDirection: 'row', alignItems: 'center', height: 38, paddingHorizontal: 18, borderRadius: 19, backgroundColor: onPrimary, filter: hovered ? 'brightness(1.08)' : 'none', cursor: 'pointer', ...T })}>
                         <Ionicons name="navigate" size={15} color={primary} />
                         <Text style={{ color: primary, fontSize: 13.5, fontWeight: '900', marginLeft: 6 }}>{tr('Get directions')}</Text>
                     </Pressable>
@@ -307,7 +307,7 @@ function VisitBar() {
                     onPress={go}
                     accessibilityRole="button"
                     accessibilityLabel={tr('Get directions')}
-                    style={({ hovered }) => ({ width: 40, height: 40, borderRadius: 20, backgroundColor: primary, alignItems: 'center', justifyContent: 'center', transform: [{ scale: hovered ? 1.08 : 1 }], cursor: 'pointer' })}
+                    style={({ hovered }) => ({ width: 40, height: 40, borderRadius: 20, backgroundColor: primary, alignItems: 'center', justifyContent: 'center', filter: hovered ? 'brightness(1.08)' : 'none', cursor: 'pointer' })}
                 >
                     <Ionicons name="navigate" size={18} color={onPrimary} />
                 </Pressable>
@@ -334,8 +334,8 @@ function CatTile({ c, on, onPress, w, h }) {
                     <View
                         pointerEvents="none"
                         style={[StyleSheet.absoluteFill, {
-                            transform: [{ scale: hovered ? 1.09 : 1 }], filter: hovered ? 'brightness(1.12)' : 'brightness(1)',
-                            transitionProperty: 'transform, filter', transitionDuration: '380ms', transitionTimingFunction: 'cubic-bezier(0.22, 0.7, 0.2, 1)',
+                            filter: hovered ? 'brightness(1.08)' : 'none', filter: hovered ? 'brightness(1.12)' : 'brightness(1)',
+                            transitionProperty: 'filter, transform, filter', transitionDuration: '380ms', transitionTimingFunction: 'cubic-bezier(0.22, 0.7, 0.2, 1)',
                         }]}
                     >
                         {c.image ? <Image source={{ uri: c.image }} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} /> : (
@@ -370,7 +370,7 @@ function CatCircle({ c, on, onPress, size }) {
                     <View
                         style={{
                             width: size, height: size, borderRadius: size / 2, overflow: 'hidden', backgroundColor: '#111111', borderWidth: 3, borderColor: on || hovered ? primary : 'transparent',
-                            boxShadow: hovered ? `0 8px 20px ${primary}40` : '0 0 0 rgba(0,0,0,0)', transform: [{ scale: hovered ? 1.06 : 1 }], transitionProperty: 'transform, border-color, box-shadow', transitionDuration: '200ms',
+                            boxShadow: hovered ? `0 8px 20px ${primary}40` : '0 0 0 rgba(0,0,0,0)', filter: hovered ? 'brightness(1.08)' : 'none', transitionProperty: 'filter, transform, border-color, box-shadow', transitionDuration: '200ms',
                         }}
                     >
                         {c.image ? <Image source={{ uri: c.image }} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} /> : (
@@ -399,8 +399,8 @@ function CatPill({ c, on, onPress, h }) {
             style={({ hovered }) => ({
                 flexDirection: 'row', alignItems: 'center', height: h, paddingLeft: 6, paddingRight: 20, borderRadius: h / 2, borderWidth: 1.5, flexShrink: 0,
                 borderColor: on || hovered ? primary : border, backgroundColor: on ? primary : hovered ? tint(primary) : surface,
-                boxShadow: on ? `0 6px 16px ${primary}40` : hovered ? `0 4px 12px ${primary}26` : '0 0 0 rgba(0,0,0,0)', transform: [{ scale: hovered && !on ? 1.04 : 1 }],
-                cursor: 'pointer', transitionProperty: 'background-color, border-color, box-shadow, transform', transitionDuration: '180ms',
+                boxShadow: on ? `0 6px 16px ${primary}40` : hovered ? `0 4px 12px ${primary}26` : '0 0 0 rgba(0,0,0,0)', filter: hovered && !on ? 'brightness(1.08)' : 'none',
+                cursor: 'pointer', transitionProperty: 'background-color, border-color, box-shadow, filter, transform', transitionDuration: '180ms',
             })}
         >
             <View style={{ width: ph, height: ph, borderRadius: ph / 2, overflow: 'hidden', backgroundColor: '#111111', alignItems: 'center', justifyContent: 'center' }}>
@@ -467,7 +467,7 @@ function CategoryGrid({ chips, width, onPick }) {
             style={({ hovered }) => ({
                 position: 'absolute', top: '50%', marginTop: -20, [dir < 0 ? 'left' : 'right']: -6, width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', zIndex: 5,
                 backgroundColor: hovered ? primary : surface, borderWidth: 1, borderColor: hovered ? primary : border, boxShadow: '0 6px 18px rgba(0,0,0,0.22)', cursor: 'pointer',
-                transform: [{ scale: hovered ? 1.08 : 1 }], transitionProperty: 'background-color, border-color, transform', transitionDuration: '160ms',
+                filter: hovered ? 'brightness(1.08)' : 'none', transitionProperty: 'background-color, border-color, filter, transform', transitionDuration: '160ms',
             })}
         >
             {({ hovered }) => <Ionicons name={dir < 0 ? 'chevron-back' : 'chevron-forward'} size={20} color={hovered ? '#FFFFFF' : text} />}

@@ -850,7 +850,7 @@ function DeskGroup({ g, chosen, onPick, base = 0, step }) {
                         onPress={() => onPick(g, o)}
                         disabled={off}
                         style={({ hovered }) => ({
-                            flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 18, borderTopWidth: i === 0 ? 0 : 1, borderTopColor: border,
+                            flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 10, marginHorizontal: 8, borderRadius: 14, borderTopWidth: i === 0 ? 0 : 1, borderTopColor: hovered ? 'transparent' : border,
                             backgroundColor: on ? tint(primary) : hovered && !off ? `${primary}10` : 'transparent', opacity: off ? 0.4 : 1, cursor: off ? 'default' : 'pointer',
                             boxShadow: on ? `inset 4px 0 0 ${primary}` : hovered && !off ? `inset 0 0 0 1px ${primary}55` : 'inset 0 0 0 0 transparent', ...HOVER_T,
                         })}

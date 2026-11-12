@@ -168,7 +168,7 @@ export function VegSwitch({ on, onPress }) {
                     <View pointerEvents="none" style={[s.vFill, { opacity: shown ? 1 : 0 }, T]} />
                     <View pointerEvents="none" style={[s.vLeaf, { left: 42, opacity: shown ? 0 : 1 }, T]}><Ionicons name="leaf" size={16} color={muted} /></View>
                     <View pointerEvents="none" style={[s.vLeaf, { left: 13, opacity: shown ? 1 : 0 }, T]}><Ionicons name="leaf" size={16} color="#FFFFFF" /></View>
-                    <View style={[s.vKnob, { transform: [{ translateX: shown ? 38 : 0 }], transitionProperty: 'transform', transitionDuration: '260ms', transitionTimingFunction: 'cubic-bezier(0.4, 0, 0.2, 1)' }]}>
+                    <View style={[s.vKnob, { transform: [{ translateX: shown ? 38 : 0 }], transitionProperty: 'filter, transform', transitionDuration: '260ms', transitionTimingFunction: 'cubic-bezier(0.4, 0, 0.2, 1)' }]}>
                         <View style={[s.vMark, { borderColor: '#8A8F98' }]}><View style={[s.vMarkDot, { backgroundColor: '#8A8F98' }]} /></View>
                         <View style={[StyleSheet.absoluteFill, s.vMarkOn, { opacity: shown ? 1 : 0 }, T]}>
                             <View style={[s.vMark, { borderColor: '#0F8A3C' }]}><View style={[s.vMarkDot, { backgroundColor: '#0F8A3C' }]} /></View>
@@ -305,8 +305,8 @@ function DeskCats({ chips, sel, toggle, clear }) {
                         style={({ hovered }) => ({
                             flexDirection: 'row', alignItems: 'center', height: 46, paddingLeft: 6, paddingRight: 18, borderRadius: 23, borderWidth: 1.5, marginRight: 10, marginBottom: 10,
                             borderColor: on || hovered ? primary : border, backgroundColor: on ? primary : hovered ? tint(primary) : surface, cursor: 'pointer',
-                            boxShadow: on ? `0 6px 16px ${primary}40` : hovered ? `0 4px 12px ${primary}26` : '0 0 0 rgba(0,0,0,0)', transform: [{ scale: hovered && !on ? 1.04 : 1 }],
-                            transitionProperty: 'background-color, border-color, box-shadow, transform', transitionDuration: '170ms',
+                            boxShadow: on ? `0 6px 16px ${primary}40` : hovered ? `0 4px 12px ${primary}26` : '0 0 0 rgba(0,0,0,0)', filter: hovered && !on ? 'brightness(1.08)' : 'none',
+                            transitionProperty: 'background-color, border-color, box-shadow, filter, transform', transitionDuration: '170ms',
                         })}
                     >
                         <View style={{ width: 34, height: 34, borderRadius: 17, overflow: 'hidden', backgroundColor: tint(primary), alignItems: 'center', justifyContent: 'center' }}>

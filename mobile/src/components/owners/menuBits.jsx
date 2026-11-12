@@ -144,6 +144,7 @@ export function ChoiceBox({ label, hint, error, options, value, onChange, last }
 export function Group({ title, hint, children, flush, flash, flashText, onLayout, icon }) {
     const { text, muted, error, primary } = useBrand();
     const deskOwner = useOwnerDesktop();   // the owner on a computer: an icon beside the title and a rounder, roomier card
+    const inPanel = React.useContext(EmbeddedCtx);   // inside the Menu page's side panel: a soft raised card, no hard outline
     return (
         <View style={{ marginBottom: 4 }} onLayout={onLayout}>
             {deskOwner && icon ? (
@@ -156,7 +157,7 @@ export function Group({ title, hint, children, flush, flash, flashText, onLayout
             )}
             {flash ? <Text style={{ color: error, fontSize: 12.5, fontWeight: '800', paddingHorizontal: 16, marginBottom: 10 }}>{flashText || title}</Text> : null}
             {hint ? <Text style={{ color: muted, fontSize: 12, paddingHorizontal: 16, marginBottom: 10 }}>{hint}</Text> : null}
-            <Card style={[flush ? { paddingVertical: 2 } : null, flash ? { borderWidth: 2, borderColor: error } : null, deskOwner ? { borderRadius: 22, padding: flush ? 8 : 20 } : null]}>{children}</Card>
+            <Card style={[flush ? { paddingVertical: 2 } : null, flash ? { borderWidth: 2, borderColor: error } : null, deskOwner ? { borderRadius: 22, padding: flush ? 8 : 20 } : null, inPanel ? { borderWidth: 0, boxShadow: '0 2px 18px rgba(0,0,0,0.08)' } : null]}>{children}</Card>
         </View>
     );
 }

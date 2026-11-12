@@ -103,7 +103,7 @@ function DeskTableModal({ visible, onClose, nav }) {
                         width: '100%', maxWidth: 560, borderRadius: 24, borderWidth: 1, borderColor: border, backgroundColor: surface, padding: 28,
                         boxShadow: '0 30px 80px rgba(0,0,0,0.6)',
                         opacity: on ? 1 : 0, transform: [{ scale: on ? 1 : 0.95 }, { translateY: on ? 0 : 14 }],
-                        transitionProperty: 'opacity, transform', transitionDuration: '260ms', transitionTimingFunction: ease,
+                        transitionProperty: 'opacity, filter, transform', transitionDuration: '260ms', transitionTimingFunction: ease,
                     }}
                 >
                     <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 22 }}>
@@ -162,8 +162,8 @@ function DeskTableModal({ visible, onClose, nav }) {
                                                 width: 68, height: 56, borderRadius: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, cursor: 'pointer',
                                                 borderColor: sel ? primary : hovered ? primary : border,
                                                 backgroundColor: sel ? primary : hovered ? `${primary}1F` : background,
-                                                transform: [{ scale: hovered && !sel ? 1.05 : 1 }],
-                                                transitionProperty: 'background-color, border-color, transform', transitionDuration: '160ms',
+                                                filter: hovered && !sel ? 'brightness(1.08)' : 'none',
+                                                transitionProperty: 'background-color, border-color, filter, transform', transitionDuration: '160ms',
                                             })}
                                         >
                                             <Text style={{ color: sel ? onPrimary : text, fontWeight: '900', fontSize: 18 }}>{n}</Text>

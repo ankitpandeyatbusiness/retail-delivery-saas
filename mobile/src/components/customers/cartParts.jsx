@@ -69,8 +69,8 @@ export function Chip({ label, on, onPress, icon }) {
                     borderColor: on || hovered ? primary : border,
                     backgroundColor: on ? primary : hovered ? tint(primary) : surface,
                     boxShadow: on ? `0 8px 20px ${primary}45` : hovered ? `inset 0 0 0 1px ${primary}55, 0 4px 14px ${primary}22` : '0 0 0 rgba(0,0,0,0)',
-                    transform: [{ scale: hovered && !on ? 1.05 : 1 }], cursor: 'pointer',
-                    transitionProperty: 'background-color, border-color, box-shadow, transform', transitionDuration: '180ms',
+                    filter: hovered && !on ? 'brightness(1.08)' : 'none', cursor: 'pointer',
+                    transitionProperty: 'background-color, border-color, box-shadow, filter, transform', transitionDuration: '180ms',
                 })}
             >
                 {ic ? <Ionicons name={ic} size={17} color={on ? onPrimary : primary} style={{ marginRight: 8 }} /> : null}

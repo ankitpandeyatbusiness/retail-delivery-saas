@@ -135,8 +135,8 @@ function Item({ icon, label, sub, onPress, danger, last, badge }) {
                 onPress={onPress}
                 accessibilityRole="button"
                 style={({ hovered }) => ({
-                    flexDirection: 'row', alignItems: 'center', paddingHorizontal: 22, paddingVertical: 16, cursor: 'pointer',
-                    borderBottomWidth: last ? 0 : 1, borderBottomColor: border, backgroundColor: hovered ? tint(c) : 'transparent',
+                    flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, marginHorizontal: 8, borderRadius: 14, paddingVertical: 16, cursor: 'pointer',
+                    borderBottomWidth: last ? 0 : 1, borderBottomColor: hovered ? 'transparent' : border, backgroundColor: hovered ? tint(c) : 'transparent',
                     boxShadow: hovered ? `inset 4px 0 0 ${c}` : 'inset 0 0 0 transparent', transitionProperty: 'background-color, border-color, box-shadow, transform, opacity', transitionDuration: '200ms',
                 })}
             >
@@ -290,7 +290,7 @@ function LanguageRow() {
     const cur = LANGS.find((l) => l.code === lang);
     return (
         <>
-            <Pressable onPress={() => setOpen(true)} style={({ hovered }) => [s.row, { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: border }, desk && { paddingHorizontal: 22, paddingVertical: 16, borderBottomWidth: 1, cursor: 'pointer', backgroundColor: hovered ? tint(primary) : 'transparent', boxShadow: hovered ? `inset 4px 0 0 ${primary}` : 'inset 0 0 0 transparent', transitionProperty: 'background-color, border-color, box-shadow, transform, opacity', transitionDuration: '200ms' }]}>
+            <Pressable onPress={() => setOpen(true)} style={({ hovered }) => [s.row, { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: border }, desk && { paddingHorizontal: 14, marginHorizontal: 8, borderRadius: 14, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: hovered ? 'transparent' : border, cursor: 'pointer', backgroundColor: hovered ? tint(primary) : 'transparent', boxShadow: hovered ? `inset 4px 0 0 ${primary}` : 'inset 0 0 0 transparent', transitionProperty: 'background-color, border-color, box-shadow, transform, opacity', transitionDuration: '200ms' }]}>
                 <View style={[s.rowIc, { backgroundColor: tint(primary) }, desk && DESK_IC]}><Ionicons name="language-outline" size={desk ? 20 : 18} color={primary} /></View>
                 <View style={{ flex: 1 }}>
                     <Text style={[s.rowTxt, { color: text }, desk && { fontSize: 15.5, fontWeight: '800' }]}>{tr('Language')}</Text>

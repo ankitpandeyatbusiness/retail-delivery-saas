@@ -525,7 +525,7 @@ function ItemCardBase({ item, variant }) {
         return (
             <Pressable
                 onPress={open}
-                style={({ pressed, hovered }) => [card, { borderRadius: 16, borderWidth: 1, cursor: 'pointer', transform: [{ scale: pressed ? 0.985 : hovered ? 1.015 : 1 }], transitionProperty: 'transform', transitionDuration: '160ms' }, dim && s.dim]}
+                style={({ pressed, hovered }) => [card, { borderRadius: 16, borderWidth: 1, cursor: 'pointer', transform: [{ scale: pressed ? 0.985 : 1 }], ...(hovered ? { borderColor: primary } : null), boxShadow: hovered ? `0 0 0 3px ${primary}33` : '0 0 0 0 transparent', transitionProperty: 'transform, box-shadow, border-color', transitionDuration: '160ms' }, dim && s.dim]}
             >
                 <CardGlow radius={16} />
                 <View style={{ aspectRatio: 4 / 3, borderTopLeftRadius: 15, borderTopRightRadius: 15, overflow: 'hidden' }}>
@@ -564,8 +564,8 @@ function ItemCardBase({ item, variant }) {
             <Pressable
                 onPress={open}
                 style={({ pressed, hovered }) => [card, {
-                    borderRadius: 20, borderWidth: 1, cursor: 'pointer', transform: [{ scale: pressed ? 0.985 : hovered ? 1.012 : 1 }],
-                    boxShadow: hovered ? `0 16px 36px ${primary}2A` : '0 0 0 rgba(0,0,0,0)', transitionProperty: 'transform, box-shadow', transitionDuration: '190ms',
+                    borderRadius: 20, borderWidth: 1, cursor: 'pointer', transform: [{ scale: pressed ? 0.985 : 1 }],
+                    ...(hovered ? { borderColor: primary } : null), boxShadow: hovered ? `0 0 0 3px ${primary}33` : '0 0 0 0 transparent', transitionProperty: 'transform, box-shadow, border-color', transitionDuration: '190ms',
                 }, dim && s.dim]}
             >
                 <CardGlow radius={20} />
@@ -602,8 +602,8 @@ function ItemCardBase({ item, variant }) {
             <Pressable
                 onPress={open}
                 style={({ pressed, hovered }) => [card, {
-                    flexDirection: 'row', height: 146, padding: 14, borderRadius: 18, borderWidth: 1, cursor: 'pointer', transform: [{ scale: pressed ? 0.985 : hovered ? 1.012 : 1 }],
-                    boxShadow: hovered ? `0 12px 28px ${primary}26` : '0 0 0 rgba(0,0,0,0)', transitionProperty: 'transform, box-shadow', transitionDuration: '190ms',
+                    flexDirection: 'row', height: 146, padding: 14, borderRadius: 18, borderWidth: 1, cursor: 'pointer', transform: [{ scale: pressed ? 0.985 : 1 }],
+                    ...(hovered ? { borderColor: primary } : null), boxShadow: hovered ? `0 0 0 3px ${primary}33` : '0 0 0 0 transparent', transitionProperty: 'transform, box-shadow, border-color', transitionDuration: '190ms',
                 }, dim && s.dim]}
             >
                 <CardGlow radius={18} />

@@ -1,15 +1,18 @@
 // Menu tab: the whole menu at a glance. Category chips, search, "sold out" filter, and every item with its in-stock switch.
 // Switching an item off asks for how long (today / 1 hour / 2 hours / until I switch it on), so a sold-out dish comes back
 // by itself. Tap an item to edit it; the + button adds one.
-import React, { useCallback, useMemo, useState } from 'react';
-import { View, Text, FlatList, Pressable, ScrollView, RefreshControl } from 'react-native';
-import { useNavigation, NavigationContext, RouteContext } from '@react-navigation/native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { View, Text, FlatList, Pressable, ScrollView, RefreshControl, Animated, Easing } from 'react-native';
+import { Image } from 'expo-image';
+import { useNavigation, NavigationContext, NavigationRouteContext } from '@react-navigation/native';
 import { useFocusEffect } from '../../hooks/common/useLiveFocus';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand, alpha } from '../../components/common/kit';
 import { OwnerScreen, Empty, Field, Card, Pill, Button, EmbeddedCtx } from '../../components/owners/ui';
 import OwnerItemScreen from './OwnerItemScreen';
 import { useOwnerDesktop } from '../../utils/common/layout';
+import { Hero, HeroBtn, GlassStat } from '../../components/owners/RiderDesk';
+import MenuCard from '../../components/owners/MenuCard';
 import { ItemRow, SoldOutSheet } from '../../components/owners/menuBits';
 import { useMenuStore } from '../../store/owners/useMenuStore';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
@@ -34,7 +37,7 @@ function Chip({ label, count, on, onPress, tone }) {
 
 export default function OwnerMenuScreen() {
     const nav = useNavigation();
-    const { primary, onPrimary, muted, text, border, surface } = useBrand();
+    const { primary, onPrimary, muted, text, border, surface, background } = useBrand();
     const m = useMenuStore();
     const access = useOwnerStore((st) => st.access);
     const [cat, setCat] = useState('all');            // 'all' or a category id
@@ -42,7 +45,14 @@ export default function OwnerMenuScreen() {
     const [q, setQ] = useState('');
     const [asking, setAsking] = useState(null);       // the item being switched off
     const desk = useOwnerDesktop();
+    const pw = useRef(new Animated.Value(0)).current;   // the width of the edit panel: it slides open from the right and slides shut again
     const [panel, setPanel] = useState(null);           // desktop: the item being edited beside the list: { id } or { categoryId } for a new one
+    const [open, setOpen] = useState(false);   // the panel's width: it is set a moment after the panel mounts, and the browser animates the change (a CSS transition, no JavaScript per frame)
+    useEffect(() => {
+        if (!panel) return undefined;
+        const t = setTimeout(() => setOpen(true), 30);
+        return () => clearTimeout(t);
+    }, [!!panel]);   // eslint-disable-line react-hooks/exhaustive-deps
 
     useFocusEffect(useCallback(() => { useMenuStore.getState().load({ quiet: true }); }, []));
 
@@ -171,69 +181,87 @@ export default function OwnerMenuScreen() {
             if (r.type === 'head') sections.push({ key: r.key, cat: r.cat, count: r.count, items: [] });
             else if (r.type === 'item' && sections.length) sections[sections.length - 1].items.push(r.item);
         });
-        const closePanel = () => setPanel(null);
+        const closePanel = () => { setOpen(false); setTimeout(() => setPanel(null), 330); };
+        const editing = panel && panel.id ? m.products.find((p) => String(p._id) === String(panel.id)) : null;
         const fakeNav = { ...nav, goBack: closePanel, canGoBack: () => true };
-        const colW = panel ? '50%' : '33.333%';
+        const bestCount = m.products.filter((p) => p.isBestseller).length;
         return (
             <OwnerScreen title={tr('Menu')} scroll={false}>
                 <View style={{ flex: 1, flexDirection: 'row' }}>
-                    <View style={{ flex: 1, minWidth: 0 }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, paddingBottom: 12 }}>
-                            <View style={{ width: 300 }}><Field value={q} onChangeText={setQ} placeholder={tr('Find an item')} maxLength={40} style={{ minHeight: 42 }} /></View>
+                    <ScrollView style={{ flex: 1, minWidth: 0 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+                        <Hero compact icon="restaurant" title={tr('Your menu')} subtitle={tr('Click a dish to edit it, or flip its switch when it runs out.')}
+                            right={<>
+                                <HeroBtn compact label={tr('Categories')} icon="list-outline" onPress={() => nav.navigate('OwnerCategories')} />
+                                <HeroBtn compact label={tr('Collections')} icon="albums-outline" onPress={() => nav.navigate('OwnerCollections')} />
+                                {!locked && !m.error ? <HeroBtn compact label={tr('Add item')} icon="add-circle" solid onPress={() => setPanel({ categoryId: cat !== 'all' ? cat : undefined, n: Date.now() })} /> : null}
+                            </>}>
+                            <View style={{ flexDirection: 'row', marginTop: 12 }}>
+                                <GlassStat compact label={tr('Dishes')} value={String(m.products.length)} icon="restaurant-outline" />
+                                <GlassStat compact label={tr('Categories')} value={String(m.categories.length)} icon="grid-outline" />
+                                <GlassStat compact label={tr('Sold out')} value={String(soldCount)} icon="ban-outline" />
+                                <GlassStat compact label={tr('Bestsellers')} value={String(bestCount)} icon="star-outline" />
+                            </View>
+                        </Hero>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, paddingBottom: 6 }}>
+                            <View style={{ width: 300 }}><Field value={q} onChangeText={setQ} placeholder={tr('Find an item')} maxLength={40} style={{ minHeight: 44, borderRadius: 22, paddingHorizontal: 18 }} /></View>
                             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1, marginLeft: 14 }}>
-                                <Chip label={tr('All')} on={cat === 'all' && !soldOut} onPress={() => { setCat('all'); setSoldOut(false); }} />
+                                <Chip label={tr('All')} count={m.products.length} on={cat === 'all' && !soldOut} onPress={() => { setCat('all'); setSoldOut(false); }} />
                                 <Chip label={tr('Sold out')} count={soldCount} tone="bad" on={soldOut} onPress={() => setSoldOut(!soldOut)} />
                                 {m.categories.map((c) => <Chip key={c._id} label={c.name} on={cat === String(c._id)} onPress={() => setCat(cat === String(c._id) ? 'all' : String(c._id))} />)}
                             </ScrollView>
-                            <Pressable onPress={() => nav.navigate('OwnerCategories')} style={({ hovered }) => ({ flexDirection: 'row', alignItems: 'center', marginLeft: 10, paddingHorizontal: 12, height: 40, borderRadius: 20, backgroundColor: hovered ? border : 'transparent', cursor: 'pointer' })}>
-                                <Ionicons name="list" size={17} color={primary} /><Text style={{ color: primary, fontWeight: '800', marginLeft: 6 }}>{tr('Categories')}</Text>
-                            </Pressable>
-                            <Pressable onPress={() => nav.navigate('OwnerCollections')} style={({ hovered }) => ({ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, height: 40, borderRadius: 20, backgroundColor: hovered ? border : 'transparent', cursor: 'pointer' })}>
-                                <Ionicons name="albums" size={17} color={primary} /><Text style={{ color: primary, fontWeight: '800', marginLeft: 6 }}>{tr('Collections')}</Text>
-                            </Pressable>
-                            {!locked && !m.error ? (
-                                <Pressable onPress={() => setPanel({ categoryId: cat !== 'all' ? cat : undefined, n: Date.now() })} style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 8, paddingHorizontal: 18, height: 42, borderRadius: 21, backgroundColor: primary, cursor: 'pointer' }}>
-                                    <Ionicons name="add" size={20} color={onPrimary} /><Text style={{ color: onPrimary, fontWeight: '900', marginLeft: 6 }}>{tr('Add item')}</Text>
-                                </Pressable>
-                            ) : null}
                         </View>
-                        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 32 }}>
+                        <View style={{ paddingHorizontal: 16 }}>
                             {m.loading || m.error || !sections.length ? <View style={{ marginTop: 8 }}>{empty}</View> : sections.map((sec) => (
-                                <View key={sec.key} style={{ marginBottom: 8 }}>
-                                    <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingTop: 12, paddingBottom: 8 }}>
-                                        <Text style={{ color: text, fontSize: 18, fontWeight: '900' }}>{sec.cat.name}</Text>
-                                        <Text style={{ color: muted, marginLeft: 8, fontWeight: '700' }}>{sec.count}</Text>
+                                <View key={sec.key} style={{ marginBottom: 14 }}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingTop: 18, paddingBottom: 10 }}>
+                                        <View style={{ width: 5, height: 24, borderRadius: 3, backgroundColor: primary, marginRight: 10 }} />
+                                        <Text style={{ color: text, fontSize: 21, fontWeight: '900', letterSpacing: -0.4 }}>{sec.cat.name}</Text>
+                                        <View style={{ marginLeft: 10, minWidth: 26, height: 24, borderRadius: 12, paddingHorizontal: 8, backgroundColor: alpha(primary, 0.14), alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: primary, fontWeight: '900', fontSize: 12.5 }}>{sec.count}</Text></View>
                                         {sec.cat.isActive === false ? <View style={{ marginLeft: 8 }}><Pill label={tr('Hidden')} color={muted} /></View> : null}
+                                        <View style={{ flex: 1, height: 1, backgroundColor: alpha(muted, 0.2), marginHorizontal: 14 }} />
+                                        {!locked ? (
+                                            <Pressable onPress={() => setPanel({ categoryId: String(sec.cat._id), n: Date.now() })} style={({ hovered }) => ({ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, height: 32, borderRadius: 16, backgroundColor: hovered ? alpha(primary, 0.1) : 'transparent', cursor: 'pointer' })}>
+                                                <Ionicons name="add" size={16} color={primary} /><Text style={{ color: primary, fontWeight: '800', fontSize: 13, marginLeft: 4 }}>{tr('Add item')}</Text>
+                                            </Pressable>
+                                        ) : null}
                                     </View>
                                     <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
                                         {sec.items.map((it) => (
-                                            <View key={it._id} style={{ width: colW, padding: 6 }}>
-                                                <View style={{ paddingHorizontal: 14, borderRadius: 16, backgroundColor: surface, borderWidth: panel && String(panel.id) === String(it._id) ? 2 : 1, borderColor: panel && String(panel.id) === String(it._id) ? primary : border }}>
-                                                    <ItemRow item={it} last onOpen={() => setPanel({ id: String(it._id) })} onSwitch={onSwitch} onStep={onStep} onPortion={onPortion} />
-                                                </View>
+                                            <View key={it._id} style={{ width: open ? '50%' : '33.333%', padding: 8, transitionProperty: 'width', transitionDuration: '320ms', transitionTimingFunction: 'cubic-bezier(0.22, 0.61, 0.36, 1)' }}>
+                                                <MenuCard item={it} selected={!!panel && String(panel.id) === String(it._id)} onOpen={() => setPanel({ id: String(it._id) })} onSwitch={onSwitch} onStep={onStep} />
                                             </View>
                                         ))}
                                         {!sec.items.length ? (
-                                            <Pressable onPress={() => setPanel({ categoryId: String(sec.cat._id), n: Date.now() })} style={{ padding: 14 }}><Text style={{ color: primary, fontWeight: '700' }}>{tr('No items yet. Add one')}</Text></Pressable>
+                                            <Pressable onPress={() => setPanel({ categoryId: String(sec.cat._id), n: Date.now() })} style={{ margin: 8, padding: 24, borderRadius: 18, borderWidth: 1.5, borderStyle: 'dashed', borderColor: alpha(muted, 0.35), alignItems: 'center', width: '100%' }}>
+                                                <Ionicons name="add-circle-outline" size={26} color={primary} /><Text style={{ color: primary, fontWeight: '800', marginTop: 4 }}>{tr('No items yet. Add one')}</Text>
+                                            </Pressable>
                                         ) : null}
                                     </View>
                                 </View>
                             ))}
-                        </ScrollView>
-                    </View>
+                        </View>
+                    </ScrollView>
                     {panel ? (
-                        <View style={{ width: 500, borderLeftWidth: 1, borderLeftColor: border, backgroundColor: surface }}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: border }}>
-                                <Text style={{ flex: 1, color: text, fontSize: 18, fontWeight: '900' }}>{panel.id ? tr('Edit item') : tr('New item')}</Text>
-                                <Pressable onPress={closePanel} accessibilityLabel={tr('Close')} style={({ hovered }) => ({ width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: hovered ? border : 'transparent', cursor: 'pointer' })}><Ionicons name="close" size={22} color={text} /></Pressable>
+                        <View style={{ width: open ? 500 : 0, overflow: 'hidden', opacity: open ? 1 : 0.3, transitionProperty: 'width, opacity', transitionDuration: '320ms', transitionTimingFunction: 'cubic-bezier(0.22, 0.61, 0.36, 1)', borderLeftWidth: open ? 1 : 0, borderLeftColor: border, backgroundColor: background }}>
+                        <View style={{ width: 500, flex: 1 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', margin: 14, marginBottom: 6, padding: 12, borderRadius: 20, backgroundColor: alpha(primary, 0.1) }}>
+                                <View style={{ width: 54, height: 54, borderRadius: 16, backgroundColor: alpha(primary, 0.18), alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                                    {editing?.image ? <Image source={{ uri: editing.image }} style={{ width: 54, height: 54 }} contentFit="cover" /> : <Ionicons name={panel.id ? 'restaurant' : 'add-circle'} size={26} color={primary} />}
+                                </View>
+                                <View style={{ flex: 1, minWidth: 0, marginLeft: 12 }}>
+                                    <Text style={{ color: muted, fontSize: 11.5, fontWeight: '900', letterSpacing: 0.6 }}>{(panel.id ? tr('Edit item') : tr('New item')).toUpperCase()}</Text>
+                                    <Text style={{ color: text, fontSize: 18, fontWeight: '900', marginTop: 1 }} numberOfLines={1}>{panel.id ? (editing?.name || '…') : tr('A new dish')}</Text>
+                                </View>
+                                <Pressable onPress={closePanel} accessibilityLabel={tr('Close')} style={({ hovered }) => ({ width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: hovered ? alpha(primary, 0.18) : alpha(primary, 0.08), cursor: 'pointer' })}><Ionicons name="close" size={22} color={text} /></Pressable>
                             </View>
                             <NavigationContext.Provider value={fakeNav}>
-                                <RouteContext.Provider value={{ key: 'menu-panel', name: 'OwnerItem', params: { id: panel.id, categoryId: panel.categoryId } }}>
+                                <NavigationRouteContext.Provider value={{ key: 'menu-panel', name: 'OwnerItem', params: { id: panel.id, categoryId: panel.categoryId } }}>
                                     <EmbeddedCtx.Provider value>
                                         <OwnerItemScreen key={panel.id || `new${panel.n}`} />
                                     </EmbeddedCtx.Provider>
-                                </RouteContext.Provider>
+                                </NavigationRouteContext.Provider>
                             </NavigationContext.Provider>
+                        </View>
                         </View>
                     ) : null}
                 </View>

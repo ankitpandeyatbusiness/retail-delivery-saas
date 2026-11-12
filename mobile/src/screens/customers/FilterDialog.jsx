@@ -128,8 +128,8 @@ function Pill({ on, label, onPress }) {
                 style={({ hovered }) => ({
                     marginRight: 10, marginBottom: 10, paddingHorizontal: 18, paddingVertical: 10, borderWidth: 1.5, borderRadius: 22, alignItems: 'center', justifyContent: 'center',
                     borderColor: on || hovered ? primary : border, backgroundColor: on ? tint(primary) : hovered ? `${primary}0F` : 'transparent',
-                    boxShadow: hovered && !on ? `0 4px 14px ${primary}26` : '0 0 0 rgba(0,0,0,0)', transform: [{ scale: hovered && !on ? 1.05 : 1 }],
-                    cursor: 'pointer', transitionProperty: 'background-color, border-color, box-shadow, transform', transitionDuration: '170ms',
+                    boxShadow: hovered && !on ? `0 4px 14px ${primary}26` : '0 0 0 rgba(0,0,0,0)', filter: hovered && !on ? 'brightness(1.08)' : 'none',
+                    cursor: 'pointer', transitionProperty: 'background-color, border-color, box-shadow, filter, transform', transitionDuration: '170ms',
                 })}
             >
                 <Text style={[s.pillTxt, { color: on ? primary : text, fontSize: 13.5 }]}>{tr(label)}</Text>
@@ -385,7 +385,7 @@ export default function FilterDialog({ visible, onClose, items }) {
                         </Pressable>
                     </Animated.View>
                 ) : null}
-                <Pressable onPress={onClose} hitSlop={10} style={({ hovered }) => [s.x, { backgroundColor: surface, borderColor: border }, deskWeb && { width: 36, height: 36, borderRadius: 18, cursor: 'pointer', transitionProperty: 'background-color, border-color, transform', transitionDuration: '150ms' }, deskWeb && hovered && { backgroundColor: tint(primary), borderColor: primary, transform: [{ rotate: '90deg' }] }]}>
+                <Pressable onPress={onClose} hitSlop={10} style={({ hovered }) => [s.x, { backgroundColor: surface, borderColor: border }, deskWeb && { width: 36, height: 36, borderRadius: 18, cursor: 'pointer', transitionProperty: 'background-color, border-color, filter, transform', transitionDuration: '150ms' }, deskWeb && hovered && { backgroundColor: tint(primary), borderColor: primary, transform: [{ rotate: '90deg' }] }]}>
                     <Ionicons name="close" size={16} color={text} />
                 </Pressable>
             </View>

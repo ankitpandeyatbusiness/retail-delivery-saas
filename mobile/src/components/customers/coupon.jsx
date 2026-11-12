@@ -106,7 +106,7 @@ function DeskTicketWeb({ o, onPress, style }) {
             style={({ hovered, pressed }) => [{
                 height: 136, flexDirection: 'row', borderRadius: 22, overflow: 'hidden', borderWidth: 1, borderColor: hovered ? primary : border, backgroundColor: surface,
                 backgroundImage: `linear-gradient(120deg, ${surface} 0%, ${primary}1C 100%)`, cursor: 'pointer', opacity: pressed ? 0.94 : 1,
-                boxShadow: hovered ? `0 16px 36px ${primary}30, inset 0 0 0 1px ${primary}` : '0 2px 10px rgba(0,0,0,0.06)', transform: [{ translateY: hovered ? -3 : 0 }], ...T,
+                boxShadow: hovered ? `0 16px 36px ${primary}30, inset 0 0 0 1px ${primary}` : '0 2px 10px rgba(0,0,0,0.06)', ...T,
             }, style]}
         >
             {({ hovered }) => (
@@ -168,7 +168,7 @@ export function CouponTicket({ o, size = 'strip', onPress, hint, style }) {
                 { height, width, backgroundColor: surface, borderColor: border, opacity: pressed ? 0.9 : 1 },
                 // the website: a hand cursor, and the ticket lifts a little with a coloured edge while the mouse is on it
                 Platform.OS === 'web' && { cursor: 'pointer', transitionProperty: 'border-color, box-shadow, transform', transitionDuration: '180ms' },
-                Platform.OS === 'web' && hovered && { borderColor: primary, transform: [{ translateY: -2 }], boxShadow: `0 10px 28px ${primary}2E` },
+                Platform.OS === 'web' && hovered && { borderColor: primary, boxShadow: `0 10px 28px ${primary}2E` },
                 style,
             ]}
         >

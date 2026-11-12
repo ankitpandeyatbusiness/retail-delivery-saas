@@ -78,7 +78,7 @@ const DeskDay = memo(function DeskDay({ d, sel, mid, off, today, onPick, h = 46 
                         style={{
                             position: 'absolute', width: Math.min(40, h - 6), height: Math.min(40, h - 6), borderRadius: 20,
                             backgroundColor: sel ? primary : hovered && !off ? `${primary}26` : 'transparent',
-                            transitionProperty: 'background-color, transform', transitionDuration: '150ms', transform: [{ scale: hovered && !off && !sel ? 1.06 : 1 }],
+                            transitionProperty: 'background-color, filter, transform', transitionDuration: '150ms', transform: [{ scale: hovered && !off && !sel ? 1.06 : 1 }],
                         }}
                     />
                     <Text style={{ fontSize: 14.5, color: sel ? '#FFFFFF' : off ? '#6B6B6B' : text, fontWeight: sel || today ? '900' : '600' }}>{d.getDate()}</Text>
@@ -218,7 +218,7 @@ export default function DateRangeSheet({ visible, value, onClose, onApply, singl
                         style={{
                             width: '100%', maxWidth: 780, maxHeight: winH - 48, borderRadius: 24, borderWidth: 1, borderColor: border, backgroundColor: surface, padding: 28, boxShadow: '0 30px 80px rgba(0,0,0,0.6)',
                             opacity: dOn ? 1 : 0, transform: [{ scale: dOn ? 1 : 0.95 }, { translateY: dOn ? 0 : 14 }],
-                            transitionProperty: 'opacity, transform', transitionDuration: '260ms', transitionTimingFunction: ease,
+                            transitionProperty: 'opacity, filter, transform', transitionDuration: '260ms', transitionTimingFunction: ease,
                         }}
                     >
                         <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
