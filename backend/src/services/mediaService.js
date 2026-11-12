@@ -20,7 +20,7 @@ const MAX_HERO_IMAGES = 5;
 
 // hero images: the shop owner and the superadmin. icon / splash / adaptive: the superadmin only (they are built into the app).
 const HERO_KINDS = new Set(['hero']);
-const BUILD_KINDS = new Set(['icon', 'splash', 'adaptive']);
+const BUILD_KINDS = new Set(['icon', 'splash', 'adaptive', 'favicon']);   // favicon: the website's tab icon (not built into the app: the website shows it at once)
 const OWNER_KINDS = new Set(['logo', 'product', 'category', 'banner', 'collection', 'service', 'rider', 'order', 'support', 'chat', 'chatvoice', ...HERO_KINDS]);
 const SUPER_KINDS = new Set([...OWNER_KINDS, ...BUILD_KINDS]);
 const CUSTOMER_KINDS = new Set(['customer', 'complaint', 'inquiry', 'chat', 'chatvoice']);
@@ -35,6 +35,7 @@ const KINDS = {
     icon: { fixed: true, png: true, square: true, size: 1024, flatten: true },
     adaptive: { fixed: true, png: true, square: true, size: 1024 },
     splash: { fixed: true, png: true, max: 1600 },
+    favicon: { fixed: true, png: true, square: true, size: 256 },   // a square PNG; browsers scale it down for the tab (transparency is kept)
     logo: { max: 1600 },
     product: { ref: true, max: 1600 },
     category: { max: 1600 },
@@ -118,6 +119,7 @@ async function finalKey(tenant, kind, refId) {
         case 'icon': return `${base}branding/icon.png`;
         case 'adaptive': return `${base}branding/adaptive-foreground.png`;
         case 'splash': return `${base}branding/splash.png`;
+        case 'favicon': return `${base}branding/favicon.png`;
         case 'logo': case 'category': case 'banner': case 'collection': case 'service': case 'inquiry': case 'chat':
             return `${base}${FOLDER[kind]}/${stamp}`;
         case 'chatvoice': return `${base}chats/${ym()}/${ymd()}-${shortId()}.m4a`;
@@ -224,6 +226,12 @@ async function confirm({ tenant, actorId, kind, refId, key, replaces, uploadedBy
         uploadedBy,
     });
 
+    // the favicon: the shop remembers its address (the website's theme answer carries it)
+    if (kind === 'favicon') {
+        await Tenant.updateOne({ _id: tenant._id }, { $set: { favicon: url } });
+        invalidateTenant(tenant.slug);
+    }
+
     // a new hero image goes straight to the end of the shop's hero list
     if (kind === 'hero') {
         await Tenant.updateOne({ _id: tenant._id }, { $push: { heroImages: url } });
@@ -242,6 +250,10 @@ async function removeMedia({ tenant, id, allowed, ownerId }) {
     await m.deleteOne();
     if (m.kind === 'hero') {
         await Tenant.updateOne({ _id: tenant._id }, { $pull: { heroImages: m.url } });
+        invalidateTenant(tenant.slug);
+    }
+    if (m.kind === 'favicon') {
+        await Tenant.updateOne({ _id: tenant._id }, { $unset: { favicon: 1 } });
         invalidateTenant(tenant.slug);
     }
     if (m.kind === 'proof') {

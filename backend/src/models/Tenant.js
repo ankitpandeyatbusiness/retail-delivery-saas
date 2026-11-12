@@ -35,6 +35,9 @@ const tenantSchema = new mongoose.Schema({
         error: String,
     },
     heroImages: [String],
+    // the website's browser-tab icon (favicon), uploaded by the superadmin on the shop's Branding page (Media kind "favicon", tenants/<slug>/branding/favicon.png).
+    // Empty = the tab shows the shop's app icon, else its logo.
+    favicon: { type: String, trim: true },
     // the picture behind the desktop website's login page, chosen by the superadmin: "<businessType>/<name>.webp" in the bucket folder defaults/login-bg/
     // (services/loginBackgrounds.js). Empty = the default of the shop's business type.
     loginBg: { type: String, trim: true },

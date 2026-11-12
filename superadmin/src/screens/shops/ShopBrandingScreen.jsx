@@ -48,6 +48,7 @@ export default function ShopBrandingScreen() {
 
     const heroes = (media || []).filter((m) => m.kind === 'hero');
     const logoUrl = rec?.tenant?.logo;
+    const favicon = (media || []).find((m) => m.kind === 'favicon');
     const bizType = rec?.tenant?.businessType || 'restaurant';
     const bgType = (bgs || []).find((x) => x.id === bizType);
     const myBg = rec?.tenant?.loginBg || '';   // "<type>/<name>.webp" or empty (= the default)
@@ -169,6 +170,21 @@ export default function ShopBrandingScreen() {
                     </View>
                 ) : <Text style={{ color: t.muted }}>{bgs === null ? 'Loading...' : 'No picture for this business type yet. Add one in More > Login backgrounds.'}</Text>}
                 {myBg ? <Button style={{ marginTop: spacing.lg }} small kind="outline" title="Use the default" loading={busy === 'loginbg'} onPress={() => pickBg(null)} /> : null}
+            </Card>
+
+            <SectionTitle section="platform">Website tab icon (favicon)</SectionTitle>
+            <Card>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Thumb uri={favicon?.url} size={56} radiusPx={14} />
+                    <View style={{ flex: 1, marginLeft: spacing.md }}>
+                        <Text style={{ color: t.text, fontWeight: '800' }}>{favicon ? 'Favicon uploaded' : 'No favicon yet'}</Text>
+                        <Text style={{ color: t.muted, fontSize: font.xs }}>Square PNG, at least 256 px. Shown in the browser tab of this shop's website. A change shows on the website at once. Without it the tab shows the app icon.</Text>
+                    </View>
+                </View>
+                <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg }}>
+                    <Button style={{ flex: 1 }} small kind="soft" icon="add" title={favicon ? 'Replace favicon' : 'Upload favicon'} loading={busy === 'favicon'} onPress={() => addPicture('favicon', true)} />
+                    {favicon ? <Button style={{ flex: 1 }} small kind="outline" icon="trash" title="Remove" onPress={() => setRemoving({ id: favicon.id, label: 'the favicon' })} /> : null}
+                </View>
             </Card>
 
             <SectionTitle section="platform">Built into the app</SectionTitle>

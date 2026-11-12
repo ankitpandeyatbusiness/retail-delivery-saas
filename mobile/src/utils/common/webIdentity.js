@@ -1,5 +1,6 @@
 // WEBSITE only (does nothing in the phone app): the browser tab shows the SHOP, not the platform.
-//   - tab icon + "add to home screen" icon: the shop's app icon, else its own logo, else the default icon from index.html
+//   - tab icon: the favicon the superadmin uploaded for the shop, else its app icon, else its own logo, else the default icon from index.html
+//   - "add to home screen" icon: the shop's app icon, else its own logo
 //   - tab title: the shop's name
 //   - browser colour (address bar on phones): the shop's main colour
 // Called whenever the shop's theme arrives (store/common/useThemeStore.js).
@@ -30,10 +31,13 @@ export async function applyWebIdentity(theme) {
     try {
         if (theme.name) document.title = String(theme.name);
         if (/^#[0-9a-f]{3,8}$/i.test(String(theme.colors?.primary || ''))) setMeta('theme-color', theme.colors.primary);
-        for (const url of [theme.icon, theme.logo]) {
-            if (typeof url !== 'string' || !/^https?:\/\//i.test(url)) continue;
-            if (url === lastIcon) return;
-            if (await loads(url)) { setLink('icon', url); setLink('apple-touch-icon', url); lastIcon = url; return; }
-        }
+        const usable = async (list) => { for (const url of list) { if (typeof url === 'string' && /^https?:\/\//i.test(url) && await loads(url)) return url; } return null; };
+        const key = `${theme.favicon || ''}|${theme.icon || ''}|${theme.logo || ''}`;
+        if (key === lastIcon) return;
+        const tab = await usable([theme.favicon, theme.icon, theme.logo]);
+        const touch = await usable([theme.icon, theme.logo]);
+        if (tab) setLink('icon', tab);
+        if (touch) setLink('apple-touch-icon', touch);
+        if (tab || touch) lastIcon = key;
     } catch (e) { /* the default icon stays */ }
 }

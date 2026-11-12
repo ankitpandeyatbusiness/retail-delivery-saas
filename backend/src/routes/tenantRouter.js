@@ -19,7 +19,8 @@ tenantRouter.get('/theme', tenantRecognizer, async (req, res) => {
         tagline: t.tagline,
         phone: t.phone || null,   // the shop's own number (the owner sets it; the Account page has a Call the shop block)
         logo: t.logo,
-        icon: brandingIcon(t.slug),   // the shop's app icon (square): the website's tab icon. null when the media storage is not set up
+        icon: brandingIcon(t.slug),   // the shop's app icon (square). null when the media storage is not set up
+        favicon: t.favicon || null,   // the browser-tab icon the superadmin uploaded for this shop (the website uses it before the app icon)
         colors: c.brand.colors,
         fontStyle: c.brand.fontStyle,
         buttonShape: c.brand.buttonShape,
