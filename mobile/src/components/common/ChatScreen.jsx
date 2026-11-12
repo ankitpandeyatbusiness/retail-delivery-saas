@@ -33,6 +33,11 @@ import ChatShimmer from './ChatShimmer';
 import TypingBubble from './TypingBubble';
 
 const WEB = Platform.OS === 'web';
+// A voice note is stored (and played on the phones) as audio/mp4. A browser records webm unless it can do mp4 (Chrome 126+, Edge, Safari): ask for mp4 where it can, so a note sent from the website plays in the app.
+const MR = typeof globalThis !== 'undefined' ? globalThis.MediaRecorder : undefined;
+const REC_PRESET = WEB && MR && MR.isTypeSupported && MR.isTypeSupported('audio/mp4')
+    ? { ...RecordingPresets.HIGH_QUALITY, web: { mimeType: 'audio/mp4', bitsPerSecond: 128000 } }
+    : RecordingPresets.HIGH_QUALITY;
 const MAX_VOICE = 120;
 const DELETE_ALL_MS = 2 * 24 * 3600 * 1000;   // "delete for everyone": only your own message, for 2 days after you sent it (the server enforces it too)
 const newId = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
@@ -201,7 +206,7 @@ export default function ChatScreen() {
     const lastTyping = useRef(0);
     const recTimer = useRef(null);
     const recStart = useRef(0);   // when the recording began (the website counts the seconds itself)
-    const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+    const recorder = useAudioRecorder(REC_PRESET);
     const key = `${kind}:${refId}`;
 
     const itemsRef = useRef(null);

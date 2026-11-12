@@ -56,10 +56,14 @@ function useWebVoice(onText) {
     const heard = useRef(false);
     const cb = useRef(onText);
     cb.current = onText;
-    const start = () => {
+    const start = async () => {
         if (!SpeechApi) return;
         if (on) { try { rec.current?.stop(); } catch (e) { /* already stopped */ } return; }
         if (typeof window !== 'undefined' && window.isSecureContext === false) { showToast(tr('Voice search needs a secure (https) address.')); return; }
+        // ask the browser for the microphone first: the question shows the first time (and in the installed website), instead of the recognition failing without a word
+        try {
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) { const st = await navigator.mediaDevices.getUserMedia({ audio: true }); st.getTracks().forEach((t) => t.stop()); }
+        } catch (e) { showToast(voiceProblem('not-allowed')); return; }
         try {
             const r = new SpeechApi();
             r.lang = 'en-IN'; r.interimResults = false; r.maxAlternatives = 1; r.continuous = false;

@@ -448,6 +448,8 @@ export function useVoice(onDone) {
     useSpeechRecognitionEvent('error', (e) => {
         setOn(false);
         if (e.error === 'no-speech') showToast(tr('Didn\'t catch that. Try again.'));
+        else if (e.error === 'not-allowed' || e.error === 'service-not-allowed') showToast(tr('The microphone is blocked. Allow it with the lock icon next to the address, then try again.'));
+        else if (e.error === 'network' || e.error === 'not-supported') showToast(tr('Voice search is not available in this browser right now. Try Chrome or Edge, or type your search.'));
         else if (e.error !== 'aborted') showToast(tr('Couldn\'t hear that. Try again.'));
     });
     useSpeechRecognitionEvent('end', () => {
