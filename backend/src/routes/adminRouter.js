@@ -88,7 +88,8 @@ admin.use(require('./adminMediaRouter'));   // list a shop's uploaded images (he
 admin.use(require('./adminAccessRouter'));
 admin.use(require('./adminPlatformRouter'));
 admin.use(require('./adminDemoRouter'));
-admin.use(require('./adminDemoLeadsRouter'));   // the people who left their number after the public demo (everyone looks, everyone may call and note)   // the private demo login: number + OTP (everyone looks, the supreme admin changes)
+admin.use(require('./adminDemoLeadsRouter'));
+admin.use(require('./adminQrRouter'));   // QR codes for the public demo and for tables: SVG, PDF, PNG downloads (any superadmin)   // the people who left their number after the public demo (everyone looks, everyone may call and note)   // the private demo login: number + OTP (everyone looks, the supreme admin changes)
 admin.use(require('./adminPlansRouter'));
 admin.use(require('./adminPlanCouponsRouter'));
 admin.use(require('./adminRefundsRouter'));

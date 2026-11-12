@@ -22,6 +22,7 @@ import LegalPageEditScreen from '../screens/legalPages/LegalPageEditScreen';
 import MaintenanceScreen from '../screens/platform/MaintenanceScreen';
 import DemoLoginScreen from '../screens/platform/DemoLoginScreen';
 import DemoLeadsScreen from '../screens/platform/DemoLeadsScreen';
+import QrCodesScreen from '../screens/platform/QrCodesScreen';
 import LiveTrackingScreen from '../screens/platform/LiveTrackingScreen';
 import AlertSettingsScreen from '../screens/platform/AlertSettingsScreen';
 import NotificationRulesScreen from '../screens/platform/NotificationRulesScreen';
@@ -239,6 +240,7 @@ const DETAIL = [
     ['Maintenance', MaintenanceScreen],
     ['DemoLogin', DemoLoginScreen],
     ['DemoLeads', DemoLeadsScreen],
+    ['QrCodes', QrCodesScreen],
     ['InsightsSettings', InsightsSettingsScreen],
     ['ServicesOverview', ServicesOverviewScreen],
     ['ServicesShop', ServicesShopScreen],

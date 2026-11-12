@@ -34,6 +34,7 @@ export const SCREEN_INDEX = [
     E('Maintenance', 'More', 'Maintenance', 'MoreTab', 'tool', 'alerts', 'maintenance pause all shops upgrade downtime message until'),
     E('Demo login', 'More', 'DemoLogin', 'MoreTab', 'user', 'platform', 'demo login number otp razorpay review friends test panel switcher'),
     E('Demo leads', 'More', 'DemoLeads', 'MoreTab', 'phone', 'shops', 'demo leads visitors tried demo called phone number sales call back'),
+    E('QR codes', 'More', 'QrCodes', 'MoreTab', 'copy', 'platform', 'qr code demo banner poster table sticker svg pdf png download print'),
     E('Server setup', 'More', 'ServerSetup', 'root', 'tool', 'platform', 'server setup checklist env settings secrets firebase push r2 images backups email brevo google maps sentry razorpay missing mock test mode'),
     E('SMS and DLT setup', 'More', 'SmsSetup', 'root', 'message', 'catalog', 'sms dlt setup msg91 sender id entity template auth key otp test sms register provider header'),
     E('Brands and branches', 'Shops', 'Brands', 'root', 'shops', 'platform', 'brands branches brand chain group several shops add branch make brand'),

@@ -44,7 +44,7 @@ async function printHtml(req, t, bar = true, size = 'small') {
     const n = tableCount(t);
     const cells = [];
     for (let i = 1; i <= n; i++) {
-        const svg = await QRCode.toString(tableUrl(req, t, String(i)), { type: 'svg', margin: 1, errorCorrectionLevel: 'M', width: z.box });
+        const svg = await QRCode.toString(require('./qrCodes').tableLink(req, t.slug, i), { type: 'svg', margin: 1, errorCorrectionLevel: 'H', width: z.box })   // the short permanent address (a printed sticker never goes stale), highest error correction;
         cells.push(`<div class="s"><div class="n">${esc(t.name)}</div>${svg}<div class="t">Table ${i}</div><div class="h">Scan to order from your table</div></div>`);
     }
     return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(t.name)} · table QR stickers</title>
