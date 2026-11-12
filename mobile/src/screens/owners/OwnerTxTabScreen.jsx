@@ -17,6 +17,7 @@ import { downloadAndOpen } from '../../utils/owners/files';
 import { showToast } from '../../components/customers/shop';
 import { PERIODS, KIND, KIND_CHIPS, HOW_CHIPS, DIRECTION_CHIPS, periodParams, periodTitle, dayKey, dayLabel, timeOf, fullStamp, subtitle } from '../../utils/owners/txRules';
 import { useOwnerDesktop } from '../../utils/common/layout';
+import { Hero, HeroBtn, GlassStat } from '../../components/owners/RiderDesk';
 import { tr, tl } from '../../i18n';
 
 function Line({ label, value, onPress, strong }) {
@@ -126,15 +127,51 @@ export default function OwnerTxTabScreen() {
     return (
         <OwnerScreen title={tr('Transactions')} onRefresh={refresh} refreshing={refreshing} wide>
             <View style={desk ? { width: '100%', maxWidth: 1280, alignSelf: 'center' } : undefined}>
+            {desk ? (
+                <>
+                    <Hero icon="swap-vertical" title={tr(periodTitle(period, pick))}
+                        subtitle={filterCount ? [direction && DIRECTION_CHIPS.find((c) => c[0] === direction)?.[1], how && HOW_CHIPS.find((c) => c[0] === how)?.[1], category && KIND_CHIPS.find((c) => c[0] === category)?.[1]].filter(Boolean).map((x) => tr(x)).join(' · ') : tr('Every rupee in and out of the shop, online and cash.')}
+                        right={<>
+                            <HeroBtn label={filterCount ? `${tr('Filters')} (${filterCount})` : tr('Filters')} icon="funnel-outline" onPress={() => setFiltering(true)} />
+                            <HeroBtn label={busy ? tr('Preparing…') : tr('Excel')} icon="download-outline" solid onPress={() => { if (!busy && items.length) csv(); }} />
+                        </>}>
+                        {t ? (
+                            <View style={{ flexDirection: 'row', marginTop: 18 }}>
+                                <GlassStat label={tr('Money in')} value={rupees(t.inPaise)} icon="arrow-down-circle-outline" />
+                                <GlassStat label={tr('Money out')} value={rupees(t.outPaise)} icon="arrow-up-circle-outline" />
+                                <GlassStat label={tr('Kept')} value={rupees(t.netPaise)} icon="wallet-outline" />
+                                <GlassStat label={tr('To pay')} value={t.pending.count ? rupees(t.pending.paise) : '—'} icon="hourglass-outline" />
+                            </View>
+                        ) : null}
+                    </Hero>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, marginBottom: 10 }}>
+                        <View style={{ flex: 1, maxWidth: 380 }}>
+                            <Field value={qText} onChangeText={(v) => setQText(v.replace(/[^0-9A-Za-z#]/g, '').slice(0, 9))} placeholder={tr('Order no. or bulk code')} autoCapitalize="characters" returnKeyType="search" onSubmitEditing={() => setQApplied(qText)} style={{ minHeight: 44, borderRadius: 22, paddingHorizontal: 18 }} />
+                        </View>
+                        {qApplied ? <Pressable onPress={() => { setQText(''); setQApplied(''); }} hitSlop={8} style={{ marginLeft: 8 }}><Ionicons name="close-circle" size={24} color={muted} /></Pressable> : null}
+                        {t && t.byHow.length ? (
+                            <View style={{ flex: 1, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', marginLeft: 12 }}>
+                                {t.byHow.map((h) => (
+                                    <View key={h.how} style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, height: 32, borderRadius: 16, backgroundColor: alpha(primary, 0.1), marginLeft: 8 }}>
+                                        <Text style={{ color: muted, fontSize: 12.5, fontWeight: '700' }}>{tr(h.label)}</Text>
+                                        <Text style={{ color: text, fontSize: 13, fontWeight: '900', marginLeft: 6 }}>{rupees(h.paise)}</Text>
+                                    </View>
+                                ))}
+                            </View>
+                        ) : null}
+                    </View>
+                    {data?.truncated ? <Text style={{ color: muted, fontSize: 12, paddingHorizontal: 20, marginBottom: 8 }}>{tr('A lot of entries. Choose a shorter period to see every one.')}</Text> : null}
+                </>
+            ) : null}
             {/* one funnel button: the period and the other filters are in its popup, not in rows down the page */}
-            <View style={{ paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+            {desk ? null : <View style={{ paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
                 <View style={{ flex: 1, paddingRight: 10 }}>
                     <Text style={{ color: text, fontWeight: '900', fontSize: 16 }} numberOfLines={1}>{tr(periodTitle(period, pick))}</Text>
                     <Text style={{ color: muted, fontSize: 12.5, marginTop: 1 }} numberOfLines={1}>{filterCount ? [direction && DIRECTION_CHIPS.find((c) => c[0] === direction)?.[1], how && HOW_CHIPS.find((c) => c[0] === how)?.[1], category && KIND_CHIPS.find((c) => c[0] === category)?.[1]].filter(Boolean).map((x) => tr(x)).join(' · ') || tr('Filters on') : tr('No filters')}</Text>
                 </View>
                 <FunnelButton count={filterCount} onPress={() => setFiltering(true)} />
-            </View>
-            <View style={{ paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+            </View>}
+            {desk ? null : <View style={{ paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
                 <View style={{ flex: 1 }}>
                     <Field value={qText} onChangeText={(v) => setQText(v.replace(/[^0-9A-Za-z#]/g, '').slice(0, 9))} placeholder={tr('Order no. or bulk code')} autoCapitalize="characters" returnKeyType="search" onSubmitEditing={() => setQApplied(qText.replace('#', ''))} />
                 </View>
@@ -144,13 +181,13 @@ export default function OwnerTxTabScreen() {
                     <Ionicons name={busy ? 'hourglass-outline' : 'download-outline'} size={20} color={primary} />
                     <Text style={{ color: primary, fontWeight: '800', marginLeft: 6 }}>{tr('Excel')}</Text>
                 </Pressable>
-            </View>
+            </View>}
 
             {!data && !err ? <StatShimmer /> : null}
             {err && !data ? <Empty icon="cloud-offline-outline" title={tr('Could not load')} hint={err} /> : null}
             {data ? (
                 <>
-                    <Card>
+                    {desk ? null : <Card>
                         <Text style={{ color: muted, fontSize: 12, fontWeight: '700' }}>{tr(periodTitle(period, pick))}</Text>
                         <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 8 }}>
                             <Stat wrap label={tr('Money in')} value={rupees(t.inPaise)} color={ok} />
@@ -164,23 +201,34 @@ export default function OwnerTxTabScreen() {
                         ) : null}
                         {t.pending.count ? <Text style={{ color: muted, fontSize: 12.5, marginTop: 6 }}>{tr('{n} bill(s) to pay: {rupees}', { n: t.pending.count, rupees: rupees(t.pending.paise) })}</Text> : null}
                         {data.truncated ? <Text style={{ color: muted, fontSize: 12, marginTop: 6 }}>{tr('A lot of entries. Choose a shorter period to see every one.')}</Text> : null}
-                    </Card>
+                    </Card>}
 
                     {!items.length ? <Empty icon="swap-vertical-outline" title={tr('Nothing here')} hint={tr('No money moved in this period. Try another day or month, or remove a filter.')} /> : null}
                     {groups.map((g) => {
                         const net = g.rows.reduce((n, x) => (x.status === 'pending' ? n : n + (x.direction === 'in' ? x.amountPaise : -x.amountPaise)), 0);
                         return (
                             <View key={g.day}>
+                                {desk ? (
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: 18, paddingBottom: 10 }}>
+                                        <View style={{ width: 34, height: 34, borderRadius: 11, backgroundColor: primary, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}><Ionicons name="calendar-outline" size={18} color="#FFFFFF" /></View>
+                                        <Text style={{ color: text, fontWeight: '900', fontSize: 18, letterSpacing: -0.3 }}>{dayLabel(g.day)}</Text>
+                                        <View style={{ flex: 1, height: 1, backgroundColor: alpha(muted, 0.2), marginHorizontal: 14 }} />
+                                        <View style={{ paddingHorizontal: 12, height: 28, borderRadius: 14, backgroundColor: alpha(net >= 0 ? ok : muted, 0.14), justifyContent: 'center' }}>
+                                            <Text style={{ color: net >= 0 ? ok : muted, fontWeight: '900', fontSize: 13 }}>{net >= 0 ? '+' : '−'}{rupees(Math.abs(net))}</Text>
+                                        </View>
+                                    </View>
+                                ) : (
                                 <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: 12, paddingBottom: 6 }}>
                                     <Text style={{ flex: 1, color: muted, fontWeight: '800', fontSize: 12.5 }}>{dayLabel(g.day).toUpperCase()}</Text>
                                     <Text numberOfLines={1} style={{ color: muted, fontWeight: '700', fontSize: 12.5, marginLeft: 8, flexShrink: 0 }}>{net >= 0 ? '+' : '−'}{rupees(Math.abs(net))}</Text>
                                 </View>
-                                <Card style={{ paddingVertical: 2 }}>
+                                )}
+                                <Card style={[{ paddingVertical: 2 }, desk ? { borderRadius: 22, paddingHorizontal: 14 } : null]}>
                                     {g.rows.map((x, i) => {
                                         const k = KIND[x.category] || { icon: 'cash' };
                                         const inn = x.direction === 'in';
                                         return (
-                                            <Pressable key={x.id} onPress={() => setOpen(x)} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderTopWidth: i ? 0.5 : 0, borderTopColor: border, opacity: pressed ? 0.6 : 1 })}>
+                                            <Pressable key={x.id} onPress={() => setOpen(x)} style={({ pressed, hovered }) => ({ ...(desk && hovered ? { backgroundColor: alpha(primary, 0.06), borderRadius: 14, marginHorizontal: -10, paddingHorizontal: 10, cursor: 'pointer' } : null), flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderTopWidth: i ? 0.5 : 0, borderTopColor: desk && hovered ? 'transparent' : border, opacity: pressed ? 0.6 : 1 })}>
                                                 <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: alpha(inn ? ok : muted, 0.14), alignItems: 'center', justifyContent: 'center' }}>
                                                     <Ionicons name={k.icon} size={20} color={inn ? ok : muted} />
                                                 </View>
