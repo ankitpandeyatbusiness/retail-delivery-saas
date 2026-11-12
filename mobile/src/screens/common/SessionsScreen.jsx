@@ -11,6 +11,8 @@ import { showToast } from '../../components/customers/shop';
 import { fetchSessions, endSession, endOtherSessions } from '../../api/common/sessionApi';
 import { tr } from '../../i18n';
 import DeskGrid from '../../components/common/DeskGrid';
+import { useOwnerDesktop } from '../../utils/common/layout';
+import { Hero, HeroBtn } from '../../components/owners/RiderDesk';
 
 const when = (iso) => {
     if (!iso) return '';
@@ -25,6 +27,7 @@ const placeOf = (s) => {
 
 export default function SessionsScreen() {
     const { background, text, muted, border, primary } = useBrand();
+    const ownerDesk = useOwnerDesktop();   // the owner on a computer: a banner with the log-out-all button
     const [items, setItems] = useState(null);
     const [busy, setBusy] = useState(null);   // a session id, or 'all'
     const [failed, setFailed] = useState(false);
@@ -64,9 +67,10 @@ export default function SessionsScreen() {
         <View style={{ flex: 1, backgroundColor: background }}>
             <PageHeader title={tr("Where you're logged in")} />
             <ScrollView contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
-                <Text style={{ color: muted, fontSize: 12.5, lineHeight: 18, paddingHorizontal: 16, paddingTop: 4, paddingBottom: 10 }}>
+                {ownerDesk ? <Hero icon="shield-checkmark" title={tr("Where you're logged in")} subtitle={tr('These phones and browsers are signed in with your number. If you see one you do not know, log it out.')} right={others.length > 0 ? <HeroBtn solid icon="log-out-outline" label={busy === 'all' ? tr('Please wait...') : tr('Log out all other devices')} onPress={busy ? undefined : endAll} /> : null} /> : null}
+                {ownerDesk ? null : <Text style={{ color: muted, fontSize: 12.5, lineHeight: 18, paddingHorizontal: 16, paddingTop: 4, paddingBottom: 10 }}>
                     {tr('These phones and browsers are signed in with your number. If you see one you do not know, log it out. The place is a guess from the internet address, so it can be a nearby city.')}
-                </Text>
+                </Text>}
 
                 {items === null && !failed ? <ActivityIndicator style={{ marginTop: 30 }} color={primary} /> : null}
                 {failed && items === null ? (
@@ -100,7 +104,7 @@ export default function SessionsScreen() {
                 ))}
                 </DeskGrid>
 
-                {others.length > 0 ? (
+                {others.length > 0 && !ownerDesk ? (
                     <View style={{ paddingHorizontal: 16, marginTop: 6 }}>
                         <Button label={tr('Log out all other devices')} kind="danger" icon="log-out-outline" onPress={endAll} busy={busy === 'all'} disabled={!!busy} />
                     </View>

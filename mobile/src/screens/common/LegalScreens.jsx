@@ -11,6 +11,8 @@ import LegalText, { useLegalInk } from '../../components/common/LegalText';
 import { fetchPublicLegal, fetchPoweredBy } from '../../api/common/legalApi';
 import { useAuthStore } from '../../store/common/useAuthStore';
 import { tr, tl } from '../../i18n';
+import { useOwnerDesktop } from '../../utils/common/layout';
+import { Hero } from '../../components/owners/RiderDesk';
 
 // one document. params: { key }
 export function LegalDocScreen() {
@@ -86,7 +88,8 @@ const B = ({ children }) => {
 // About Us: written here, in the app, so it shows at once. The names come from Platform business (fetchPoweredBy); until they arrive it says "Vivyaan".
 // Then the documents. Everybody sees their own terms and privacy policy under it.
 export function AboutUsScreen() {
-    const { background } = useBrand();
+    const { background, surface, border } = useBrand();
+    const ownerDesk = useOwnerDesktop();   // the owner on a computer: a banner, and the text and the documents as two rounded cards
     const role = useAuthStore((s) => s.user?.role);
     const [info, setInfo] = useState({});
     useEffect(() => { fetchPoweredBy().then((x) => setInfo(x || {})).catch(() => { }); }, []);
@@ -99,7 +102,8 @@ export function AboutUsScreen() {
         <View style={{ flex: 1, backgroundColor: background }}>
             <PageHeader title={tr('About Us')} />
             <ScrollView contentContainerStyle={{ paddingBottom: 32 }} showsVerticalScrollIndicator={Platform.OS === 'web' ? false : undefined}>
-                <View style={{ padding: 18 }}>
+                {ownerDesk ? <Hero icon="information-circle" title={tr('About Us')} subtitle={tr('{platformName} helps restaurants and shops take orders and deliver them, all in one place.', { platformName })} /> : null}
+                <View style={ownerDesk ? { margin: 16, marginTop: 4, padding: 22, borderRadius: 22, borderWidth: 1, borderColor: border, backgroundColor: surface } : { padding: 18 }}>
                     <H first>{tr('About {platformName}', { platformName })}</H>
                     <P>{tr('{platformName} helps restaurants and shops take orders and deliver them, all in one place.', { platformName })}</P>
 
@@ -125,7 +129,7 @@ export function AboutUsScreen() {
                     <H>{tr('Contact')}</H>
                     <P>{contact}</P>
                 </View>
-                <DocRows docs={docsFor(role)} topBorder />
+                {ownerDesk ? <View style={{ marginHorizontal: 16, borderRadius: 22, borderWidth: 1, borderColor: border, backgroundColor: surface, overflow: 'hidden' }}><DocRows docs={docsFor(role)} /></View> : <DocRows docs={docsFor(role)} topBorder />}
             </ScrollView>
         </View>
     );
