@@ -12,10 +12,13 @@ import { fetchInquiry } from '../../api/customers/shopApi';
 import { onNotification } from '../../api/common/socket';
 import { FormShimmer } from '../../components/owners/shimmer';
 import { tr } from '../../i18n';
+import { DeskCols } from '../../components/common/DeskGrid';
+import { useIsDesktopWeb } from '../../utils/common/layout';
 
 export default function InquiryScreen() {
     const { id } = useRoute().params || {};
     const { text, muted, primary, onPrimary, border, surface } = useBrand();
+    const desk = useIsDesktopWeb();   // the desktop website: the chat button and the status on the left, what I asked on the right (false in the phone app)
     const [i, setI] = useState(null);
     const [err, setErr] = useState('');
     const load = useCallback(() => fetchInquiry(id).then(setI).catch((e) => setErr(e?.response?.data?.error || tr('Could not open this inquiry'))), [id]);
@@ -27,9 +30,11 @@ export default function InquiryScreen() {
 
     return (
         <FormPage fixed title={tr(i.serviceName)}>
-            <View style={{ paddingHorizontal: 16, marginTop: 8, marginBottom: 12 }}><ChatButton kind="inquiry" refId={id} title={tr(i.serviceName)} label={tr('Chat with the shop')} /></View>
+            {desk ? null : <View style={{ paddingHorizontal: 16, marginTop: 8, marginBottom: 12 }}><ChatButton kind="inquiry" refId={id} title={tr(i.serviceName)} label={tr('Chat with the shop')} /></View>}
             {(
                 <ScrollView contentContainerStyle={{ paddingTop: 8, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
+                    <DeskCols>
+                    {desk ? <View style={{ paddingHorizontal: 16, marginBottom: 12 }}><ChatButton kind="inquiry" refId={id} title={tr(i.serviceName)} label={tr('Chat with the shop')} /></View> : null}
                     <Card>
                         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                             <Text style={{ color: text, fontWeight: '900', fontSize: 17, flex: 1 }}>{tr(i.serviceName)}</Text>
@@ -38,6 +43,7 @@ export default function InquiryScreen() {
                         <Text style={{ color: muted, marginTop: 2 }}>{new Date(i.createdAt).toLocaleDateString()}</Text>
                     </Card>
                     {i.answers?.length || i.estimate ? <Group title={tr('What I asked')}><Answers answers={i.answers} estimate={i.estimate} /></Group> : null}
+                    </DeskCols>
                 </ScrollView>
             )}
         </FormPage>

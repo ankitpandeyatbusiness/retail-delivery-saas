@@ -67,7 +67,7 @@ function Card({ d }) {
                             const ghost = b.style === 'cancel';
                             const fill = b.style === 'destructive' ? error : primary;
                             return (
-                                <Press key={i} wrap={row ? { flex: 1, marginLeft: i ? 10 : 0 } : { marginTop: i ? 8 : 0 }} onPress={() => done(b)}
+                                <Press key={i} hover={ghost ? { backgroundColor: tint(border) } : { filter: 'brightness(1.12)' }} wrap={row ? { flex: 1, marginLeft: i ? 10 : 0 } : { marginTop: i ? 8 : 0 }} onPress={() => done(b)}
                                     style={[s.btn, { borderRadius: radius }, ghost ? { borderWidth: 1.5, borderColor: border } : { backgroundColor: fill }]}>
                                     <Text numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.8} style={[s.btnTxt, { color: ghost ? text : '#FFFFFF', textAlign: 'center' }]}>{b.text}</Text>
                                 </Press>

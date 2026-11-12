@@ -2,7 +2,7 @@
 // What he picks goes into the BULK ORDER cart (a bar at the bottom shows it). The rest (pickup or delivery, the day and time, the address, the
 // instructions, who he is) is filled in on the cart page, like for a normal order. Nothing is paid here.
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, Pressable, TextInput, ScrollView } from 'react-native';
+import { View, Text, Pressable, TextInput, ScrollView, Platform } from 'react-native';
 import { Image } from 'expo-image';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -41,7 +41,7 @@ export function Qty({ value, max, min = 0, onChange }) {
                 value={value ? String(value) : ''} placeholder={atLeast ? String(atLeast) : '0'} placeholderTextColor={border} keyboardType="number-pad" maxLength={5}
                 onChangeText={(t) => onChange(clean(t.replace(/\D/g, ''), max))}
                 onEndEditing={() => { if (value > 0 && value < atLeast) onChange(atLeast); }}   // typed too few: it goes up to the minimum
-                style={{ minWidth: 52, textAlign: 'center', color: text, fontWeight: '900', fontSize: 16, paddingVertical: 4 }}
+                style={[{ minWidth: 52, textAlign: 'center', color: text, fontWeight: '900', fontSize: 16, paddingVertical: 4 }, Platform.OS === 'web' && { width: 52, outlineStyle: 'none', outlineWidth: 0 }]}
             />
             <Pressable
                 onPress={() => onChange(value === 0 && atLeast ? atLeast : clean(value + 1, max))}
@@ -225,7 +225,7 @@ export default function BulkOrderScreen() {
                     </ScrollView>
 
                     {/* RIGHT: what he has picked so far */}
-                    <View style={{ width: 400, flexGrow: 0, marginBottom: 24, borderRadius: 24, borderWidth: 1, borderColor: border, backgroundColor: surface, padding: 22 }}>
+                    <View style={{ width: 400, flexGrow: 0, alignSelf: 'flex-start', maxHeight: '100%', marginBottom: 24, borderRadius: 24, borderWidth: 1, borderColor: border, backgroundColor: surface, padding: 22 }}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 14 }}>
                             <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: primary + '24', alignItems: 'center', justifyContent: 'center' }}><Ionicons name="cube" size={20} color={primary} /></View>
                             <View style={{ flex: 1, marginLeft: 12 }}>
@@ -233,7 +233,7 @@ export default function BulkOrderScreen() {
                                 <Text style={{ color: muted, fontSize: 12.5, marginTop: 1 }}>{lines.length ? tr('{n} dishes · {p} pieces', { n: lines.length, p: pieces }) : tr('Pick dishes to start your bulk order')}</Text>
                             </View>
                         </View>
-                        <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+                        <ScrollView style={{ flexShrink: 1 }} showsVerticalScrollIndicator={false}>
                             {lines.map((l) => (
                                 <View key={l.key} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderTopWidth: 1, borderTopColor: border }}>
                                     <Thumb uri={l.image} size={44} />

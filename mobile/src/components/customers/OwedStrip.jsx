@@ -7,13 +7,15 @@ import { useTableBill } from '../../store/customers/useTableBill';
 import { useOwedPrompt } from '../../store/customers/useOwedPrompt';
 import { whereOf } from '../../utils/common/where';
 import { tr } from '../../i18n';
+import { useIsDesktopWeb } from '../../utils/common/layout';
 
 export default function OwedStrip({ style }) {
     const { error, text, muted } = useBrand();
+    const desk = useIsDesktopWeb();   // the desktop website: a bigger strip that lights up under the mouse (false in the phone app)
     const owed = useTableBill((s) => s.bill?.owed);
     if (!owed) return null;
     return (
-        <Pressable onPress={() => useOwedPrompt.getState().show()} style={[{ marginHorizontal: 16, marginVertical: 8, padding: 14, borderRadius: 16, backgroundColor: alpha(error, 0.12), borderWidth: 1, borderColor: alpha(error, 0.5), flexDirection: 'row', alignItems: 'center' }, style]}>
+        <Pressable onPress={() => useOwedPrompt.getState().show()} style={({ hovered }) => [{ marginHorizontal: 16, marginVertical: 8, padding: 14, borderRadius: 16, backgroundColor: alpha(error, 0.12), borderWidth: 1, borderColor: alpha(error, 0.5), flexDirection: 'row', alignItems: 'center' }, desk && { padding: 18, borderRadius: 20, cursor: 'pointer', backgroundColor: alpha(error, hovered ? 0.2 : 0.12), boxShadow: hovered ? `0 8px 22px ${alpha(error, 0.25)}` : '0 0 0 rgba(0,0,0,0)', transitionProperty: 'background-color, border-color, box-shadow, transform', transitionDuration: '170ms' }, style]}>
             <Ionicons name="alert-circle" size={24} color={error} />
             <View style={{ flex: 1, marginLeft: 10 }}>
                 <Text style={{ color: text, fontWeight: '900' }}>{tr('Unpaid bill: ₹{n}', { n: Math.round(owed.amount) })}</Text>

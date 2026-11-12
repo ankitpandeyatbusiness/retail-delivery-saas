@@ -162,7 +162,6 @@ import { deskColumn } from '../components/common/deskColumn';
 const DMyBookings = deskColumn(MyBookingsScreen, 1120);
 const DMyBulkOrders = deskColumn(MyBulkOrdersScreen, 1120);
 const DServices = deskColumn(ServicesScreen, 1120);
-const DInquiry = deskColumn(InquiryScreen, 860);
 const DMyInquiries = deskColumn(MyInquiriesScreen, 1120);
 const DChat = deskColumn(ChatScreen, 860);
 const DAboutUs = deskColumn(AboutUsScreen, 820);
@@ -400,7 +399,7 @@ export default function AppNavigator() {
                     <Stack.Screen name="MyBookings" component={DMyBookings} />
                     <Stack.Screen name="Services" component={DServices} />
                     <Stack.Screen name="ServiceForm" component={ServiceFormScreen} />
-                    <Stack.Screen name="Inquiry" component={DInquiry} />
+                    <Stack.Screen name="Inquiry" component={InquiryScreen} />
                     <Stack.Screen name="MyInquiries" component={DMyInquiries} />
                     <Stack.Screen name="BulkOrder" component={BulkOrderScreen} />
                     <Stack.Screen name="BulkCart" component={BulkCartScreen} />

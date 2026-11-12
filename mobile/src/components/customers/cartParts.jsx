@@ -192,10 +192,11 @@ export function ClosedBanner({ message }) {
 // Pickup time windows from the server, grouped by day
 export function PickupSlots({ res, picked, onPick }) {
     const { primary, text, muted, border, surface } = useBrand();
+    const desk = useIsDesktopWeb();   // the desktop website: roomier time buttons that light up under the mouse, with a heading per day (false in the phone app)
     if (!res) return <ListShimmer count={2} />;
     if (!res.slots.length) {
         return (
-            <View style={[s.noSlot, { borderColor: border, backgroundColor: surface }]}>
+            <View style={[s.noSlot, { borderColor: border, backgroundColor: surface }, desk && { padding: 18, borderRadius: 18 }]}>
                 <Ionicons name="time-outline" size={18} color={muted} />
                 <Text style={[s.noSlotTxt, { color: muted }]}>{res.message || tr('No pickup time available right now')}</Text>
             </View>
@@ -206,12 +207,12 @@ export function PickupSlots({ res, picked, onPick }) {
         <>
             {days.map((d) => (
                 <View key={d}>
-                    <Text style={[s.dayTxt, { color: muted }]}>{d.toUpperCase()}{res.slots.find((x) => x.dayLabel === d)?.dateLabel ? `  ·  ${res.slots.find((x) => x.dayLabel === d).dateLabel}` : ''}</Text>
+                    <Text style={[s.dayTxt, { color: muted }, desk && { color: text, fontSize: 13, fontWeight: '900', letterSpacing: 1, marginTop: 6, marginBottom: 10 }]}>{d.toUpperCase()}{res.slots.find((x) => x.dayLabel === d)?.dateLabel ? `  ·  ${res.slots.find((x) => x.dayLabel === d).dateLabel}` : ''}</Text>
                     <View style={s.slotWrap}>
                         {res.slots.filter((x) => x.dayLabel === d).map((x) => {
                             const on = picked === x.from;
                             return (
-                                <Press key={x.from} onPress={() => onPick(x.from)} style={[s.slot, { backgroundColor: on ? tint(primary) : surface, borderColor: on ? primary : border }]}>
+                                <Press key={x.from} onPress={() => onPick(x.from)} hover={on ? undefined : { backgroundColor: tint(primary), borderColor: primary }} style={[s.slot, { backgroundColor: on ? tint(primary) : surface, borderColor: on ? primary : border }, desk && { paddingHorizontal: 18, paddingVertical: 14, borderRadius: 16, minWidth: 128, marginRight: 10, marginBottom: 10 }]}>
                                     <Ionicons name={on ? 'checkmark-circle' : 'time-outline'} size={16} color={on ? primary : muted} style={{ marginRight: 6 }} />
                                     <Text style={[s.slotTxt, { color: on ? primary : text }]}>{x.label}</Text>
                                 </Press>

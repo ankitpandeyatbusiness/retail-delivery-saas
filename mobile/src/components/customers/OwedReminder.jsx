@@ -14,6 +14,7 @@ import { onNotification } from '../../api/common/socket';
 import { showToast } from './shop';
 import { whereOf, WhereOf } from '../../utils/common/where';
 import { tr } from '../../i18n';
+import { useIsDesktopWeb } from '../../utils/common/layout';
 
 export { useOwedPrompt };
 const hm = (d) => { if (!d) return ''; const x = new Date(d); const h = x.getHours(); return `${h % 12 || 12}:${String(x.getMinutes()).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`; };
@@ -22,6 +23,7 @@ const AWAY_MS = 3 * 60 * 1000;
 
 export default function OwedReminder() {
     const { surface, text, muted, border, error } = useBrand();
+    const desk = useIsDesktopWeb();   // the desktop website: a card of its own width, centred, on a blurred backdrop (false in the phone app)
     const user = useAuthStore((s) => s.user);
     const enabled = !!user && ['rider', 'admin', 'kitchen', 'waiter'].indexOf(user.role) < 0;
     const owed = useTableBill((s) => s.bill?.owed);
@@ -68,14 +70,14 @@ export default function OwedReminder() {
     };
     return (
         <Modal visible={open} transparent animationType="fade" onRequestClose={() => useOwedPrompt.getState().hide()} statusBarTranslucent>
-            <ScrollView style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)' }} contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 20 }}>
-                <View style={{ backgroundColor: surface, borderRadius: 22, padding: 20, borderWidth: 1, borderColor: border }}>
+            <ScrollView style={[{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)' }, desk && { backgroundColor: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)' }]} contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 20 }}>
+                <View style={[{ backgroundColor: surface, borderRadius: 22, padding: 20, borderWidth: 1, borderColor: border }, desk && { width: '100%', maxWidth: 540, alignSelf: 'center', padding: 32, borderRadius: 28, boxShadow: '0 30px 80px rgba(0,0,0,0.6)' }]}>
                     <View style={{ alignItems: 'center' }}>
                         <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: alpha(error, 0.14), alignItems: 'center', justifyContent: 'center' }}>
                             <Ionicons name="alert-circle" size={32} color={error} />
                         </View>
                         <Text style={{ color: text, fontWeight: '900', fontSize: 19, marginTop: 12, textAlign: 'center' }}>{tr('Your bill is not paid')}</Text>
-                        <Text style={{ color: text, fontWeight: '900', fontSize: 28, marginTop: 6 }}>₹{Math.round(owed.amount)}</Text>
+                        <Text style={{ color: text, fontWeight: '900', fontSize: desk ? 40 : 28, letterSpacing: desk ? -1 : 0, marginTop: 6 }}>₹{Math.round(owed.amount)}</Text>
                         <Text style={{ color: muted, textAlign: 'center', marginTop: 4 }}>{tr('From {where}. It was not paid.', { where: whereOf(owed.table) })}</Text>
                     </View>
                     <Text style={{ color: text, textAlign: 'center', marginTop: 12, fontSize: 13.5 }}>{tr('Until it is paid you cannot order anything: delivery, pickup or dine in.')}</Text>
@@ -118,7 +120,7 @@ export default function OwedReminder() {
                         {owed.canPay ? <Button label={tr('Pay ₹{n} now', { n: Math.round(owed.amount) })} icon="card" busy={paying} disabled={paying} onPress={payNow} style={{ minHeight: 60 }} /> : null}
                         {owed.phone ? <Button label={tr('Call the shop')} icon="call" kind={owed.canPay ? 'ghost' : 'primary'} onPress={() => Linking.openURL('tel:' + owed.phone)} style={{ marginTop: owed.canPay ? 10 : 0 }} /> : null}
                         {owed.claim ? null : <Button label={tr('I have already paid')} icon="checkmark-circle" kind="ghost" busy={busy} onPress={paid} style={{ marginTop: owed.phone || owed.canPay ? 10 : 0 }} />}
-                        <Pressable onPress={() => useOwedPrompt.getState().hide()} hitSlop={8} style={{ alignItems: 'center', paddingTop: 14 }}>
+                        <Pressable onPress={() => useOwedPrompt.getState().hide()} hitSlop={8} style={({ hovered }) => [{ alignItems: 'center', paddingTop: 14 }, desk && { marginTop: 10, paddingVertical: 12, borderRadius: 14, cursor: 'pointer', backgroundColor: hovered ? alpha(muted, 0.14) : 'transparent', transitionProperty: 'background-color', transitionDuration: '150ms' }]}>
                             <Text style={{ color: muted, fontWeight: '800' }}>{tr('Close')}</Text>
                         </Pressable>
                     </View>
