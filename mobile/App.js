@@ -16,6 +16,7 @@ import { useLang, syncLanguage } from './src/i18n';
 import { installTextTranslation } from './src/i18n/textPatch';
 import LockGate from './src/lock/LockUI';
 import DemoBar from './src/components/common/DemoBar';
+import DemoGate from './src/components/common/DemoGate';
 import { loadActive } from './src/utils/common/branch';
 import { hideWebScrollbars } from './src/utils/common/webScrollbars';
 import { installPullRefresh } from './src/utils/common/webPullRefresh';
@@ -84,6 +85,7 @@ export default function App() {
         <SheetHost key={lang}>
           <AppNavigator />
           <OwnerLock />
+          <DemoGate />   {/* only on the public demo shop, before sign-in: welcome animation and one-tap entry */}
           <DemoBar />   {/* only for the private demo login: jump between the demo panels */}
         </SheetHost>
         {/* after the host so alerts (e.g. "Delete address?") draw above the sheet */}

@@ -75,4 +75,12 @@ async function panelsFor(demoTenant) {
     }));
 }
 
-module.exports = { SLUG, PEOPLE, PANELS, isFakePhone, ensureTenant, personFor, panelsFor };
+// the company shown on the demo's welcome screen: the platform's business details, with the default text when nothing is set
+const DEFAULT_COMPANY = 'Vivyaan Business Systems Pvt. Ltd.';
+async function companyInfo() {
+    const s = await require('../models/PlatformSettings').findById('main').select('business.legalName business.logoUrl').lean();
+    const b = (s && s.business) || {};
+    return { name: b.legalName || DEFAULT_COMPANY, logoUrl: b.logoUrl || null };
+}
+
+module.exports = { companyInfo, DEFAULT_COMPANY, SLUG, PEOPLE, PANELS, isFakePhone, ensureTenant, personFor, panelsFor };

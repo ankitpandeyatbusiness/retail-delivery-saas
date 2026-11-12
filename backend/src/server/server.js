@@ -73,7 +73,8 @@ connectDB()
             realtime.init(server);   // live updates (Socket.IO)
             startComplaintRemindersScheduler();
             require('../services/demoEngine').start();          // the demo shop plays the cook and the rider by itself (demo shops only)
-            require('../services/demoReset').startNightly();    // and puts itself back to the start every night
+            require('../services/demoReset').startNightly();
+            require('../services/demoReset').ensureReady().catch((e) => console.error('Demo shop setup error:', e.message));   // the demo shop exists (and has its menu) from the first start    // and puts itself back to the start every night
             startCleanupUploadsScheduler();
             startBackupScheduler();
             startNightlyReconcileScheduler();

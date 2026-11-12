@@ -42,7 +42,8 @@ const unknownNames = (text, vars) => [...new Set([...String(text).matchAll(/\{\{
 async function shopNameFor(slug) {
     const s = String(slug || '').trim().toLowerCase();
     if (!/^[a-z0-9-]{1,60}$/.test(s)) return null;
-    const t = await Tenant.findOne({ slug: s }).select('name').lean();
+    const t = await Tenant.findOne({ slug: s }).select('name isDemo').lean();
+    if (t && t.isDemo) return null;   // the public demo shows the platform's own text, with no shop name
     return t?.name || null;
 }
 

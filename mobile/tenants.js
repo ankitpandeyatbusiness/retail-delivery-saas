@@ -6,6 +6,12 @@ module.exports = {
     bundleId: 'com.ankit.retailsaas',
     backgroundColor: '#ffffff',
   },
+  // the public demo website (second Vercel project, APP_TENANT=demo): see docs/demo-public-site.md
+  demo: {
+    name: 'Demo Shop',
+    bundleId: 'com.vivyaan.demo',
+    backgroundColor: '#E23744',
+  },
   savera: {
     name: 'Savera',
     bundleId: 'com.savera.app',

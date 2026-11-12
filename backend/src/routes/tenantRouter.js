@@ -37,6 +37,7 @@ tenantRouter.get('/theme', tenantRecognizer, async (req, res) => {
         locationStyle: c.brand.locationStyle,
         heroImages,
         loginBg: loginBg ? loginBg.url : null,
+        ...(t.isDemo ? { demo: true, demoCompany: await require('../services/demoTenant').companyInfo() } : {}),   // the public demo shop (services/demoTenant.js)
     });
 });
 

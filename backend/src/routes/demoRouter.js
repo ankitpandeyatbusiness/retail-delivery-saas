@@ -18,11 +18,27 @@ const { hashPhone } = require('../utils/phoneHash');
 const { wrap, httpError } = apiErrors;
 const router = express.Router();
 
+const dto = (u) => ({ id: u._id, phone: u.phone, name: u.name || null, role: u.role, demo: true });
+
 router.use(tenantRecognizer);
+
+// ---- public: the demo website's one-tap entry (no OTP, no login). Only the demo shop answers. ----
+const enterLimit = require('../middlewares/publicRateLimit').make({ points: 40, duration: 60 * 60 });   // per IP, per hour
+router.get('/info', wrap(async (req, res) => {
+    if (!req.tenant.isDemo) throw httpError(404, 'Not found');
+    res.json({ company: await demoTenant.companyInfo(), shop: req.tenant.name });
+}));
+router.post('/enter', enterLimit, wrap(async (req, res) => {
+    if (!req.tenant.isDemo) throw httpError(403, 'The one-tap demo is only for the demo shop');
+    const dt = await require('../services/demoReset').ensureReady();
+    const user = await demoTenant.personFor(dt, 'customer');
+    const { accessToken, refreshToken } = await authController.issueSession(user, dt, req, req.ip, { demo: true, demoHomeTenantId: dt._id });
+    res.json({ success: true, demo: true, slug: dt.slug, name: dt.name, user: dto(user), accessToken, refreshToken });
+}));
+
 router.use(authenticate);
 router.use((req, res, next) => (req.sessionFlags && req.sessionFlags.demo ? next() : res.status(403).json({ error: 'The demo panels are for the demo login only' })));
 
-const dto = (u) => ({ id: u._id, phone: u.phone, name: u.name || null, role: u.role, demo: true });
 
 router.get('/panels', wrap(async (req, res) => {
     const me = await User.findById(req.auth.userId).select('role').lean();
