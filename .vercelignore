@@ -1,0 +1,21 @@
+# What `npx vercel --prod` does NOT upload when it is run from the repo root.
+# The website is built from /mobile only (Vercel project root = mobile, build = npm run build:web). Everything else, and everything that is
+# rebuilt on Vercel anyway (node_modules, the native Android project, old builds), stays on this computer. Without this file the upload was over 2 GB.
+.git
+**/node_modules
+/backend
+/superadmin
+/deploy
+/docs
+/source-art
+/netlify.toml
+/mobile/android
+/mobile/dist
+/mobile/dist-web
+/mobile/.expo
+/mobile/.vercel
+.vercel
+.env
+.env.*
+*.env
+*firebase-adminsdk*.json

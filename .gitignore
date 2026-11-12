@@ -5,3 +5,5 @@
 
 # full-size artwork kept on this computer only (the login wallpapers live on the CDN; see backend/src/services/loginBackgrounds.js)
 source-art/
+.vercel
+.env*
