@@ -23,11 +23,14 @@ import { ask } from '../../components/common/dialog';
 import { BULK_STATUS, bulkTone, whenText } from '../customers/BulkOrderDetailScreen';
 import { dismissBulk } from '../../utils/owners/soundbox';
 import { tr } from '../../i18n';
+import { useOwnerDesktop } from '../../utils/common/layout';
+import { Hero, GlassStat } from '../../components/owners/RiderDesk';
 
 export default function OwnerBulkOrderScreen() {
     const { id } = useRoute().params || {};
     useFocusEffect(useCallback(() => { if (id) dismissBulk(id); }, [id]));   // opening the request stops its ringing, like opening a new order
     const brand = useBrand();
+    const desk = useOwnerDesktop();   // a computer: a banner, the customer on the left and the quote on the right
     const { background, text, muted, primary, ok, error, border } = brand;
     const [o, setO] = useState(null);
     const [err, setErr] = useState('');
@@ -134,6 +137,20 @@ export default function OwnerBulkOrderScreen() {
         <View style={{ flex: 1, backgroundColor: background }}>
             <PageHeader title={`${tr('Bulk order')} ${o.code}`} />
             <ScrollView contentContainerStyle={{ paddingBottom: 48 }} keyboardShouldPersistTaps="handled">
+              <View style={desk ? { width: '100%', maxWidth: 1240, alignSelf: 'center' } : undefined}>
+                {desk ? (
+                    <Hero icon="people" title={`${tr('Bulk order')} ${o.code}`} subtitle={`${o.contact?.company || o.contact?.name || ''}  ·  ${delivered ? tr('Delivery') : tr('Pickup')}  ·  ${whenText(o.when)}`}
+                        right={<View style={{ paddingHorizontal: 16, height: 38, borderRadius: 19, backgroundColor: '#FFFFFF', justifyContent: 'center' }}><Text style={{ color: primary, fontWeight: '900', fontSize: 13 }}>{tr(BULK_STATUS[o.status] || o.status)}</Text></View>}>
+                        <View style={{ flexDirection: 'row', marginTop: 18 }}>
+                            <GlassStat label={tr('Dishes')} value={String(o.lines.length)} icon="restaurant-outline" />
+                            <GlassStat label={tr('Total')} value={rs((sent ? q.pricing : o.pricing)?.total || 0)} icon="cash-outline" />
+                            {sent ? <GlassStat label={tr('Advance')} value={rs(q.advancePaise / 100)} icon="wallet-outline" /> : null}
+                            {sent ? <GlassStat label={tr('Balance')} value={rs(q.balancePaise / 100)} icon="time-outline" /> : null}
+                        </View>
+                    </Hero>
+                ) : null}
+                <View style={desk ? { flexDirection: 'row', alignItems: 'flex-start' } : undefined}>
+                <View style={desk ? { width: 400, flexShrink: 0 } : undefined}>
                 <Card>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <Text style={{ flex: 1, color: text, fontWeight: '900', fontSize: 16 }}>{o.contact?.company || o.contact?.name}</Text>
@@ -158,7 +175,8 @@ export default function OwnerBulkOrderScreen() {
                 </Card>
 
                 <View style={{ paddingHorizontal: 16, marginVertical: 12 }}><ChatButton kind="bulk" refId={o.id} title={`${tr('Bulk order')} ${o.code}`} label={tr('Chat with the customer')} /></View>
-
+                </View>
+                <View style={desk ? { flex: 1, minWidth: 0 } : undefined}>
                 {o.status === 'requested' ? (
                     <>
                         <Group title={tr('Your quote')} hint={tr('Prices are filled in. Change any of them. GST and the final total are worked out when you send.')}>
@@ -240,6 +258,9 @@ export default function OwnerBulkOrderScreen() {
                         ) : null}
                     </>
                 )}
+                </View>
+                </View>
+              </View>
             </ScrollView>
 
             <BulkPayQrSheet visible={qrOpen} bulkId={id} busy={busy} onClose={() => setQrOpen(false)} onPaid={upiPaid} />

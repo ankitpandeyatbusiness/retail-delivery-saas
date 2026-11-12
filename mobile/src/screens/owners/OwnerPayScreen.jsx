@@ -19,6 +19,8 @@ import { showToast } from '../../components/customers/shop';
 import { ListShimmer } from '../../components/owners/shimmer';
 import { tr } from '../../i18n';
 import KeyboardScroll from '../../components/common/KeyboardScroll';
+import { useOwnerDesktop } from '../../utils/common/layout';
+import { Hero } from '../../components/owners/RiderDesk';
 
 const digits = (v) => String(v || '').replace(/\D/g, '');
 function groupNumber(v) {
@@ -97,6 +99,7 @@ function cardProblems(c) {
 
 export default function OwnerPayScreen() {
     const nav = useNavigation();
+    const desk = useOwnerDesktop();   // a computer: the ways to pay on the left, the amount and the Pay button on the right
     const { kind, id, amountPaise, title, payablePaise, gstPaise, gstPercent, to, months, coupon } = useRoute().params || {};
     const toPay = payablePaise || amountPaise;   // an SMS top-up: the amount plus GST
     const { background, primary, text, muted, ok, border } = useBrand();
@@ -164,6 +167,8 @@ export default function OwnerPayScreen() {
         else showToast(r.message || tr('Payment did not go through'));
     };
 
+    const payButton = <Button label={!current ? tr('Choose how to pay') : current.key === 'qr' ? tr('Show QR code') : tr('Pay {rupees}', { rupees: rupees(toPay) })} icon={current?.key === 'qr' ? 'qr-code' : 'lock-closed'} disabled={!current} busy={qrBusy} onPress={pay} />;
+
     // QR sheet: the same checks as before
     const qrPoll = async () => {
         const r = await fetchTopups();
@@ -181,7 +186,11 @@ export default function OwnerPayScreen() {
                 </View>
             ) : (
                 <>
-                    <KeyboardScroll contentContainerStyle={{ paddingTop: 6, paddingBottom: 120 }} keyboardShouldPersistTaps="handled">
+                    <KeyboardScroll contentContainerStyle={{ paddingTop: 6, paddingBottom: desk ? 40 : 120 }} keyboardShouldPersistTaps="handled">
+                      <View style={desk ? { width: '100%', maxWidth: 1100, alignSelf: 'center' } : undefined}>
+                        {desk ? <Hero icon="card" title={tr('Payment options')} subtitle={title} right={<View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, height: 38, borderRadius: 19, backgroundColor: 'rgba(255,255,255,0.2)' }}><Ionicons name="shield-checkmark" size={16} color="#FFFFFF" /><Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 13, marginLeft: 7 }}>{tr('Secure payment by Razorpay')}</Text></View>} /> : null}
+                        <View style={desk ? { flexDirection: 'row-reverse', alignItems: 'flex-start' } : undefined}>
+                        <View style={desk ? { width: 380 } : undefined}>
                         <Card>
                             <Text style={{ color: muted, fontSize: 12, fontWeight: '700' }}>{title}</Text>
                             <Text style={{ color: text, fontSize: 34, fontWeight: '900', marginTop: 2 }}>{rupees(toPay)}</Text>
@@ -191,6 +200,9 @@ export default function OwnerPayScreen() {
                                 <Text style={{ color: muted, fontSize: 12, marginLeft: 6 }}>{tr('Secure payment by Razorpay')}</Text>
                             </View>
                         </Card>
+                        {desk ? <View style={{ paddingHorizontal: 16, marginTop: 4 }}>{payButton}</View> : null}
+                        </View>
+                        <View style={desk ? { flex: 1, minWidth: 0 } : undefined}>
                         <Card style={{ paddingVertical: 4 }}>
                             {apps === null ? <ListShimmer count={3} rows /> : rows.map((m, i) => (
                                 <View key={m.key}>
@@ -199,10 +211,13 @@ export default function OwnerPayScreen() {
                                 </View>
                             ))}
                         </Card>
+                        </View>
+                        </View>
+                      </View>
                     </KeyboardScroll>
-                    <View style={[styles.dock, { backgroundColor: background, borderTopColor: border }]}>
-                        <Button label={!current ? tr('Choose how to pay') : current.key === 'qr' ? tr('Show QR code') : tr('Pay {rupees}', { rupees: rupees(toPay) })} icon={current?.key === 'qr' ? 'qr-code' : 'lock-closed'} disabled={!current} busy={qrBusy} onPress={pay} />
-                    </View>
+                    {desk ? null : <View style={[styles.dock, { backgroundColor: background, borderTopColor: border }]}>
+                        {payButton}
+                    </View>}
                     {paying ? <PayShimmer appName={paying} /> : null}
                 </>
             )}

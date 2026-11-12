@@ -14,6 +14,8 @@ import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { rupees, toPaise, ago } from '../../utils/owners/riderRules';
 import { LineShimmer, ListShimmer } from '../../components/owners/shimmer';
 import { tr } from '../../i18n';
+import { useOwnerDesktop } from '../../utils/common/layout';
+import { Hero, GlassStat } from '../../components/owners/RiderDesk';
 
 const lineOf = (t) => {
     if (t.type === 'fee') return t.orderNo ? tr('Order #{no}, {rupees}, fee {fee}', { no: t.orderNo, rupees: rupees(Math.round((t.baseRs || 0) * 100)), fee: rupees(-t.amountPaise) }) : tr('Order fee');
@@ -24,6 +26,7 @@ const lineOf = (t) => {
 
 export default function OwnerWalletScreen() {
     const nav = useNavigation();
+    const desk = useOwnerDesktop();   // a computer: a banner with the balance, Add money on the left and the History on the right
     const { background, text, muted, error, ok, primary } = useBrand();
     const [w, setW] = useState(null);
     const [h, setH] = useState(null);
@@ -50,14 +53,27 @@ export default function OwnerWalletScreen() {
         <View style={{ flex: 1, backgroundColor: background }}>
             <PageHeader title={tr('Wallet')} />
             <ScrollView contentContainerStyle={{ paddingTop: 6, paddingBottom: 32 }} keyboardShouldPersistTaps="handled">
-                <Card tone={w && (w.zero || w.low) ? error : undefined}>
+              <View style={desk ? { width: '100%', maxWidth: 1240, alignSelf: 'center' } : undefined}>
+                {desk ? (
+                    <Hero icon="card" title={tr('Wallet')} subtitle={w ? tr('Each completed order costs Rs {min} to Rs {max}, depending on the order value.', { min: w.feeRange.minRs, max: w.feeRange.maxRs }) : tr('Your Partner wallet')}
+                        right={w?.zero ? <View style={{ paddingHorizontal: 16, height: 38, borderRadius: 19, backgroundColor: '#FFFFFF', justifyContent: 'center' }}><Text style={{ color: error, fontWeight: '900', fontSize: 13 }}>{w.canTakeOrders ? tr('Balance finished. Add money soon') : tr('Finished: new orders have stopped')}</Text></View> : null}>
+                        <View style={{ flexDirection: 'row', marginTop: 18 }}>
+                            <GlassStat label={tr('Balance')} value={w ? rupees(w.balancePaise) : '—'} icon="wallet-outline" />
+                            <GlassStat label={tr('Fees this month')} value={h?.feesThisMonth ? rupees(h.feesThisMonth.paise) : rupees(0)} icon="receipt-outline" />
+                            <GlassStat label={tr('Orders this month')} value={String(h?.feesThisMonth?.orders || 0)} icon="checkmark-done-outline" />
+                        </View>
+                    </Hero>
+                ) : null}
+                {desk ? null : <Card tone={w && (w.zero || w.low) ? error : undefined}>
                     <Text style={{ color: muted, fontSize: 12, fontWeight: '700' }}>{tr('Balance')}</Text>
                     <Text style={{ color: w && w.balancePaise < 0 ? error : text, fontSize: 34, fontWeight: '900', marginTop: 2 }}>{w ? rupees(w.balancePaise) : '—'}</Text>
                     {w ? <Text style={{ color: muted, marginTop: 4 }}>{tr('Each completed order costs Rs {min} to Rs {max}, depending on the order value.', { min: w.feeRange.minRs, max: w.feeRange.maxRs })}</Text> : null}
                     {w?.zero ? <View style={{ marginTop: 8 }}><Pill label={w.canTakeOrders ? tr('Balance finished. Add money soon') : tr('Finished: new orders have stopped')} color={error} /></View> : w?.low ? <View style={{ marginTop: 8 }}><Pill label={tr('Running low')} color={error} /></View> : null}
                     {h?.feesThisMonth ? <Text style={{ color: muted, marginTop: 8, fontSize: 12 }}>{tr('Fees this month: {rupees} for {n} orders', { rupees: rupees(h.feesThisMonth.paise), n: h.feesThisMonth.orders })}</Text> : null}
-                </Card>
+                </Card>}
 
+                <View style={desk ? { flexDirection: 'row', alignItems: 'flex-start' } : undefined}>
+                <View style={desk ? { flex: 1, minWidth: 0 } : undefined}>
                 <SectionTitle title={tr('Add money')} />
                 <Card>
                     {w ? <Chips options={w.packs.map((p) => [String(p / 100), rupees(p)])} value={amount} onChange={setAmount} style={{ marginTop: 0 }} /> : <LineShimmer width="100%" height={44} />}
@@ -74,6 +90,8 @@ export default function OwnerWalletScreen() {
                     </View>
                 </Card>
 
+                </View>
+                <View style={desk ? { flex: 1.25, minWidth: 0 } : undefined}>
                 <SectionTitle title={tr('History')} />
                 <Card>
                     {h === null ? <ListShimmer count={2} rows /> : null}
@@ -91,6 +109,9 @@ export default function OwnerWalletScreen() {
                         />
                     ))}
                 </Card>
+                </View>
+                </View>
+              </View>
             </ScrollView>
         </View>
     );
