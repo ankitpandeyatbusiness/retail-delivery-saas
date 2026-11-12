@@ -121,6 +121,10 @@ function EditDialog({ visible, me, onClose, onSaved }) {
     );
 }
 
+// the website's rows: the same icon square and the same side padding in every kind of row (a plain row, a switch row, the Appearance and Language rows), so their icons line up
+const DESK_IC = { width: 42, height: 42, borderRadius: 14, marginRight: 16 };
+const DESK_ROW = { paddingHorizontal: 22, paddingVertical: 16, borderBottomWidth: 1 };
+
 function Item({ icon, label, sub, onPress, danger, last, badge }) {
     const { primary, text, muted, error, border } = useBrand();
     const desk = useCustomerDesktop();   // the desktop website: a roomier row that lights up under the mouse (false in the phone app)
@@ -210,12 +214,13 @@ function AccountTile({ icon, label, sub, onPress, badge }) {
 
 function ToggleItem({ icon, label, sub, value, onValueChange, disabled, last }) {
     const { primary, text, muted, border } = useBrand();
+    const desk = useCustomerDesktop();   // the desktop website: the same row as the others (false in the phone app)
     return (
-        <View style={[s.row, !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: border }]}>
-            <View style={[s.rowIc, { backgroundColor: tint(primary) }]}><Ionicons name={icon} size={18} color={primary} /></View>
+        <View style={[s.row, !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: border }, desk && DESK_ROW, desk && last && { borderBottomWidth: 0 }]}>
+            <View style={[s.rowIc, { backgroundColor: tint(primary) }, desk && DESK_IC]}><Ionicons name={icon} size={desk ? 20 : 18} color={primary} /></View>
             <View style={{ flex: 1, paddingRight: 8 }}>
-                <Text style={[s.rowTxt, { color: text }]}>{label}</Text>
-                {sub ? <Text style={[s.rowSub, { color: muted }]}>{sub}</Text> : null}
+                <Text style={[s.rowTxt, { color: text }, desk && { fontSize: 15.5, fontWeight: '800' }]}>{label}</Text>
+                {sub ? <Text style={[s.rowSub, { color: muted }, desk && { fontSize: 12.5 }]}>{sub}</Text> : null}
             </View>
             <Switch
                 value={value} onValueChange={onValueChange} disabled={disabled}
@@ -229,6 +234,7 @@ function ToggleItem({ icon, label, sub, value, onValueChange, disabled, last }) 
 const MODES = [['system', 'phone-portrait-outline', 'System'], ['light', 'sunny-outline', 'Light'], ['dark', 'moon-outline', 'Dark']];
 function AppearanceRow({ last }) {
     const { primary, onPrimary, text, muted, border, background } = useBrand();
+    const desk = useCustomerDesktop();   // the desktop website: the same row as the others (false in the phone app)
     const saved = useThemeStore((st) => st.appearance);
     const setAppearance = useThemeStore((st) => st.setAppearance);
     // What the control draws is local and changes the instant it is tapped. The whole app re-themes only AFTER the
@@ -248,12 +254,12 @@ function AppearanceRow({ last }) {
     };
     const segW = w ? (w - 6) / MODES.length : 0;
     return (
-        <View style={[s.row, { flexDirection: 'column', alignItems: 'stretch' }, !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: border }]}>
+        <View style={[s.row, { flexDirection: 'column', alignItems: 'stretch' }, !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: border }, desk && DESK_ROW, desk && last && { borderBottomWidth: 0 }]}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <View style={[s.rowIc, { backgroundColor: tint(primary) }]}><Ionicons name="contrast-outline" size={18} color={primary} /></View>
+                <View style={[s.rowIc, { backgroundColor: tint(primary) }, desk && DESK_IC]}><Ionicons name="contrast-outline" size={desk ? 20 : 18} color={primary} /></View>
                 <View style={{ flex: 1 }}>
-                    <Text style={[s.rowTxt, { color: text }]}>{tr('Appearance')}</Text>
-                    <Text style={[s.rowSub, { color: muted }]}>{mode === 'system' ? tr('Follows your phone\'s dark mode') : mode === 'dark' ? tr('Always dark') : tr('Always light')}</Text>
+                    <Text style={[s.rowTxt, { color: text }, desk && { fontSize: 15.5, fontWeight: '800' }]}>{tr('Appearance')}</Text>
+                    <Text style={[s.rowSub, { color: muted }, desk && { fontSize: 12.5 }]}>{mode === 'system' ? tr('Follows your phone\'s dark mode') : mode === 'dark' ? tr('Always dark') : tr('Always light')}</Text>
                 </View>
             </View>
             <View onLayout={(e) => setW(e.nativeEvent.layout.width)} style={[s.seg, { backgroundColor: background, borderColor: border }]}>
@@ -285,10 +291,10 @@ function LanguageRow() {
     return (
         <>
             <Pressable onPress={() => setOpen(true)} style={({ hovered }) => [s.row, { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: border }, desk && { paddingHorizontal: 22, paddingVertical: 16, borderBottomWidth: 1, cursor: 'pointer', backgroundColor: hovered ? tint(primary) : 'transparent', boxShadow: hovered ? `inset 4px 0 0 ${primary}` : 'inset 0 0 0 transparent', transitionProperty: 'background-color, border-color, box-shadow, transform, opacity', transitionDuration: '200ms' }]}>
-                <View style={[s.rowIc, { backgroundColor: tint(primary) }]}><Ionicons name="language-outline" size={18} color={primary} /></View>
+                <View style={[s.rowIc, { backgroundColor: tint(primary) }, desk && DESK_IC]}><Ionicons name="language-outline" size={desk ? 20 : 18} color={primary} /></View>
                 <View style={{ flex: 1 }}>
-                    <Text style={[s.rowTxt, { color: text }]}>{tr('Language')}</Text>
-                    <Text style={[s.rowSub, { color: muted }]}>{cur?.native}</Text>
+                    <Text style={[s.rowTxt, { color: text }, desk && { fontSize: 15.5, fontWeight: '800' }]}>{tr('Language')}</Text>
+                    <Text style={[s.rowSub, { color: muted }, desk && { fontSize: 12.5 }]}>{cur?.native}</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={18} color={muted} />
             </Pressable>
