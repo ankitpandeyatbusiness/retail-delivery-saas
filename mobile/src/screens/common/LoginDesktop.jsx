@@ -2,7 +2,7 @@
 // original LoginScreen untouched: LoginScreen picks this one only on a wide web window (utils/common/layout.js).
 // Left: the shop's pictures, big. Right: the form in a calm card. The same calls as the phone screen: send-otp, verify-otp, then the app opens.
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, TextInput, Pressable, StyleSheet, ScrollView, Modal } from 'react-native';
+import { View, Text, TextInput, Pressable, StyleSheet, ScrollView, Modal, ImageBackground } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
@@ -31,6 +31,7 @@ const normalizePhone = (text) => {
 };
 
 // The desktop login is always dark (the design asked for it), whatever the shop's own colours are.
+const LOGIN_BG = require('../../../assets/login/login_bg_small.jpg');   // the food-drawing wallpaper; login_bg.png is the full-size original, this is the same picture made light (240 KB) for the page
 const D = { bg: '#121212', card: '#262626', input: '#171717', border: '#404040', text: '#FFFFFF', muted: '#A3A3A3', accent: '#B91C1C', accentText: '#F87171', error: '#F87171' };
 
 
@@ -130,6 +131,7 @@ export default function LoginDesktop({ navigation }) {
     const brandName = theme?.name || 'Delivery';
     const tagline = theme?.tagline || 'Delicious food, delivered to your door';
     const heroes = theme?.heroImages || [];
+    const logoUri = theme?.icon || theme?.logo || null;   // the shop's own logo, as a small mark on its picture
     const [heroIdx, setHeroIdx] = useState(0);
     const heroCount = heroes.length;
     useEffect(() => {   // auto-advance; restarts after every change (a click or a swipe) so it never jumps right after one
@@ -231,12 +233,24 @@ export default function LoginDesktop({ navigation }) {
             {/* LEFT: the shop (half the screen) */}
             <View style={s.left} ref={leftRef}>
                 {heroes.length === 0 ? (
-                    <LinearGradient colors={['#4a1010', '#121212']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+                    <>
+                        <LinearGradient colors={['#5a1212', '#151515']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+                        <ImageBackground pointerEvents="none" source={LOGIN_BG} resizeMode="cover" imageStyle={{ opacity: 0.55 }} style={StyleSheet.absoluteFill} />
+                    </>
                 ) : (
-                    <Image source={heroes[heroIdx % heroes.length]} style={StyleSheet.absoluteFill} contentFit="cover" transition={900} cachePolicy="memory-disk" />
+                    <View pointerEvents="none" style={[StyleSheet.absoluteFill, s.kenBurns]}>
+                        <Image source={heroes[heroIdx % heroes.length]} style={StyleSheet.absoluteFill} contentFit="cover" transition={900} cachePolicy="memory-disk" />
+                    </View>
                 )}
                 <LinearGradient pointerEvents="none" colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.5)', 'rgba(0,0,0,0.92)']} locations={[0, 0.5, 1]} start={{ x: 1, y: 0 }} end={{ x: 0, y: 1 }} style={StyleSheet.absoluteFill} />
+                <LinearGradient pointerEvents="none" colors={['rgba(0,0,0,0.55)', 'rgba(0,0,0,0)']} locations={[0, 1]} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={s.topFade} />
+                {logoUri ? (
+                    <View style={s.logoMark}>
+                        <Image source={logoUri} style={{ width: 52, height: 52, borderRadius: 14 }} contentFit="cover" />
+                    </View>
+                ) : null}
                 <View style={s.leftText}>
+                    <View style={s.accentBar} />
                     <Text style={s.heroName} numberOfLines={3}>{brandName}</Text>
                     <Text style={s.heroTag} numberOfLines={3}>{tagline}</Text>
                     {heroes.length > 1 ? (
@@ -253,6 +267,9 @@ export default function LoginDesktop({ navigation }) {
 
             {/* RIGHT: the form */}
             <View style={[s.right, { backgroundColor: D.bg }]}>
+                {/* the wallpaper of food drawings, filling this side; a soft dark spot keeps the middle calm behind the form */}
+                <ImageBackground pointerEvents="none" source={LOGIN_BG} resizeMode="cover" imageStyle={{ opacity: 0.9 }} style={StyleSheet.absoluteFill} />
+                <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundImage: 'radial-gradient(closest-side at 50% 52%, rgba(18,18,18,0.8) 0%, rgba(18,18,18,0.4) 55%, rgba(18,18,18,0) 100%)' }]} />
                 <View style={s.topBar}>
                     <Pressable onPress={() => setLangOpen(true)} style={({ hovered }) => [s.chip, hovered && s.chipHover]}>
                         <Text style={s.chipIcon}>A/文</Text>
@@ -345,6 +362,10 @@ const s = StyleSheet.create({
     root: { flex: 1, flexDirection: 'row' },
     left: { flex: 1, backgroundColor: '#161616', overflow: 'hidden', justifyContent: 'flex-end' },
     leftText: { padding: 56, paddingBottom: 64 },
+    kenBurns: { animationKeyframes: { '0%': { transform: [{ scale: 1 }] }, '100%': { transform: [{ scale: 1.08 }] } }, animationDuration: '16s', animationIterationCount: 'infinite', animationDirection: 'alternate', animationTimingFunction: 'ease-in-out' },
+    topFade: { position: 'absolute', top: 0, left: 0, right: 0, height: 170 },
+    logoMark: { position: 'absolute', top: 40, left: 56, padding: 5, borderRadius: 19, backgroundColor: 'rgba(255,255,255,0.16)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.28)', backdropFilter: 'blur(10px)' },
+    accentBar: { width: 56, height: 6, borderRadius: 3, backgroundColor: D.accent, marginBottom: 22, boxShadow: '0 0 24px rgba(185,28,28,0.7)' },
     heroName: { color: '#FFFFFF', fontSize: 60, lineHeight: 66, fontWeight: '900', letterSpacing: -0.8 },
     heroTag: { color: 'rgba(255,255,255,0.85)', fontSize: 21, lineHeight: 30, marginTop: 14, maxWidth: 520 },
     dots: { flexDirection: 'row', marginTop: 30 },
@@ -352,9 +373,9 @@ const s = StyleSheet.create({
     dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.4)' },
     dotOn: { width: 26, backgroundColor: '#FFFFFF' },
     right: { flex: 1 },
-    topBar: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 32, paddingTop: 24 },
-    chip: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: D.border, borderRadius: 999, paddingHorizontal: 16, paddingVertical: 9, cursor: 'pointer' },
-    chipHover: { backgroundColor: '#262626', borderColor: '#525252' },
+    topBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 32, paddingTop: 24, zIndex: 2 },
+    chip: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#4B4B4B', backgroundColor: 'rgba(20,20,20,0.94)', borderRadius: 999, paddingHorizontal: 18, paddingVertical: 10, cursor: 'pointer', boxShadow: '0 6px 18px rgba(0,0,0,0.45)', transitionProperty: 'background-color, border-color', transitionDuration: '150ms' },
+    chipHover: { backgroundColor: '#2A2A2A', borderColor: '#6B6B6B' },
     chipIcon: { color: D.muted, fontSize: 12, fontWeight: '800', marginRight: 8 },
     chipText: { color: D.text, fontWeight: '700', fontSize: 13.5 },
     formWrap: { flexGrow: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32, paddingVertical: 24 },
