@@ -19,6 +19,7 @@ import { useNotificationStore } from '../../store/common/useNotificationStore';
 import { useHomeStore } from '../../store/customers/useHomeStore';
 import { useMenuStore, useCartStore } from '../../store/customers/shopStores';
 import { useFilterStore } from '../../store/customers/useFilterStore';
+import { useBulkCartStore } from '../../store/customers/useBulkCartStore';
 import { useAddressStore } from '../../store/customers/useAddressStore';
 import { useMeStore } from '../../store/customers/useMeStore';
 import { useOrderMode, modesOf } from '../../store/customers/useOrderMode';
@@ -223,6 +224,7 @@ export default function DesktopTopBar({ navRef, routeName }) {
     const lastCart = useRef(0);   // the count keeps showing on the badge while the button is shrinking away
     if (cartCount > 0) lastCart.current = cartCount;
     const cartShown = cartCount > 0 ? cartCount : lastCart.current;
+    const bulkDishes = useBulkCartStore((s) => s.lines.length);   // a bulk order being put together (it never shares a cart with a normal order)
 
     const mode = useOrderMode((s) => s.mode);
     const setMode = useOrderMode((s) => s.setMode);
@@ -347,7 +349,7 @@ export default function DesktopTopBar({ navRef, routeName }) {
                     {hasOrders ? <IconBtn brand={brand} icon="receipt-outline" label={tr('Orders')} onPress={() => goTab('Orders')} active={routeName === 'Orders'} /> : null}
                     {user ? <IconBtn brand={brand} icon="notifications-outline" label={tr('Notifications')} onPress={() => go('Notifications')} badge={unread > 0 ? (unread > 9 ? '9+' : String(unread)) : null} active={routeName === 'Notifications'} /> : null}
                     {/* the cart button is always in the bar; its number shows only while the cart has something in it */}
-                    <IconBtn brand={brand} icon={routeName === 'Cart' ? 'bag-handle' : 'bag-handle-outline'} label={tr('Cart')} onPress={() => go('Cart')} badge={cartCount > 0 ? (cartCount > 99 ? '99+' : String(cartCount)) : null} active={routeName === 'Cart'} />
+                    <IconBtn brand={brand} icon={routeName === 'Cart' ? 'bag-handle' : 'bag-handle-outline'} label={tr('Cart')} onPress={() => go(cartCount === 0 && bulkDishes > 0 ? 'BulkCart' : 'Cart')} badge={cartCount > 0 ? (cartCount > 99 ? '99+' : String(cartCount)) : bulkDishes > 0 ? String(bulkDishes) : null} active={routeName === 'Cart' || routeName === 'BulkCart'} />
                     {user ? (
                         <Pressable onPress={() => goTab('Account')} accessibilityLabel={tr('Account')} style={({ hovered }) => ({ width: 40, height: 40, borderRadius: 20, marginLeft: 8, backgroundColor: brand.primary, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', opacity: hovered ? 0.88 : 1, borderWidth: routeName === 'Account' ? 2 : 0, borderColor: brand.primary, cursor: 'pointer' })}>
                             {photo ? <Image source={{ uri: photo }} style={{ width: '100%', height: '100%' }} contentFit="cover" /> : <Text style={{ color: brand.onPrimary || '#FFFFFF', fontWeight: '900', fontSize: 15 }}>{initial}</Text>}

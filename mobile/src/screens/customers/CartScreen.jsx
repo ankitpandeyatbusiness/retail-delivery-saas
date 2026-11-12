@@ -15,6 +15,7 @@ import { useBrand, BackHeader, CardGlow } from '../../components/common/kit';
 import { VegDot, useClosedStyle, showToast, tint } from '../../components/customers/shop';
 import { AddressSheet, addrLine } from '../../components/customers/addresses';
 import { Press, Appear, Chip, Bill, ClosedBanner, PickupSlots, FreeDeliveryBar, rs, ease } from '../../components/customers/cartParts';
+import { BulkCartNotice } from '../../components/customers/BulkCartBar';
 import { useHomeStore } from '../../store/customers/useHomeStore';
 import { useAuthStore } from '../../store/common/useAuthStore';
 import { useCartStore, useFavStore } from '../../store/customers/shopStores';
@@ -422,6 +423,7 @@ export default function CartScreen() {
             <View style={[s.flex, { backgroundColor: background }, closedStyle]}>
                 <BackHeader title={tr('Cart')} />
                 <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 60 }}>
+                    <View style={{ width: '100%', maxWidth: 1180, alignSelf: 'center', paddingHorizontal: 8 }}><BulkCartNotice /></View>
                     <View style={{ width: '100%', maxWidth: 1180, alignSelf: 'center', paddingHorizontal: 24, paddingTop: 16, flexDirection: 'row', flexWrap: 'wrap', gap: 32, alignItems: 'flex-start', justifyContent: 'center' }}>
                         <Appear style={{ width: 360, marginTop: hasFavs ? 4 : 40 }}>
                             <View style={{ alignItems: 'center', padding: 36, borderRadius: 26, borderWidth: 1, borderColor: border, backgroundColor: surface }}>
@@ -446,6 +448,7 @@ export default function CartScreen() {
         return (
             <View style={[s.flex, { backgroundColor: background }, closedStyle]}>
                 <BackHeader title={tr('Cart')} />
+                <BulkCartNotice />
                 <Appear style={hasFavs ? [s.center, { flex: 0, paddingTop: 28, paddingBottom: 18 }] : s.center}>
                     <View style={[s.iconCircle, { backgroundColor: surface, borderColor: border }]}>
                         <Ionicons name="cart-outline" size={48} color={muted} />
