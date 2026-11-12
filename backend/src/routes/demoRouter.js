@@ -36,6 +36,13 @@ router.post('/enter', enterLimit, wrap(async (req, res) => {
     res.json({ success: true, demo: true, slug: dt.slug, name: dt.name, user: dto(user), accessToken, refreshToken });
 }));
 
+// "Did you like the demo?": a visitor leaves name, shop name and number. Demo shop only, a few a day per visitor address.
+const leadLimit = require('../middlewares/publicRateLimit').make({ points: Number(process.env.DEMO_LEAD_LIMIT) || 6, duration: 24 * 60 * 60 });
+router.post('/lead', leadLimit, wrap(async (req, res) => {
+    if (!req.tenant.isDemo) throw httpError(403, 'Only the demo shop takes this');
+    res.json(await require('../services/demoLeads').create({ body: req.body, ip: req.ip }));
+}));
+
 router.use(authenticate);
 router.use((req, res, next) => (req.sessionFlags && req.sessionFlags.demo ? next() : res.status(403).json({ error: 'The demo panels are for the demo login only' })));
 

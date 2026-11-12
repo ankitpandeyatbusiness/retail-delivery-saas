@@ -41,3 +41,8 @@ export const fetchDemo = () => data(api.get('/admin/demo'));
 export const saveDemo = (body) => data(api.put('/admin/demo', body));                             // { phone, otp, enabled? }
 export const switchDemo = (enabled) => data(api.put('/admin/demo/enabled', { enabled }));
 export const removeDemo = () => data(api.delete('/admin/demo'));
+
+/* ---- demo leads: people who left their number after the public demo ---- */
+export const fetchDemoLeads = (params) => data(api.get('/admin/demo-leads', { params }));              // { status?: 'new'|'called', q?, page? }
+export const updateDemoLead = (id, body) => data(api.patch(`/admin/demo-leads/${id}`, body));           // { status?, note? }
+export const deleteDemoLead = (id) => data(api.delete(`/admin/demo-leads/${id}`));

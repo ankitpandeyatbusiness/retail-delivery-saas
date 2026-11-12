@@ -50,7 +50,7 @@ describe('demo tutorial stories', () => {
     });
 
     test('Hindi, Marathi, Gujarati and Bengali have every story text and every demo screen text', () => {
-        const need = new Set(['Stories', 'Show me around', 'Start the demo', 'Reset the demo', 'Demo', 'Try a panel', 'Become the {panel}', 'Skip this step']);
+        const need = new Set(['Stories', 'Show me around', 'Start the demo', 'Reset the demo', 'Demo', 'Try a panel', 'Become the {panel}', 'Skip this step', 'Did you like the demo?', 'I liked it: talk to us', 'Call me', 'Thank you! We will call you soon.', 'Mobile number', 'Shop name']);
         for (const s of STORIES) { need.add(s.title); need.add(s.who); for (const st of s.steps) need.add(st.text); }
         for (const code of ['hi', 'mr', 'gu', 'bn']) {
             const book = loadLocale(code);

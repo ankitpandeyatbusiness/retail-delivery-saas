@@ -87,6 +87,7 @@ Effective {{effectiveDate}}. This explains what we collect and why. By using the
 - Your phone's notification address and basic details such as the app version.
 - Riders: name, phone, deliveries and, while you have an order, your location.
 - Shop owners: business details and billing records.
+- If you try our demo and choose to leave your name, shop name and mobile number, we keep them so that we can call you about the service. Ask us and we will delete them.
 
 # Why we use it
 To run the service: sign you in, take and deliver orders, take payments, send OTPs and order updates, and give shops their reports. We do not sell your data and we do not show ads from other companies.

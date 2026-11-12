@@ -7,7 +7,7 @@ import { storyById } from './stories';
 const KEY = 'tutorial';
 let lastTap = 0;
 
-const save = (s) => writeCache(KEY, { enabled: s.enabled, activeId: s.activeId, step: s.step, done: s.done, offered: s.offered });
+const save = (s) => writeCache(KEY, { enabled: s.enabled, activeId: s.activeId, step: s.step, done: s.done, offered: s.offered, leadDone: s.leadDone });
 
 export const useTutorialStore = create((set, get) => ({
     loaded: false,
@@ -17,6 +17,8 @@ export const useTutorialStore = create((set, get) => ({
     done: [],           // finished story ids
     offered: false,     // the story menu was shown once after the demo started
     menuOpen: false,
+    leadOpen: false,    // the "Did you like the demo?" form (public demo)
+    leadDone: false,    // the person already left their details
     targetId: null,     // the button the current step circles (read by <CoachTarget>)
 
     hydrate: async () => {
@@ -24,13 +26,16 @@ export const useTutorialStore = create((set, get) => ({
         const c = (await readCache(KEY)) || {};
         const story = c.activeId ? storyById(c.activeId) : null;
         const step = story ? Math.min(Math.max(0, c.step | 0), story.steps.length - 1) : 0;
-        set({ loaded: true, enabled: c.enabled !== false, activeId: story ? story.id : null, step, done: Array.isArray(c.done) ? c.done : [], offered: !!c.offered, targetId: story ? story.steps[step].target || null : null });
+        set({ loaded: true, enabled: c.enabled !== false, activeId: story ? story.id : null, step, done: Array.isArray(c.done) ? c.done : [], offered: !!c.offered, leadDone: !!c.leadDone, targetId: story ? story.steps[step].target || null : null });
     },
 
     setEnabled: (on) => {
         set({ enabled: !!on, ...(on ? {} : { activeId: null, step: 0, targetId: null, menuOpen: false }) });
         save(get());
     },
+    openLead: () => set({ leadOpen: true, menuOpen: false }),
+    closeLead: () => set({ leadOpen: false }),
+    markLeadDone: () => { set({ leadDone: true }); save(get()); },
     openMenu: () => { set({ menuOpen: true, offered: true }); save(get()); },
     closeMenu: () => set({ menuOpen: false }),
 
@@ -52,7 +57,8 @@ export const useTutorialStore = create((set, get) => ({
     back: () => get().go(get().step - 1),
     finish: () => {
         const { activeId, done } = get();
-        set({ activeId: null, step: 0, targetId: null, done: activeId && !done.includes(activeId) ? [...done, activeId] : done, menuOpen: true });
+        const askLead = activeId === 'tour' && !get().leadDone;
+        set({ activeId: null, step: 0, targetId: null, done: activeId && !done.includes(activeId) ? [...done, activeId] : done, menuOpen: !askLead, leadOpen: askLead });
         save(get());
     },
     quit: () => { set({ activeId: null, step: 0, targetId: null }); save(get()); },

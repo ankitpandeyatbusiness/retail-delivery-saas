@@ -72,9 +72,9 @@ describe('the public demo website (server side)', () => {
 
     test('Terms and Privacy of the demo carry no shop name', async () => {
         await demoReset.ensureReady();
-        for (const key of ['terms', 'privacy']) {
-            const r = await request(app).get(`/api/legal/${key}`).set(H);
-            if (r.status !== 200) continue;
+        for (const key of ['customer_terms', 'privacy']) {
+            const r = await request(app).get(`/api/legal/public/${key}`).set(H);
+            assert.equal(r.status, 200, key);
             assert.ok(!JSON.stringify(r.body).includes('Demo Shop'), `${key} must not name the demo shop`);
         }
     });

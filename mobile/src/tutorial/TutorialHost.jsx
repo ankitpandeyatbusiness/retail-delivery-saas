@@ -13,6 +13,7 @@ import { tr } from '../i18n';
 import { useTutorialStore } from './store';
 import { STORIES, storyById } from './stories';
 import { getRect, onRect } from './CoachTarget';
+import DemoLeadForm from './DemoLeadForm';
 
 export const ROLE_PANEL = { customer: 'customer', admin: 'owner', kitchen: 'cook', waiter: 'waiter', rider: 'rider' };
 const PANEL_NAME = { customer: 'Customer', owner: 'Owner', cook: 'Cook', waiter: 'Waiter', rider: 'Rider' };
@@ -127,6 +128,7 @@ export default function TutorialHost() {
     return (
         <>
             <StoryMenu />
+            <DemoLeadForm />
             {enabled ? <StepCard /> : null}
         </>
     );

@@ -11,6 +11,7 @@ import { fetchDemoPanels, switchDemoPanel, resetDemo } from '../../utils/common/
 import { themedAlert, ask } from './dialog';
 import { tr } from '../../i18n';
 import { useTutorialStore } from '../../tutorial/store';
+import { useThemeStore } from '../../store/common/useThemeStore';
 
 const ICON = { customer: 'bag-handle-outline', owner: 'storefront-outline', cook: 'restaurant-outline', waiter: 'cafe-outline', rider: 'bicycle-outline' };
 const ROLE_PANEL = { customer: 'customer', admin: 'owner', kitchen: 'cook', waiter: 'waiter', rider: 'rider' };
@@ -20,6 +21,7 @@ export default function DemoBar() {
     const role = useAuthStore((s) => s.user?.role);
     const insets = useSafeAreaInsets();
     const { primary, onPrimary, text, muted, border, surface } = useBrand();
+    const demoShop = useThemeStore((s) => !!s.theme.demo);
     const [open, setOpen] = useState(false);
     const [panels, setPanels] = useState(null);
     const [busy, setBusy] = useState('');
@@ -69,6 +71,13 @@ export default function DemoBar() {
                     <Text style={{ flex: 1, marginLeft: 12, color: text, fontSize: 15, fontWeight: '800' }}>{tr('Stories: show me around')}</Text>
                     <Ionicons name="chevron-forward" size={18} color={muted} />
                 </Pressable>
+                {demoShop ? (
+                    <Pressable onPress={() => { setOpen(false); useTutorialStore.getState().openLead(); }} style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', paddingVertical: 13, paddingHorizontal: 14, marginBottom: 12, borderRadius: 16, borderWidth: 1, borderColor: border }, pressed && { opacity: 0.7 }]}>
+                        <Ionicons name="call-outline" size={20} color={text} />
+                        <Text style={{ flex: 1, marginLeft: 12, color: text, fontSize: 15, fontWeight: '700' }}>{tr('I liked it: talk to us')}</Text>
+                        <Ionicons name="chevron-forward" size={18} color={muted} />
+                    </Pressable>
+                ) : null}
                 {!panels ? <ActivityIndicator color={primary} style={{ marginVertical: 20 }} /> : panels.map((p) => {
                     const on = ROLE_PANEL[role] === p.key;
                     return (

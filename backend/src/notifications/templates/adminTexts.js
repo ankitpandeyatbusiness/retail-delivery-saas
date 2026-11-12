@@ -44,6 +44,9 @@ const T = {
     admin_shop_first_order: (v) => ({
         title: `${v.shop} got its first order`, body: 'The shop is live and working. A good moment to say well done.', sms: `First order: ${v.shop}`,
     }),
+    admin_demo_lead: (v) => ({
+        title: `Demo lead: ${v.name}`, body: `${v.shopName} · ${v.phone}. They tried the demo and want a call.`, sms: `Demo lead: ${v.name}, ${v.phone}`,
+    }),
     admin_shop_inactive: (v) => ({
         title: `${v.shop} is quiet`, body: `No orders for ${v.days || 14} days. Check if its menu, hours or delivery area need help.`, sms: `No orders: ${v.shop}`,
     }),

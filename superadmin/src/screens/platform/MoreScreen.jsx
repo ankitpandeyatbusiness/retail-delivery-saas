@@ -74,6 +74,7 @@ export default function MoreScreen() {
                         <ListRow section="catalog" icon="palette" title="Login backgrounds" subtitle="The picture behind the desktop website's login page, one set per business type" onPress={go('LoginBackgrounds')} />
                         <ListRow section="alerts" icon="tool" title="Maintenance" subtitle="Pause every shop's app for an upgrade" onPress={go('Maintenance')} />
                         <ListRow section="platform" icon="user" title="Demo login" subtitle="One number and OTP that opens any shop as a new person, for friends and reviewers" onPress={go('DemoLogin')} />
+                        <ListRow section="shops" icon="phone" title="Demo leads" subtitle="People who tried the public demo and left their number: call them" onPress={go('DemoLeads')} />
                         <ListRow section="platform" icon="tool" title="Server setup" subtitle="What is set on the server and what is missing, with what each is for" onPress={go('ServerSetup')} />
                         <ListRow section="settings" icon="bolt" title="System and backups" subtitle="Database, SMS, nightly jobs, backups" onPress={go('System')} last />
                     </Card>
