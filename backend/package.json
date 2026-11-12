@@ -7,6 +7,7 @@
     "start": "node src/server/server.js",
     "dev": "nodemon src/server/server.js",
     "check:requires": "node scripts/checkRequires.js",
+    "seed:demo": "node src/scripts/seedDemoPublic.js",
     "backup": "node scripts/backupNow.js",
     "restore": "node scripts/restoreBackup.js",
     "load:tracking": "node tests/load/trackingLoad.js",
