@@ -7,7 +7,8 @@ import { useNavigation } from '@react-navigation/native';
 import { useFocusEffect } from '../../hooks/common/useLiveFocus';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand, alpha } from '../../components/common/kit';
-import { PageHeader, Empty } from '../../components/owners/ui';
+import { PageHeader, Empty, EmbeddedCtx } from '../../components/owners/ui';
+import { Hero, HeroBtn } from '../../components/owners/RiderDesk';
 import { fetchShopNotifications, readAllShopNotifications, clearShopNotifications, apiError } from '../../api/owners/shopApi';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { ago } from '../../utils/owners/riderRules';
@@ -23,6 +24,7 @@ export default function OwnerNotificationsScreen() {
     const nav = useNavigation();
     const { background, text, muted, primary, border, surface } = useBrand();
     const desk = useOwnerDesktop();
+    const embedded = React.useContext(EmbeddedCtx);   // a tab of Inbox and activity: that page has its own title
     const [items, setItems] = useState(null);
     const [more, setMore] = useState(false);
     const [page, setPage] = useState(1);
@@ -64,13 +66,19 @@ export default function OwnerNotificationsScreen() {
             <FlatList
                 data={items || []}
                 keyExtractor={(n) => String(n.id)}
+                ListHeaderComponent={desk && !embedded ? (
+                    <View style={{ marginHorizontal: -8 }}>
+                        <Hero icon="notifications" title={tr('Messages for you')} subtitle={items && items.some((n) => fresh.current.has(n.id)) ? tr('{n} new', { n: items.filter((n) => fresh.current.has(n.id)).length }) : tr('You are all caught up')}
+                            right={items && items.length ? <HeroBtn solid icon="trash-outline" label={tr('Clear all')} onPress={clearAll} /> : null} />
+                    </View>
+                ) : null}
                 contentContainerStyle={{ paddingBottom: 32, ...(desk ? { width: '100%', maxWidth: 900, alignSelf: 'center', paddingHorizontal: 24, paddingTop: 4 } : null) }}
                 renderItem={({ item: n }) => {
                     const isNew = fresh.current.has(n.id);
                     const go = ownerRoute(n);
                     return (
                         <Pressable disabled={!go} onPress={() => nav.navigate(go.name, go.params)} style={({ hovered }) => ({ flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 13, backgroundColor: isNew ? alpha(primary, 0.07) : 'transparent', ...(desk ? { borderRadius: 18, marginBottom: 8, borderWidth: 1, borderColor: hovered && go ? primary : border, backgroundColor: hovered && go ? alpha(primary, 0.07) : isNew ? alpha(primary, 0.07) : surface, cursor: go ? 'pointer' : 'default', transitionProperty: 'background-color, border-color', transitionDuration: '140ms' } : null) })}>
-                            <View style={{ width: 10, paddingTop: 6 }}>{isNew ? <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: primary }} /> : null}</View>
+                            {desk ? <View style={{ width: 42, height: 42, borderRadius: 14, marginRight: 12, backgroundColor: isNew ? primary : alpha(primary, 0.12), alignItems: 'center', justifyContent: 'center' }}><Ionicons name="notifications" size={20} color={isNew ? '#FFFFFF' : primary} /></View> : <View style={{ width: 10, paddingTop: 6 }}>{isNew ? <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: primary }} /> : null}</View>}
                             <View style={{ flex: 1 }}>
                                 <Text style={{ color: text, fontWeight: isNew ? '900' : '700' }}>{n.title}</Text>
                                 {n.body ? <Text style={{ color: muted, marginTop: 2 }}>{n.body}</Text> : null}
