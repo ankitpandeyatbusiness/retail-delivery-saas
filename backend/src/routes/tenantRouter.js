@@ -5,6 +5,7 @@ const tenantRecognizer = require('../middlewares/tenantRecognizer');
 const { resolveConfig, brandingIcon } = require('../services/tenantConfigService');
 const { getAvailability, applyAutoHide } = require('../services/availability');
 const { getDefaultHeroUrls } = require('../services/defaultHeroes');
+const { resolveFor: loginBgFor } = require('../services/loginBackgrounds');
 
 // Small and fast: used at app start for colors, name and hero images
 tenantRouter.get('/theme', tenantRecognizer, async (req, res) => {
@@ -12,6 +13,7 @@ tenantRouter.get('/theme', tenantRecognizer, async (req, res) => {
     const c = resolveConfig(t);
     // a shop with no hero images of its own shows the platform defaults from the bucket (defaults/hero/)
     const heroImages = t.heroImages?.length ? t.heroImages : await getDefaultHeroUrls();
+    const loginBg = await loginBgFor(t);   // the desktop login page's wallpaper, from the CDN: the shop's own pick, else its business type's default
     res.json({
         name: t.name,
         tagline: t.tagline,
@@ -33,6 +35,7 @@ tenantRouter.get('/theme', tenantRecognizer, async (req, res) => {
         filterStyle: c.brand.filterStyle,
         locationStyle: c.brand.locationStyle,
         heroImages,
+        loginBg: loginBg ? loginBg.url : null,
     });
 });
 

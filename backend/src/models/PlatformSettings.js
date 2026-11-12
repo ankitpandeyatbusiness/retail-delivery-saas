@@ -15,6 +15,9 @@ const platformSchema = new mongoose.Schema({
         autopilotEnabled: { type: Boolean, default: true },                            // false = no shop's Autopilot sends anything (a kill switch)                          // the platform sends every shop its monthly report by email
     },
 
+    // the default login background of each business type: { restaurant: "food-doodles-dark.webp" } (a file in defaults/login-bg/<type>/; services/loginBackgrounds.js)
+    loginBgDefaults: { type: mongoose.Schema.Types.Mixed, default: {} },
+
     // Services: what the super admin changed for the starter services and the unanswered-inquiry reminder delay (services/shopServices.js loadDefaults)
     servicesDefaults: { type: mongoose.Schema.Types.Mixed, default: {} },
 

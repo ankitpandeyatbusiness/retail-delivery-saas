@@ -114,6 +114,7 @@ import SettingsHoursScreen from '../screens/settings/SettingsHoursScreen';
 import SettingsRidersScreen from '../screens/settings/SettingsRidersScreen';
 import SettingsAppScreen from '../screens/settings/SettingsAppScreen';
 import ShopBrandingScreen from '../screens/shops/ShopBrandingScreen';
+import LoginBackgroundsScreen from '../screens/platform/LoginBackgroundsScreen';
 import ShopMenuScreen from '../screens/catalog/ShopMenuScreen';
 import CategoryFormScreen from '../screens/catalog/CategoryFormScreen';
 import ProductFormScreen from '../screens/catalog/ProductFormScreen';
@@ -226,6 +227,7 @@ const DETAIL = [
     ['MyRazorpay', MyRazorpayScreen],
     ['Gst', GstScreen],
     ['PlanDefaults', PlanDefaultsScreen],
+    ['LoginBackgrounds', LoginBackgroundsScreen],
     ['PlanCoupons', PlanCouponsScreen],
     ['PlanOverview', PlanOverviewScreen],
     ['PlanMigration', PlanMigrationScreen],

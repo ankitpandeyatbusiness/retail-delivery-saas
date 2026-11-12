@@ -71,6 +71,7 @@ export default function MoreScreen() {
 
                     <SectionTitle section="platform">Platform controls</SectionTitle>
                     <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
+                        <ListRow section="catalog" icon="palette" title="Login backgrounds" subtitle="The picture behind the desktop website's login page, one set per business type" onPress={go('LoginBackgrounds')} />
                         <ListRow section="alerts" icon="tool" title="Maintenance" subtitle="Pause every shop's app for an upgrade" onPress={go('Maintenance')} />
                         <ListRow section="platform" icon="tool" title="Server setup" subtitle="What is set on the server and what is missing, with what each is for" onPress={go('ServerSetup')} />
                         <ListRow section="settings" icon="bolt" title="System and backups" subtitle="Database, SMS, nightly jobs, backups" onPress={go('System')} last />

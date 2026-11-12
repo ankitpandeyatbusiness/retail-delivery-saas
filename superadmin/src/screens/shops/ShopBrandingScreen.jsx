@@ -7,6 +7,7 @@ import { Card, Button, SectionTitle, Badge } from '../../components/ui';
 import { Loading, ErrorBox, ConfirmSheet, toast } from '../../components/feedback';
 import Icon from '../../components/Icon';
 import { listMedia, deleteMedia, reorderHeroes, updateShop, logoColors } from '../../api/shopsApi';
+import { fetchLoginBgs, setShopLoginBg } from '../../api/loginBgApi';
 import { errMsg } from '../../api/adminClient';
 import { pickImage, uploadImage } from '../../utils/upload';
 import { useShopStore } from '../../store/useShopStore';
@@ -37,14 +38,24 @@ export default function ShopBrandingScreen() {
     const [busy, setBusy] = useState('');          // what is being uploaded right now
     const [suggest, setSuggest] = useState(null);  // colours worked out from the logo
     const [removing, setRemoving] = useState(null);
+    const [bgs, setBgs] = useState(null);        // the login backgrounds of this shop's business type
 
     const load = useCallback(async () => {
         try { setMedia((await listMedia(shopId)).items); setError(''); } catch (e) { setError(errMsg(e)); }
     }, [shopId]);
     useEffect(() => { load(); if (!rec) useShopStore.getState().load(shopId); }, [load, shopId, rec]);
+    useEffect(() => { fetchLoginBgs().then((r) => setBgs(r.types)).catch(() => setBgs([])); }, []);
 
     const heroes = (media || []).filter((m) => m.kind === 'hero');
     const logoUrl = rec?.tenant?.logo;
+    const bizType = rec?.tenant?.businessType || 'restaurant';
+    const bgType = (bgs || []).find((x) => x.id === bizType);
+    const myBg = rec?.tenant?.loginBg || '';   // "<type>/<name>.webp" or empty (= the default)
+    const pickBg = (rel) => run('loginbg', async () => {
+        await setShopLoginBg(shopId, rel);
+        useShopStore.getState().load(shopId, { quiet: true });
+        toast(rel ? 'Login background changed' : 'Back to the default');
+    });
 
     const run = async (key, fn) => {
         setBusy(key);
@@ -137,6 +148,27 @@ export default function ShopBrandingScreen() {
                 {heroes.length < MAX_HERO ? (
                     <Button style={{ marginTop: spacing.lg }} kind="soft" small icon="add" title="Add a picture" loading={busy === 'hero'} onPress={() => addPicture('hero', false)} />
                 ) : null}
+            </Card>
+
+            <SectionTitle section="platform">Login background</SectionTitle>
+            <Card>
+                <Text style={{ color: t.muted, fontSize: font.sm, marginBottom: spacing.md }}>
+                    The picture behind the login page of this shop's desktop website. {myBg ? 'Picked for this shop.' : 'Now using the default of its business type.'}
+                </Text>
+                {bgType && bgType.items.length ? (
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md }}>
+                        {bgType.items.map((it) => {
+                            const on = myBg ? myBg === it.rel : it.isDefault;
+                            return (
+                                <Pressable key={it.file} onPress={() => pickBg(it.rel)} disabled={busy === 'loginbg'} style={{ width: 84, opacity: busy === 'loginbg' ? 0.6 : 1 }}>
+                                    <Image source={{ uri: it.url }} style={{ width: 84, height: 150, borderRadius: radius.md, borderWidth: on ? 3 : 1, borderColor: on ? t.primary : t.border, backgroundColor: t.surfaceAlt }} resizeMode="cover" />
+                                    <Text style={{ color: on ? t.primary : t.muted, fontSize: font.xs, fontWeight: on ? '800' : '600', marginTop: 4 }} numberOfLines={1}>{it.file.replace(/\.webp$/, '')}{it.isDefault ? ' (default)' : ''}</Text>
+                                </Pressable>
+                            );
+                        })}
+                    </View>
+                ) : <Text style={{ color: t.muted }}>{bgs === null ? 'Loading...' : 'No picture for this business type yet. Add one in More > Login backgrounds.'}</Text>}
+                {myBg ? <Button style={{ marginTop: spacing.lg }} small kind="outline" title="Use the default" loading={busy === 'loginbg'} onPress={() => pickBg(null)} /> : null}
             </Card>
 
             <SectionTitle section="platform">Built into the app</SectionTitle>

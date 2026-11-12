@@ -35,6 +35,9 @@ const tenantSchema = new mongoose.Schema({
         error: String,
     },
     heroImages: [String],
+    // the picture behind the desktop website's login page, chosen by the superadmin: "<businessType>/<name>.webp" in the bucket folder defaults/login-bg/
+    // (services/loginBackgrounds.js). Empty = the default of the shop's business type.
+    loginBg: { type: String, trim: true },
     status: { type: String, enum: ['active', 'suspended'], default: 'active' },
     // what kind of business this is (config/businessTypes.js). Only restaurant is open today.
     businessType: { type: String, enum: ['restaurant', 'general_store', 'stationery', 'garments'], default: 'restaurant' },

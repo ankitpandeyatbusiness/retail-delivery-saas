@@ -17,6 +17,16 @@ async function toWebp(buffer, { maxSide = 1600, quality = 80 } = {}) {
     return { buffer: data, width: info.width, height: info.height, bytes: info.size };
 }
 
+// The login page wallpaper: 1400 px wide (the page crops it to fit), light WebP. Height follows the picture.
+async function toLoginBg(buffer, { width = 1400, quality = 72 } = {}) {
+    const { data, info } = await lib()(buffer, { limitInputPixels: 80_000_000, failOn: 'error' })
+        .rotate()
+        .resize({ width, withoutEnlargement: true })
+        .webp({ quality })
+        .toBuffer({ resolveWithObject: true });
+    return { buffer: data, width: info.width, height: info.height, bytes: info.size };
+}
+
 // App icon, adaptive icon and splash must stay PNG (the app stores need it).
 // square: the picture must already be square and is scaled to exactly size x size.
 // flatten: remove transparency (the iOS icon must not have any).
@@ -36,4 +46,4 @@ async function toPng(buffer, { size, maxSide = 1600, square = false, flatten = f
     return { buffer: data, width: info.width, height: info.height, bytes: info.size };
 }
 
-module.exports = { toWebp, toPng };
+module.exports = { toWebp, toPng, toLoginBg };

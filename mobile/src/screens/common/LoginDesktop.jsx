@@ -31,7 +31,7 @@ const normalizePhone = (text) => {
 };
 
 // The desktop login is always dark (the design asked for it), whatever the shop's own colours are.
-const LOGIN_BG = require('../../../assets/login/login_bg_small.jpg');   // the food-drawing wallpaper; login_bg.png is the full-size original, this is the same picture made light (240 KB) for the page
+// The wallpaper of the right side comes from the CDN: theme.loginBg (the superadmin picks it per shop, else the default of the shop's business type). Nothing is bundled.
 const D = { bg: '#121212', card: '#262626', input: '#171717', border: '#404040', text: '#FFFFFF', muted: '#A3A3A3', accent: '#B91C1C', accentText: '#F87171', error: '#F87171' };
 
 
@@ -128,6 +128,7 @@ export default function LoginDesktop({ navigation }) {
     const lang = useLang((st) => st.lang);
     const [langOpen, setLangOpen] = useState(false);
 
+    const loginBgSource = theme?.loginBg ? { uri: theme.loginBg } : null;   // none = the plain dark background
     const brandName = theme?.name || 'Delivery';
     const tagline = theme?.tagline || 'Delicious food, delivered to your door';
     const heroes = theme?.heroImages || [];
@@ -235,7 +236,7 @@ export default function LoginDesktop({ navigation }) {
                 {heroes.length === 0 ? (
                     <>
                         <LinearGradient colors={['#5a1212', '#151515']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
-                        <ImageBackground pointerEvents="none" source={LOGIN_BG} resizeMode="cover" imageStyle={{ opacity: 0.55 }} style={StyleSheet.absoluteFill} />
+                        {loginBgSource ? <ImageBackground pointerEvents="none" source={loginBgSource} resizeMode="cover" imageStyle={{ opacity: 0.55 }} style={StyleSheet.absoluteFill} /> : null}
                     </>
                 ) : (
                     <View pointerEvents="none" style={[StyleSheet.absoluteFill, s.kenBurns]}>
@@ -268,7 +269,7 @@ export default function LoginDesktop({ navigation }) {
             {/* RIGHT: the form */}
             <View style={[s.right, { backgroundColor: D.bg }]}>
                 {/* the wallpaper of food drawings, filling this side; a soft dark spot keeps the middle calm behind the form */}
-                <ImageBackground pointerEvents="none" source={LOGIN_BG} resizeMode="cover" imageStyle={{ opacity: 0.9 }} style={StyleSheet.absoluteFill} />
+                {loginBgSource ? <ImageBackground pointerEvents="none" source={loginBgSource} resizeMode="cover" imageStyle={{ opacity: 0.9 }} style={StyleSheet.absoluteFill} /> : null}
                 <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundImage: 'radial-gradient(closest-side at 50% 52%, rgba(18,18,18,0.8) 0%, rgba(18,18,18,0.4) 55%, rgba(18,18,18,0) 100%)' }]} />
                 <View style={s.topBar}>
                     <Pressable onPress={() => setLangOpen(true)} style={({ hovered }) => [s.chip, hovered && s.chipHover]}>

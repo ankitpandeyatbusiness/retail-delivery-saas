@@ -3,5 +3,5 @@
 .env
 *.env
 
-# the full-size original of the login wallpaper (6.5 MB): only the light copy login_bg_small.jpg is kept in the repository
-mobile/assets/login/login_bg.png
+# full-size artwork kept on this computer only (the login wallpapers live on the CDN; see backend/src/services/loginBackgrounds.js)
+source-art/

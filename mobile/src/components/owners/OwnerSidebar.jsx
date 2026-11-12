@@ -142,8 +142,8 @@ export default function OwnerSidebar({ routeName }) {
             ) : null}
             {/* the fold button: a round button on the right edge of the panel, half out of it; it rides the edge while the panel slides */}
             <Pressable onPress={pin} onHoverIn={hoverIn} onHoverOut={hoverOut} accessibilityRole="button" accessibilityLabel={folded ? tr('Keep the sidebar open') : tr('Fold the sidebar')}
-                style={({ hovered }) => ({ position: 'absolute', left: NARROW - 14 - 7, top: 34, transform: [{ translateX: wide ? WIDE - NARROW : 0 }], willChange: 'transform', width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: hovered ? primary : surface, borderWidth: 1, borderColor: hovered ? primary : border, boxShadow: '0 4px 14px rgba(0,0,0,0.14)', cursor: 'pointer', zIndex: 30, transitionProperty: 'transform, background-color, border-color', transitionDuration: '240ms, 140ms, 140ms', transitionTimingFunction: GLIDE })}>
-                {({ hovered }) => <Ionicons name={folded ? (peek ? 'pin' : 'chevron-forward') : 'chevron-back'} size={17} color={hovered ? onPrimary : muted} />}
+                style={({ hovered }) => ({ position: 'absolute', left: NARROW - 14 - 7, top: 34, transform: [{ translateX: wide ? WIDE - NARROW : 0 }], willChange: 'transform', width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: !folded || hovered ? primary : surface, borderWidth: 1, borderColor: !folded || hovered ? primary : border, boxShadow: '0 4px 14px rgba(0,0,0,0.14)', cursor: 'pointer', zIndex: 30, transitionProperty: 'transform, background-color, border-color', transitionDuration: '240ms, 140ms, 140ms', transitionTimingFunction: GLIDE })}>
+                {({ hovered }) => <Ionicons name={folded ? (peek ? 'pin' : 'chevron-forward') : 'chevron-back'} size={17} color={!folded || hovered ? onPrimary : muted} />}
             </Pressable>
         </View>
     );

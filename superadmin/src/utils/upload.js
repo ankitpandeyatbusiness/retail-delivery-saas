@@ -3,6 +3,7 @@
 import * as ImagePicker from 'expo-image-picker';
 import { signUpload, confirmUpload } from '../api/shopsApi';
 import { signMyPhoto, confirmMyPhoto } from '../api/authApi';
+import { signLoginBg, confirmLoginBg } from '../api/loginBgApi';
 
 const MAX_BYTES = 5 * 1024 * 1024;
 const ALLOWED = ['image/jpeg', 'image/png', 'image/webp'];
@@ -43,6 +44,21 @@ export async function uploadImage(shopId, { kind, uri, mimeType, refId }) {
     } catch (e) {
         throw fail(e?.response?.data?.error || 'Could not save that picture');
     }
+}
+
+// a login background for the desktop website: straight to the platform library on the CDN (defaults/login-bg/<businessType>/). Up to 8 MB.
+export async function uploadLoginBg({ businessType, name, uri, mimeType }) {
+    let blob;
+    try { blob = await (await fetch(uri)).blob(); } catch (e) { throw fail('Could not read that picture'); }
+    if (!blob.size) throw fail('That picture is empty');
+    if (blob.size > 8 * 1024 * 1024) throw fail('That picture is larger than 8 MB. Choose a smaller one.');
+    const contentType = ALLOWED.includes(mimeType) ? mimeType : 'image/jpeg';
+    let signed;
+    try { signed = await signLoginBg({ contentType, bytes: blob.size }); } catch (e) { throw fail(e?.response?.data?.error || 'Uploads are not available right now'); }
+    let put;
+    try { put = await fetch(signed.uploadUrl, { method: signed.method || 'PUT', headers: signed.headers || { 'Content-Type': contentType }, body: blob }); } catch (e) { throw fail('Upload failed. Check the connection and try again.'); }
+    if (!put.ok) throw fail('Upload failed. Please try again.');
+    try { return await confirmLoginBg({ businessType, name, key: signed.key }); } catch (e) { throw fail(e?.response?.data?.error || 'Could not save that picture'); }
 }
 
 // the superadmin's own picture -> the saved public URL

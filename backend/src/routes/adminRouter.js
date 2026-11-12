@@ -83,6 +83,7 @@ admin.use(require('./adminOrdersRouter'));
 admin.use(require('./adminCustomersRouter'));
 admin.use(require('./adminUsersRouter'));
 admin.use(require('./adminTeamRouter'));
+admin.use(require('./adminLoginBgRouter'));   // the desktop login page's backgrounds (library on the CDN, a default per business type, a pick per shop)
 admin.use(require('./adminMediaRouter'));   // list a shop's uploaded images (hero, logo, build icons)   // other superadmins: add, rename, revoke, restore
 admin.use(require('./adminAccessRouter'));
 admin.use(require('./adminPlatformRouter'));
