@@ -23,6 +23,7 @@ const homeConfigSchema = new mongoose.Schema({
 
 const tenantSchema = new mongoose.Schema({
     slug: { type: String, required: true, unique: true, lowercase: true, trim: true },
+    isDemo: { type: Boolean, default: undefined },   // the public demo shop (services/demoTenant.js): fake people and fake data, nothing real ever leaves it
     name: { type: String, required: true },
     tagline: String,
     logo: String,

@@ -137,7 +137,7 @@ const findOrCreateUser = async (tenantId, phone) => {
     }
 };
 
-const issueSession = async (user, tenant, req, ip, { viewOnly, homeTenantId, demo } = {}) => {
+const issueSession = async (user, tenant, req, ip, { viewOnly, homeTenantId, demo, demoHomeTenantId } = {}) => {
     const sessionId = new mongoose.Types.ObjectId();
     const client = describeClient(req, ip);   // web or app, device name, city (never the IP itself)
     const { accessToken, refreshToken } = tokenService.generateTokens({
@@ -151,13 +151,15 @@ const issueSession = async (user, tenant, req, ip, { viewOnly, homeTenantId, dem
         userId: user._id,
         tenantId: tenant._id,
         refreshTokenHash: tokenService.hashToken(refreshToken),
-        ...(viewOnly ? { viewOnly: true } : {}), ...(demo ? { demo: true } : {}), ...(homeTenantId ? { homeTenantId } : {}),
+        ...(viewOnly ? { viewOnly: true } : {}), ...(demo ? { demo: true, demoHomeTenantId: demoHomeTenantId || tenant._id } : {}), ...(homeTenantId ? { homeTenantId } : {}),
         deviceId: String(req.headers['x-device-id'] || 'unknown').substring(0, 64),
         userAgent: String(req.headers['user-agent'] || '').substring(0, 200),
         ipHash: sha256(ip),
         ...client,
         expiresAt: new Date(Date.now() + tokenService.REFRESH_TTL_MS),
     });
+
+    if (demo) return { accessToken, refreshToken };   // demo people share a few pretend accounts: nobody is signed out by another visitor
 
     // Cap devices: keep newest N, delete older sessions.
     // A rider is on ONE phone and may also have ONE website session beside it: the limit is counted per kind, so opening
@@ -358,10 +360,10 @@ exports.verifyOtp = async (req, res) => {
             await limiters.verifyPhoneLockout.delete(phoneKey).catch(() => { });
             const user = await findOrCreateUser(tenant._id, phone);
             if (!user || user.isBlocked || user.role !== 'customer') return res.status(403).json({ error: 'This account cannot sign in' });
-            const { accessToken, refreshToken } = await issueSession(user, tenant, req, ip, { demo: true });
+            const { accessToken, refreshToken } = await issueSession(user, tenant, req, ip, { demo: true, demoHomeTenantId: tenant._id });
             demoMode.noteLogin();
             require('../middlewares/auditTrail').record({ actorType: 'system', actorLabel: 'demo login', tenantId: tenant._id, action: 'DEMO_LOGIN', method: 'POST', path: '/api/auth/verify-otp', status: 200, ip: sha256(ip).slice(0, 16) });
-            return res.json({ success: true, demo: true, user: toUserDto(user), accessToken, refreshToken });
+            return res.json({ success: true, demo: true, user: { ...toUserDto(user), demo: true }, accessToken, refreshToken });
         } catch (error) {
             console.error('Demo login error:', error.message);
             return res.status(500).json({ error: 'Failed to verify OTP' });

@@ -47,7 +47,7 @@ async function deliver({ to, text, senderId, templateId, authKey }) {
 // purpose: 'otp' | 'order' | 'bill' | 'alert' | 'platform_alert'
 async function send({ to, text, purpose, tenant, templateKey }) {
     // the private demo number never receives a real SMS (services/demoMode.js)
-    if (await require('../demoMode').isDemoPhone(String(to).replace(/\D/g, '').slice(-10))) return { providerMessageId: 'demo-skipped' };
+    if (require('../demoTenant').isFakePhone(String(to).replace(/\D/g, '').slice(-10)) || await require('../demoMode').isDemoPhone(String(to).replace(/\D/g, '').slice(-10))) return { providerMessageId: 'demo-skipped' };
     if (process.env.SMS_MOCK === 'true') return mockProvider.send({ to, text, purpose, tenant });
     const route = await smsConfig.resolve({ tenantId: tenant && tenant._id, purpose, templateKey });
     if (!route.own && await require('../smsProviderBalance').pauseFor(purpose)) throw new Error('SMS paused: the provider balance is almost empty, kept for login OTPs');

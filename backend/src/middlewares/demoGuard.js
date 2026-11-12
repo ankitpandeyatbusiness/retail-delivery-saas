@@ -21,12 +21,21 @@ function isAllowed(method, url) {
     return ALLOWED.some((re) => re.test(url));
 }
 
+// Inside the demo shop itself everything is pretend, so the owner, cook, waiter and rider may really work there. Only what reaches
+// the outside world stays refused: online payments, money in or out, uploads, device and push registration, deleting the account.
+const OUTSIDE = /\/(pay|pay-bill|topup|top-up|checkout|razorpay|uploads?|devices?|push|webpush|sms-setup|payments)(\/|\?|$)/i;
+function isAllowedInDemoShop(method, url) {
+    if (['GET', 'HEAD', 'OPTIONS'].includes(method)) return true;
+    if (method === 'DELETE' && /^\/api\/me(\?|$)/.test(url)) return false;
+    return !OUTSIDE.test(url);
+}
+
 // called by authMiddleware once the session is known; answers 403 itself and returns false when refused
-function check(req, res, isDemo) {
+function check(req, res, isDemo, tenant) {
     if (!isDemo) return true;
-    if (isAllowed(req.method, req.originalUrl)) return true;
+    if (tenant && tenant.isDemo ? isAllowedInDemoShop(req.method, req.originalUrl) : isAllowed(req.method, req.originalUrl)) return true;
     res.status(403).json({ error: MESSAGE, demo: true });
     return false;
 }
 
-module.exports = { check, isAllowed, MESSAGE };
+module.exports = { check, isAllowed, isAllowedInDemoShop, MESSAGE };

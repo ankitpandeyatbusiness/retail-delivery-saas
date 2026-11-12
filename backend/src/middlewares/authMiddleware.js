@@ -34,10 +34,10 @@ module.exports = async function authenticate(req, res, next) {
             _id: decoded.sid,
             userId: decoded.sub,
             tenantId: req.tenant._id,
-        }).select('viewOnly homeTenantId demo').lean();
+        }).select('viewOnly homeTenantId demo demoHomeTenantId').lean();
         if (!alive) return res.status(401).json({ error: 'Session ended' });
         // a demo session (private demo login) can never do anything real: orders, payments, messages... (middlewares/demoGuard.js)
-        if (!require('./demoGuard').check(req, res, !!alive.demo)) return;
+        if (!require('./demoGuard').check(req, res, !!alive.demo, req.tenant)) return;
         // a view-only session may look at everything and change nothing (only switching branch, signing out and refreshing are allowed)
         if (alive.viewOnly && !['GET', 'HEAD', 'OPTIONS'].includes(req.method) && !/^\/api\/(brand\/switch|auth\/)/.test(req.originalUrl)) {
             return res.status(403).json({ error: 'View only. This branch is open for you to look at. Upgrade to Pro to manage your branches.', viewOnly: true });
