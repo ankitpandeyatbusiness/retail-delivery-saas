@@ -5,7 +5,7 @@ import React, { useState } from 'react';
 import { View } from 'react-native';
 import { useRoute } from '@react-navigation/native';
 import { useBrand } from '../common/kit';
-import { PageHeader, Chips, EmbeddedCtx } from './ui';
+import { PageHeader, Chips, EmbeddedCtx, TabCtx } from './ui';
 import { Pressable, Text } from 'react-native';
 import { useBrand as useBrandColors, alpha } from '../common/kit';
 import { useOwnerDesktop } from '../../utils/common/layout';
@@ -40,7 +40,7 @@ export default function TabsHost({ title, tabs }) {
             )}
             {tabs.map(([id, , Screen]) => (seen[id] ? (
                 <View key={id} style={{ flex: 1, display: id === on ? 'flex' : 'none' }}>
-                    <EmbeddedCtx.Provider value><Screen /></EmbeddedCtx.Provider>
+                    <EmbeddedCtx.Provider value><TabCtx.Provider value={desk}><Screen /></TabCtx.Provider></EmbeddedCtx.Provider>
                 </View>
             ) : null))}
         </View>

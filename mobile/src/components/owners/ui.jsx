@@ -242,6 +242,7 @@ export function LiveToggle({ on, busy, onPress }) {
 // The shop's logo opens the Shop hub; the switch pauses / resumes taking orders.
 // A screen shown as a tab inside another (see TabsHost) leaves its own title bar out: the host has one.
 export const EmbeddedCtx = React.createContext(false);
+export const TabCtx = React.createContext(false);   // a screen shown as a tab of a page (TabsHost) on a computer: its forms still lay themselves out as a centred page
 
 export function OwnerHeader(props) {
     return React.useContext(EmbeddedCtx) ? null : <OwnerHeaderBase {...props} />;

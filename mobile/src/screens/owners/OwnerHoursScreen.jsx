@@ -89,7 +89,7 @@ export default function OwnerHoursScreen() {
     };
 
     return (
-        <FormPage title={tr('Opening hours')} footer={<Button label={tr('Save hours')} icon="checkmark" busy={saving} onPress={save} />}>
+        <FormPage title={tr('Opening hours')} hero={{ icon: 'time', subtitle: tr('Weekly hours and holidays') }} footer={<Button label={tr('Save hours')} icon="checkmark" busy={saving} onPress={save} />}>
             <Group title={tr('Every week')} hint={tr('Times are in 24-hour format. Customers cannot order outside these hours.')}>
                 <ToggleRow title={tr('Use opening hours')} subtitle={week.hasHours ? undefined : tr('Off: you take orders whenever orders are switched on')} value={week.hasHours} onValueChange={(x) => setWeek((w) => ({ ...w, hasHours: x }))} last={!week.hasHours} />
                 {week.hasHours ? DAY_KEYS.map((d) => <DayRow key={d} day={d} slots={week.days[d]} onChange={(s) => setDay(d, s)} />) : null}

@@ -8,7 +8,8 @@ import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBrand, alpha } from '../common/kit';
-import { PageHeader, Card, Pill, Chips, Button, Field, Sheet, Row, money, EmbeddedCtx } from './ui';
+import { PageHeader, Card, Pill, Chips, Button, Field, Sheet, Row, money, EmbeddedCtx, TabCtx } from './ui';
+import { Hero } from './RiderDesk';
 import { showToast, useSlideTick, seedOf } from '../customers/shop';
 import { pickImage, pickImages, uploadImage } from '../../utils/owners/upload';
 import UploadThumb from '../common/UploadThumb';
@@ -165,10 +166,11 @@ export function Group({ title, hint, children, flush, flash, flashText, onLayout
 // The frame of a form page: back arrow + title, the fields scrolling, and the main button pinned to the bottom.
 // fixed: the children fill the space and manage their own scrolling (a chat); the page itself does not scroll
 // bare: no bar at the top and no gap: the first child is a picture header that has its own back button (the service pages)
-export function FormPage({ title, children, footer, right, scrollRef, fixed, bare, hideableFooter, footerKey, cols, wide }) {
+export function FormPage({ title, children, footer, right, scrollRef, fixed, bare, hideableFooter, footerKey, cols, wide, hero }) {
     const { background, border, muted } = useBrand();
     const embedded = React.useContext(EmbeddedCtx);   // inside a side panel (the menu's item editor): keep it one column
-    const deskOwner = useOwnerDesktop() && !embedded;   // the owner on a computer: every form is a centred page, and a long one runs in two columns
+    const inTab = React.useContext(TabCtx);
+    const deskOwner = useOwnerDesktop() && (!embedded || inTab);   // the owner on a computer: every form is a centred page, and a long one runs in two columns
     const desk = useIsDesktopWeb() && (!!cols || deskOwner);   // the desktop website, for a page that asked for two columns (false in the phone app)
     const [down, setDown] = useState(false);   // hideableFooter: the bar is slid down to a thin strip
     useEffect(() => { setDown(false); }, [footerKey]);   // it comes back when what it shows changes (a dish was added)
@@ -181,6 +183,7 @@ export function FormPage({ title, children, footer, right, scrollRef, fixed, bar
                 <View ref={boxRef} collapsable={false} style={{ flex: 1, paddingBottom: lift }}>
                 {fixed ? <View style={{ flex: 1, paddingTop: 6 }}>{children}</View> : (
                 <KeyboardScroll ref={scrollRef} contentContainerStyle={{ paddingTop: bare ? 0 : 6, paddingBottom: 40 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+                    {deskOwner && hero && !embedded ? <View style={{ width: '100%', maxWidth: 1180, alignSelf: 'center', paddingHorizontal: 8 }}><Hero icon={hero.icon} title={title} subtitle={hero.subtitle} right={hero.right} /></View> : null}
                     {desk ? (() => {
                         const kids = React.Children.toArray(children).filter(Boolean);
                         const mid = Math.ceil(kids.length / 2);

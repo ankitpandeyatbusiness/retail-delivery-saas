@@ -16,11 +16,13 @@ import { showToast } from '../../components/customers/shop';
 import { ask } from '../../components/common/dialog';
 import { ListShimmer } from '../../components/owners/shimmer';
 import { tr } from '../../i18n';
+import { useOwnerDesktop } from '../../utils/common/layout';
 import { onNotification } from '../../api/common/socket';
 
 export default function OwnerNotificationsScreen() {
     const nav = useNavigation();
-    const { background, text, muted, primary } = useBrand();
+    const { background, text, muted, primary, border, surface } = useBrand();
+    const desk = useOwnerDesktop();
     const [items, setItems] = useState(null);
     const [more, setMore] = useState(false);
     const [page, setPage] = useState(1);
@@ -62,12 +64,12 @@ export default function OwnerNotificationsScreen() {
             <FlatList
                 data={items || []}
                 keyExtractor={(n) => String(n.id)}
-                contentContainerStyle={{ paddingBottom: 32 }}
+                contentContainerStyle={{ paddingBottom: 32, ...(desk ? { width: '100%', maxWidth: 900, alignSelf: 'center', paddingHorizontal: 24, paddingTop: 4 } : null) }}
                 renderItem={({ item: n }) => {
                     const isNew = fresh.current.has(n.id);
                     const go = ownerRoute(n);
                     return (
-                        <Pressable disabled={!go} onPress={() => nav.navigate(go.name, go.params)} style={{ flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 13, backgroundColor: isNew ? alpha(primary, 0.07) : 'transparent' }}>
+                        <Pressable disabled={!go} onPress={() => nav.navigate(go.name, go.params)} style={({ hovered }) => ({ flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 13, backgroundColor: isNew ? alpha(primary, 0.07) : 'transparent', ...(desk ? { borderRadius: 18, marginBottom: 8, borderWidth: 1, borderColor: hovered && go ? primary : border, backgroundColor: hovered && go ? alpha(primary, 0.07) : isNew ? alpha(primary, 0.07) : surface, cursor: go ? 'pointer' : 'default', transitionProperty: 'background-color, border-color', transitionDuration: '140ms' } : null) })}>
                             <View style={{ width: 10, paddingTop: 6 }}>{isNew ? <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: primary }} /> : null}</View>
                             <View style={{ flex: 1 }}>
                                 <Text style={{ color: text, fontWeight: isNew ? '900' : '700' }}>{n.title}</Text>

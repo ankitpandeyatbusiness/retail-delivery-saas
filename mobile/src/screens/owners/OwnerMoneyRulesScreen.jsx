@@ -42,7 +42,7 @@ export default function OwnerMoneyRulesScreen() {
 
     if (!v) return <FormPage title={tr('Cancel and refund rules')}><ListShimmer count={3} /></FormPage>;
     return (
-        <FormPage title={tr('Cancel and refund rules')} footer={<Button label={tr('Save')} icon="checkmark" busy={busy} disabled={!dirty} onPress={save} />}>
+        <FormPage title={tr('Cancel and refund rules')} hero={{ icon: 'cash', subtitle: tr('Who bears the cost of a cancelled order') }} footer={<Button label={tr('Save')} icon="checkmark" busy={busy} disabled={!dirty} onPress={save} />}>
             <Group
                 title={tr('When an order paid online is cancelled')}
                 hint={tr('This decides how much of the food money you keep when a customer cancels late or does not come. The rest is refunded to him. You can be kinder than the platform, never harder. Cash orders have nothing to refund.')}

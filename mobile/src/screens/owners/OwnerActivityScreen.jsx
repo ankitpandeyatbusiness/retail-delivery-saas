@@ -14,7 +14,7 @@ import { useOwnerDesktop } from '../../utils/common/layout';
 
 export default function OwnerActivityScreen() {
     const desk = useOwnerDesktop();   // a computer keeps what is on screen while the new list loads
-    const { background, text, muted, primary, error } = useBrand();
+    const { background, text, muted, primary, error, border, surface } = useBrand();
     const [actor, setActor] = useState('');
     const [items, setItems] = useState(null);
     const [more, setMore] = useState(false);
@@ -36,10 +36,10 @@ export default function OwnerActivityScreen() {
             <FlatList
                 data={items || []}
                 keyExtractor={(a, i) => String(a._id || i)}
-                contentContainerStyle={{ paddingBottom: 32 }}
+                contentContainerStyle={{ paddingBottom: 32, ...(desk ? { width: '100%', maxWidth: 900, alignSelf: 'center', paddingHorizontal: 24, paddingTop: 4 } : null) }}
                 ListHeaderComponent={<FilterBar title={tr('Filter activity')} summary={tr(ACTOR_FILTERS.find((a) => a[0] === actor)?.[1] || 'Everyone')} activeCount={actor ? 1 : 0} onClear={() => setActor('')} sections={[{ key: 'who', title: tr('Done by'), options: ACTOR_FILTERS, value: actor, onChange: setActor }]} />}
                 renderItem={({ item: a }) => (
-                    <View style={{ paddingHorizontal: 16, paddingVertical: 11, flexDirection: 'row', alignItems: 'center' }}>
+                    <View style={{ paddingHorizontal: 16, paddingVertical: 11, flexDirection: 'row', alignItems: 'center', ...(desk ? { borderRadius: 16, marginBottom: 8, borderWidth: 1, borderColor: border, backgroundColor: surface } : null) }}>
                         <View style={{ flex: 1, minWidth: 0 }}>
                             <Text style={{ color: text, fontWeight: '800' }}>{activityLabel(a.action)}</Text>
                             <Text style={{ color: muted, fontSize: 12, marginTop: 1 }}>{a.actorLabel || a.actorType} · {dayTime(a.at)}</Text>
@@ -47,7 +47,7 @@ export default function OwnerActivityScreen() {
                         {a.status >= 400 ? <Pill label={tr('Failed')} color={error} /> : null}
                     </View>
                 )}
-                ItemSeparatorComponent={() => <View style={{ height: 0.5, backgroundColor: muted + '33', marginLeft: 16 }} />}
+                ItemSeparatorComponent={() => (desk ? null : <View style={{ height: 0.5, backgroundColor: muted + '33', marginLeft: 16 }} />)}
                 ListEmptyComponent={items === null ? <ListShimmer /> : err ? <Empty icon="cloud-offline-outline" title={tr('Could not load')} hint={err} /> : <Empty icon="list-outline" title={tr('Nothing yet')} hint={tr('Changes made in your shop are listed here.')} />}
                 ListFooterComponent={more ? <Pressable onPress={() => load(page + 1)} style={{ padding: 18, alignItems: 'center' }}><Text style={{ color: primary, fontWeight: '800' }}>{tr('Show more')}</Text></Pressable> : null}
             />

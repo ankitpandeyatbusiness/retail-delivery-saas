@@ -8,6 +8,9 @@ import { StatShimmer } from '../../components/owners/shimmer';
 import { ask } from '../../components/common/dialog';
 import { showToast } from '../../components/customers/shop';
 import { useNavigation } from '@react-navigation/native';
+import { useOwnerDesktop, useGridCols } from '../../utils/common/layout';
+import { Hero, GlassStat } from '../../components/owners/RiderDesk';
+import Masonry, { Sep } from '../../components/common/Masonry';
 import { fetchBrandOverview, fetchBrandOrders, fetchBrandCustomers, fetchBrandComplaints, fetchBrandReviews } from '../../api/owners/brandApi';
 import { switchBranch } from '../../utils/common/switchBranch';
 import { getSlug } from '../../utils/common/branch';
@@ -21,15 +24,19 @@ export default function OwnerAllBranchesScreen() {
     const [ov, setOv] = useState(null);
     const [orders, setOrders] = useState(null);
     const nav = useNavigation();
+    const desk = useOwnerDesktop();
+    const bcols = useGridCols(3, 340);
+    const RANGES = [['today', tr('Today')], ['7', tr('7 days')], ['30', tr('30 days')]];
     const [cust, setCust] = useState(null);
     const [comp, setComp] = useState(null);
     const [rev, setRev] = useState(null);
     const [err, setErr] = useState('');
 
     const load = useCallback(async () => {
-        setOv(null); setErr('');
+        if (!desk) setOv(null);   // a computer keeps the old numbers until the new ones land
+        setErr('');
         try { setOv(await fetchBrandOverview(range)); } catch (e) { setErr(tr('Could not load.')); }
-    }, [range]);
+    }, [range, desk]);
     useEffect(() => { load(); }, [load]);
     useEffect(() => {
         fetchBrandOrders({ limit: 15 }).then(setOrders).catch(() => setOrders({ items: [] }));
@@ -53,14 +60,32 @@ export default function OwnerAllBranchesScreen() {
         <View style={{ flex: 1, backgroundColor: background }}>
             <PageHeader title={tr('All branches')} />
             <ScrollView contentContainerStyle={{ paddingTop: 6, paddingBottom: 32 }}>
-                <View style={{ paddingHorizontal: 16 }}>
-                    <Chips options={[['today', tr('Today')], ['7', tr('7 days')], ['30', tr('30 days')]]} value={range} onChange={setRange} />
-                </View>
+              <View style={desk ? { width: '100%', maxWidth: 1240, alignSelf: 'center' } : undefined}>
+                {desk ? (
+                    <Hero icon="storefront" title={tr('All branches')} subtitle={tr('Every branch side by side. Tap a branch to open it.')}
+                        right={RANGES.map(([id, label]) => (
+                            <Pressable key={id} onPress={() => setRange(id)} style={({ hovered }) => ({ paddingHorizontal: 14, height: 38, borderRadius: 19, marginLeft: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: range === id ? '#FFFFFF' : hovered ? 'rgba(255,255,255,0.34)' : 'rgba(255,255,255,0.2)', cursor: 'pointer' })}>
+                                <Text style={{ color: range === id ? primary : '#FFFFFF', fontWeight: '800', fontSize: 13 }}>{label}</Text>
+                            </Pressable>
+                        ))}>
+                        {ov ? (
+                            <View style={{ flexDirection: 'row', marginTop: 18 }}>
+                                <GlassStat label={tr('All branches together')} value={money(ov.totals.sales)} icon="cash-outline" />
+                                <GlassStat label={tr('Orders')} value={String(ov.totals.orders)} icon="receipt-outline" />
+                                <GlassStat label={tr('Delivered')} value={String(ov.totals.delivered)} icon="checkmark-done-outline" />
+                                <GlassStat label={tr('On now')} value={String(ov.totals.activeNow)} icon="flash-outline" />
+                            </View>
+                        ) : null}
+                    </Hero>
+                ) : null}
+                {desk ? null : <View style={{ paddingHorizontal: 16 }}>
+                    <Chips options={RANGES} value={range} onChange={setRange} />
+                </View>}
                 {!ov && !err ? <StatShimmer /> : null}
                 {err ? <Empty icon="cloud-offline-outline" title={tr('Could not load')} hint={err} /> : null}
                 {ov ? (
                     <>
-                        <Card>
+                        {desk ? null : <Card>
                             <Text style={{ color: muted, fontSize: 12, fontWeight: '700' }}>{tr('All branches together')}</Text>
                             <Text style={{ color: text, fontSize: 34, fontWeight: '900', marginTop: 2 }}>{money(ov.totals.sales)}</Text>
                             <View style={{ flexDirection: 'row', marginTop: 12 }}>
@@ -68,10 +93,12 @@ export default function OwnerAllBranchesScreen() {
                                 <Stat label={tr('Delivered')} value={String(ov.totals.delivered)} />
                                 <Stat label={tr('On now')} value={String(ov.totals.activeNow)} />
                             </View>
-                        </Card>
+                        </Card>}
                         <SectionTitle title={tr('Branches')} />
+                        <View style={desk ? { flexDirection: 'row', flexWrap: 'wrap', opacity: 1 } : undefined}>
                         {ov.branches.map((b) => (
-                            <Card key={b.slug} onPress={() => open(b)}>
+                          <View key={b.slug} style={desk ? { width: `${100 / bcols}%` } : undefined}>
+                            <Card onPress={() => open(b)}>
                                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                                     <Text style={{ color: text, fontWeight: '900', fontSize: 16, flex: 1 }} numberOfLines={1}>{b.name}</Text>
                                     <Text style={{ color: text, fontWeight: '900', fontSize: 16 }}>{money(b.sales)}</Text>
@@ -81,12 +108,17 @@ export default function OwnerAllBranchesScreen() {
                                 </Text>
                                 {b.slug === getSlug() ? <Text style={{ color: primary, fontWeight: '800', marginTop: 4 }}>{tr('You are here')}</Text> : null}
                             </Card>
+                          </View>
                         ))}
+                        </View>
                     </>
                 ) : null}
 
+                <Masonry desk={desk} gap={-16}>
+
                 {cust ? (
                     <>
+                        <Sep />
                         <SectionTitle title={tr('Customers')} />
                         <Card>
                             <View style={{ flexDirection: 'row' }}>
@@ -101,6 +133,7 @@ export default function OwnerAllBranchesScreen() {
 
                 {comp ? (
                     <>
+                        <Sep />
                         <SectionTitle title={tr('Open complaints')} />
                         <Card>
                             {comp.openByBranch.map((b) => <Text key={b.slug} style={{ color: b.open ? error : muted, fontWeight: b.open ? '800' : '600', marginTop: 2 }}>{tr('{name}: {n} open', { name: b.name, n: b.open })}</Text>)}
@@ -116,6 +149,7 @@ export default function OwnerAllBranchesScreen() {
 
                 {rev && rev.total.count ? (
                     <>
+                        <Sep />
                         <SectionTitle title={tr('Dish ratings')} />
                         <Card>
                             <Text style={{ color: text, fontWeight: '900', fontSize: 18 }}>{tr('{avg} stars from {n} ratings', { avg: rev.total.average, n: rev.total.count })}</Text>
@@ -130,6 +164,7 @@ export default function OwnerAllBranchesScreen() {
                     </>
                 ) : null}
 
+                <Sep />
                 <SectionTitle title={tr('Newest orders')} />
                 {orders && !orders.items.length ? <Empty icon="receipt-outline" title={tr('No orders yet')} /> : null}
                 {orders ? orders.items.map((o) => (
@@ -141,6 +176,8 @@ export default function OwnerAllBranchesScreen() {
                         <Text style={{ color: muted, fontSize: 12 }}>{`${tr(STATUS[o.status] || o.status)} · ${new Date(o.createdAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}`}</Text>
                     </Pressable>
                 )) : null}
+                </Masonry>
+              </View>
             </ScrollView>
         </View>
     );

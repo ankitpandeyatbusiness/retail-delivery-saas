@@ -70,7 +70,7 @@ export default function OwnerShopSettingsScreen() {
     };
 
     return (
-        <FormPage title={tr('Shop settings')} footer={<Button label={tr('Save')} icon="checkmark" busy={saving} onPress={save} />}>
+        <FormPage title={tr('Shop settings')} hero={{ icon: 'settings', subtitle: tr('Phone, address, how you serve customers, alerts') }} footer={<Button label={tr('Save')} icon="checkmark" busy={saving} onPress={save} />}>
             <Group title={tr('Contact')} hint={tr('Customers and riders call this number.')}>
                 <TextBox label={tr('Shop phone')} value={v.phone} onChangeText={(x) => set('phone', x.replace(/\D/g, '').slice(0, 10))} keyboardType="number-pad" maxLength={10} placeholder={tr('10-digit mobile number')} last />
             </Group>
