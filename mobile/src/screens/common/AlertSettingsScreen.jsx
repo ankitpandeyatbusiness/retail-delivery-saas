@@ -17,7 +17,8 @@ import { useAuthStore } from '../../store/common/useAuthStore';
 import { sayExample } from '../../utils/owners/soundbox';
 import { ListShimmer } from '../../components/owners/shimmer';
 import { UpgradeNote } from '../../components/owners/PlanLock';
-import { useIsDesktopWeb } from '../../utils/common/layout';
+import { useIsDesktopWeb, useOwnerDesktop } from '../../utils/common/layout';
+import { Hero, HeroBtn } from '../../components/owners/RiderDesk';
 import { DeskPage, DeskHeader, DeskBtn, DESK_T } from '../../components/common/DeskPage';
 import { tr } from '../../i18n';
 
@@ -35,6 +36,7 @@ function Col({ label, value, onChange }) {
 export default function AlertSettingsScreen() {
     const { background, text, muted, warn, primary, border, surface } = useBrand();
     const nav = useNavigation();
+    const ownerDesk = useOwnerDesktop();   // the owner on a computer gets the banner; the other roles keep their header
     const desk = useIsDesktopWeb();   // a browser at least 1024 px wide: the alerts as a grid of cards (false in the phone app)
     const { groups, loaded, load, change, reset } = useAlertPrefs();
     const language = useSoundboxStore((s) => s.language);
@@ -65,12 +67,18 @@ export default function AlertSettingsScreen() {
         const rows = [];
         for (let i = 0; i < groups.length; i += 2) rows.push(groups.slice(i, i + 2));
         return (
-            <DeskPage maxWidth={1060}>
+            <DeskPage maxWidth={ownerDesk ? 1180 : 1060}>
+                {ownerDesk ? (
+                    <View style={{ marginHorizontal: -16 }}><Hero icon="notifications" title={tr('Alerts')} subtitle={intro} right={<HeroBtn solid={changed} icon="sparkles" label={changed ? tr('Use recommended settings') : tr('You are on the recommended settings')} onPress={changed ? recommended : undefined} />} /></View>
+                ) : (
+                <>
                 <DeskHeader
                     title={tr('Alerts')}
                     right={<DeskBtn kind={changed ? 'primary' : 'ghost'} icon="sparkles" label={changed ? tr('Use recommended settings') : tr('You are on the recommended settings')} disabled={!changed} onPress={recommended} />}
                 />
                 <Text style={{ color: muted, fontSize: 14, lineHeight: 21, marginTop: 14, maxWidth: 780 }}>{intro}</Text>
+                </>
+                )}
                 {/* the website only: "Also notify me on this browser" */}
                 <View style={{ marginHorizontal: -16, marginTop: 6 }}><BrowserPushCard /></View>
                 {loaded && !voiceOk && !web ? <View style={{ marginHorizontal: -16 }}><UpgradeNote feature="soundboxVoice" text={tr('Soundbox voice announces every new order')} /></View> : null}
