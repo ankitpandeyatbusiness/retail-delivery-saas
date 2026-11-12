@@ -1,6 +1,6 @@
 // Small pieces the kitchen and waiter screens share: the page header, the job badge and the loading skeleton.
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, Pressable, TouchableOpacity, ActivityIndicator, useWindowDimensions, Animated, Easing } from 'react-native';
+import { View, Text, Pressable, TouchableOpacity, ActivityIndicator, useWindowDimensions, Animated, Easing, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBrand, alpha } from '../common/kit';
@@ -74,6 +74,19 @@ export const minWord = (m) => (m < 1 ? tr('just now') : tr('{n} min', { n: m }))
 // a big button a cook or waiter can hit with a wet thumb: full width, tall, clear colours in both looks
 // The button of the cook's card (Start cooking, Ready, Add to queue): a plain touchable that fills the width it is given, so a tap anywhere on it counts.
 export function ActionButton({ label, icon, bg, ink, busy, disabled, onPress, height = 56 }) {
+    // in a browser: the same button as a Pressable, so it reacts to the mouse (the phone keeps its TouchableOpacity exactly as it was)
+    if (Platform.OS === 'web') {
+        return (
+            <Pressable onPress={onPress} disabled={busy || disabled} accessibilityRole="button" style={({ hovered, pressed }) => ({ height, borderRadius: 16, backgroundColor: bg, opacity: disabled ? 0.4 : pressed ? 0.75 : 1, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', paddingHorizontal: 12, cursor: 'pointer', filter: hovered && !disabled ? 'brightness(1.1)' : 'none', transitionProperty: 'filter', transitionDuration: '140ms' })}>
+                {busy ? <ActivityIndicator color={ink} /> : (
+                    <>
+                        <Ionicons name={icon} size={22} color={ink} style={{ marginRight: 8 }} />
+                        <Text numberOfLines={1} style={{ color: ink, fontWeight: '900', fontSize: 17, flexShrink: 1 }}>{label}</Text>
+                    </>
+                )}
+            </Pressable>
+        );
+    }
     return (
         <TouchableOpacity activeOpacity={0.75} onPress={onPress} disabled={busy || disabled} accessibilityRole="button" style={{ height, borderRadius: 16, backgroundColor: bg, opacity: disabled ? 0.4 : 1, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', paddingHorizontal: 12 }}>
             {busy ? <ActivityIndicator color={ink} /> : (

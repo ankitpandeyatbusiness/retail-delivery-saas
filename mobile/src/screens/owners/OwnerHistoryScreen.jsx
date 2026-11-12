@@ -302,7 +302,7 @@ function DeskOrderRow({ o, onOpen }) {
     const [ticon, tlabel] = TYPE[o.orderType] || ['receipt', o.orderType];
     const cash = o.payment.method === 'cod';
     return (
-        <Pressable onPress={onOpen} style={({ hovered }) => ({ flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, paddingHorizontal: 14, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: border, backgroundColor: hovered ? alpha(primary, 0.06) : 'transparent', opacity: gone ? 0.85 : 1, cursor: 'pointer' })}>
+        <Pressable onPress={onOpen} style={({ hovered }) => ({ flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, paddingHorizontal: 14, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: border, backgroundColor: hovered ? alpha(primary, 0.06) : 'transparent', borderRadius: 14, opacity: gone ? 0.85 : 1, cursor: 'pointer' })}>
             <Text style={{ width: COLS.no, color: text, fontWeight: '900', fontSize: 14.5 }} numberOfLines={1}>{o.bulk ? (o.bulk.code || tr('Bulk Order')) : `#${o.orderNo}`}</Text>
             <Text style={{ width: COLS.time, color: muted, fontSize: 13 }}>{clock(o.createdAt)}</Text>
             <View style={{ width: COLS.cust, paddingRight: 10 }}>

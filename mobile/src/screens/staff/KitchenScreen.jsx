@@ -17,9 +17,13 @@ import { useKitchenStore } from '../../store/staff/useKitchenStore';
 import { useStaffStore } from '../../store/staff/useStaffStore';
 import { apiError } from '../../api/owners/shopApi';
 import { showToast } from '../../components/customers/shop';
+import { useStaffDesktop } from '../../utils/common/layout';
+import { Hero, GlassStat } from '../../components/owners/RiderDesk';
+import { Board, Column } from '../../components/staff/StaffDesk';
 import { tr } from '../../i18n';
 
 export default function KitchenScreen() {
+    const desk = useStaffDesktop();   // a cook on a computer: a board with a column for each step
     const { background, text, muted, warn, primary } = useBrand();
     const shop = useStaffStore((s) => s.me?.shop);
     const items = useKitchenStore((s) => s.items);
@@ -56,6 +60,40 @@ export default function KitchenScreen() {
     const first = state === 'loading' || (!loadedAt && state !== 'error');
 
     const sub = counts.late > 0 ? tr('{n} late', { n: counts.late }) : shop;
+    if (desk) {
+        const fresh = make.filter((o) => o.stage !== 'cooking');
+        const cooking = make.filter((o) => o.stage === 'cooking');
+        const card = (o) => <KitchenOrderCard key={o.id} o={o} lateMin={rules.lateMin || 20} busy={!!busy[o.id]} onAct={(k) => act(o, k)} onProblem={() => setProblem(o)} onUndo={() => undo(o)} />;
+        return (
+            <View style={{ flex: 1, backgroundColor: background }}>
+                <StaffHeader title={tr('Kitchen')} subtitle={sub} />
+                <OffDutyBanner />
+                <Hero icon="flame" title={tr('What to cook')} subtitle={counts.late > 0 ? tr('{n} late', { n: counts.late }) : tr('Start the oldest first. New orders arrive by themselves, with a sound.')}>
+                    <View style={{ flexDirection: 'row', marginTop: 18 }}>
+                        <GlassStat label={tr('To start')} value={String(fresh.length)} icon="hourglass-outline" />
+                        <GlassStat label={tr('Cooking')} value={String(cooking.length)} icon="flame-outline" />
+                        <GlassStat label={tr('Ready')} value={String(done.length)} icon="checkmark-done-outline" />
+                        <GlassStat label={tr('Late')} value={String(counts.late || 0)} icon="alarm-outline" />
+                    </View>
+                </Hero>
+                {state === 'error' && !loadedAt ? (
+                    <View>
+                        <Empty icon="cloud-offline-outline" title={tr('Could not load the orders')} hint={tr('Check your internet.')} />
+                        <Pressable onPress={refresh} style={{ alignSelf: 'center', padding: 12 }}><Text style={{ color: primary, fontWeight: '900' }}>{tr('Try again')}</Text></Pressable>
+                    </View>
+                ) : first ? <ListShimmer /> : (
+                    <Board>
+                        <Column title={tr('To start')} hint={tr('Waiting for Start cooking')} icon="hourglass" color="#F59E0B" count={fresh.length} emptyText={tr('Nothing to make')}>{fresh.map(card)}</Column>
+                        <Column title={tr('Cooking')} hint={tr('On the stove')} icon="flame" color="#F97316" count={cooking.length} emptyText={tr('Nothing on the stove')}>{cooking.map(card)}</Column>
+                        <Column title={tr('Ready')} hint={tr('Waiting to be picked up')} icon="checkmark-done" color="#10B981" count={done.length} emptyText={tr('Orders you mark Ready stay here for an hour.')}>{done.map(card)}</Column>
+                        {bulk.length ? <Column title={tr('Bulk')} hint={tr('Coming up')} icon="cube" color="#8B5CF6" count={bulk.length}>{bulk.map(card)}</Column> : null}
+                        <Column title={tr('By dish')} hint={tr('Cook the same dish together')} icon="list" color="#3B82F6" width={320} count={null}><DishTotals orders={make} /></Column>
+                    </Board>
+                )}
+                <ProblemSheet order={problem} onClose={() => setProblem(null)} onDone={() => { setProblem(null); useKitchenStore.getState().load(); }} />
+            </View>
+        );
+    }
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
             <StaffHeader title={tr('Kitchen')} subtitle={sub} />

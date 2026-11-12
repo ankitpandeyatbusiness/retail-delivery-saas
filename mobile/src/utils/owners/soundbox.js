@@ -986,7 +986,7 @@ async function holdAlive(on) {
             setTrack(looping ? 'alert' : 'idle');
         } else {
             wantPlaying = false;
-            deactivateKeepAwake(WAKE_TAG);
+            try { Promise.resolve(deactivateKeepAwake(WAKE_TAG)).catch(() => { }); } catch (e) { /* nothing was holding the screen awake */ }
             if (player) {
                 try { { lockScreenOn = false; player.setActiveForLockScreen?.(false); } } catch (e) { /* ignore */ }
                 try { player.pause(); } catch (e) { /* ignore */ }

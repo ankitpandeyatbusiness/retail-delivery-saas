@@ -36,6 +36,7 @@ import TableRequests from '../../components/owners/TableRequests';
 import { UnpaidHomeCard } from '../../components/owners/UnpaidBills';
 import { ListShimmer } from '../../components/owners/shimmer';
 import { useOwnerDesktop } from '../../utils/common/layout';
+import Masonry, { Sep } from '../../components/common/Masonry';
 import { tr } from '../../i18n';
 
 const PIPELINE = [
@@ -427,8 +428,7 @@ export default function OwnerHomeScreen() {
                 [tr('Average order'), money(d?.today.averageOrderValue), 'stats-chart-outline', warn, null],
                 [tr('Live orders'), String(PIPELINE.reduce((n, p) => n + countOf(p[0]), 0)), 'flash-outline', error, <Text style={{ color: muted, fontSize: 12.5, fontWeight: '700' }}>{tr('Tap to see them')}</Text>, () => setPeek('live')],
             ]} /> : null}
-            <TwoCol desk={desk}>
-            <Left desk={desk}>
+            <Masonry desk={desk} gap={16}>
             {/* what is happening to the orders, right at the top */}
             <SectionTitle title={tr('Order pipeline')} action={tr('Open orders')} onAction={() => toOrders('active')} />
             <View style={{ flexDirection: 'row', paddingHorizontal: 13 }}>
@@ -459,6 +459,7 @@ export default function OwnerHomeScreen() {
             <TableRequests />
             <UnpaidHomeCard />
 
+            <Sep />
             {/* needs him now */}
             {waiting.length ? (
                 <Card tone={warn} onPress={() => (waiting.length === 1 ? nav.navigate('OwnerOrder', { id: String(waiting[0].id) }) : toOrders('placed'))}>
@@ -472,6 +473,7 @@ export default function OwnerHomeScreen() {
                 </Card>
             ) : null}
 
+            <Sep />
             {/* the day */}
             {desk && easy ? null : (<>
             <SectionTitle title={tr('Today')} />
@@ -508,6 +510,7 @@ export default function OwnerHomeScreen() {
             </Card>
             </>)}
 
+            <Sep />
             {/* the week in one line, and the way to the full report */}
             {d && !easy ? (
                 <Card onPress={() => nav.navigate('OwnerBusiness', { range: '7' })}>
@@ -522,8 +525,7 @@ export default function OwnerHomeScreen() {
                 </Card>
             ) : null}
 
-            </Left>
-            <Right desk={desk}>
+            <Sep />
             <SectionTitle title={tr('Delivery')} />
             <Card>
                 <Row
@@ -535,6 +537,7 @@ export default function OwnerHomeScreen() {
                 />
             </Card>
 
+            <Sep />
             {staffOk && (staff?.rules?.kitchenOn || staff?.rules?.waiterOn) ? (
                 <>
                     <SectionTitle title={tr('Staff')} />
@@ -561,6 +564,7 @@ export default function OwnerHomeScreen() {
                 </>
             ) : null}
 
+            <Sep />
             <SectionTitle title={tr('Needs your attention')} />
             <Card>
                 {!d ? <ListShimmer count={3} /> : null}
@@ -575,6 +579,7 @@ export default function OwnerHomeScreen() {
                 ))}
             </Card>
 
+            <Sep />
             <SectionTitle title={tr('Alerts')} />
             <Card>
                 <Row
@@ -587,6 +592,7 @@ export default function OwnerHomeScreen() {
                 />
             </Card>
 
+            <Sep />
             {!easy && live?.feed?.length ? (
                 <>
                     <SectionTitle title={tr('Latest')} />
@@ -600,8 +606,7 @@ export default function OwnerHomeScreen() {
                     </Card>
                 </>
             ) : null}
-            </Right>
-            </TwoCol>
+            </Masonry>
             {desk ? <OrdersPeek kind={peek} onClose={() => setPeek(null)} onOpen={(o) => { setPeek(null); nav.navigate('OwnerOrder', { id: String(o.id) }); }} /> : null}
             </Frame>
         </OwnerScreen>

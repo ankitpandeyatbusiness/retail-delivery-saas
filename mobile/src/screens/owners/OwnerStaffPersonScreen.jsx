@@ -18,12 +18,17 @@ import { showToast } from '../../components/customers/shop';
 import { ask } from '../../components/common/dialog';
 import { ago } from '../../utils/owners/riderRules';
 import { useMenuFlags } from '../../utils/owners/menuFlags';
+import { useOwnerDesktop } from '../../utils/common/layout';
+import { Frame, Hero, HeroBtn, GlassStat } from '../../components/owners/RiderDesk';
+import Masonry, { Sep } from '../../components/common/Masonry';
+import Limited from '../../components/common/ShowMore';
 import { tr } from '../../i18n';
 
 export const LEAVE_PILL = { pending: ['Waiting', 'warn'], approved: ['Approved', 'ok'], rejected: ['Not approved', 'error'], cancelled: ['Cancelled', 'muted'] };
 export const range = (a, b) => (a === b ? a : `${a} → ${b}`);
 
 export default function OwnerStaffPersonScreen() {
+    const desk = useOwnerDesktop();   // a computer: a banner with their numbers, then the sections in two even columns
     const nav = useNavigation();
     const { userId } = useRoute().params || {};
     const { background, text, muted, ok, warn, error } = useBrand();
@@ -90,7 +95,30 @@ export default function OwnerStaffPersonScreen() {
         <View style={{ flex: 1, backgroundColor: background }}>
             <PageHeader title={p.name || p.phone} />
             <ScrollView contentContainerStyle={{ paddingTop: 6, paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
-                <Card>
+              <Frame desk={desk} max={1180}>
+                {desk ? (
+                    <Hero
+                        lead={<View style={{ marginRight: 18, borderRadius: 40, borderWidth: 3, borderColor: 'rgba(255,255,255,0.6)' }}><PersonAvatar person={p} size={74} /></View>}
+                        title={p.name || tr('No name yet')}
+                        subtitle={`${p.phone}${p.lastSeenAt ? `  ·  ${tr('Last seen {ago}', { ago: ago(p.lastSeenAt) })}` : ''}`}
+                        right={<>
+                            <HeroBtn label={tr('Call')} icon="call" onPress={() => callPhone(p.phone)} />
+                            <HeroBtn label={tr('WhatsApp')} icon="logo-whatsapp" solid onPress={() => whatsApp(p.phone)} />
+                        </>}
+                    >
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 16 }}>
+                            <Pill label={tr(cook ? 'Kitchen' : 'Waiter')} icon={cook ? 'flame' : 'restaurant'} />
+                            <View style={{ marginLeft: 8 }}><DutyPills p={{ ...p, duty: d.duty.status }} /></View>
+                        </View>
+                        <View style={{ flexDirection: 'row', marginTop: 16 }}>
+                            <GlassStat label={tr('Today')} value={String(s.today.orders)} icon="today-outline" />
+                            <GlassStat label={tr('This week')} value={String(s.week.orders)} icon="calendar-outline" />
+                            <GlassStat label={tr(cook ? 'Avg cooking' : 'Avg wait')} value={s.avgMin != null ? `${s.avgMin} ${tr('min')}` : '—'} icon="time-outline" />
+                            {!cook ? <GlassStat label={tr('Tables served')} value={String(s.tables)} icon="people-outline" /> : null}
+                        </View>
+                    </Hero>
+                ) : null}
+                {desk ? null : <Card>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <PersonAvatar person={p} size={56} />
                         <View style={{ flex: 1, marginLeft: 14, minWidth: 0 }}>
@@ -107,18 +135,19 @@ export default function OwnerStaffPersonScreen() {
                         <View style={{ flex: 1, marginRight: 6 }}><Button label={tr('Call')} icon="call" iconOnly kind="ghost" onPress={() => callPhone(p.phone)} /></View>
                         {!easy ? <View style={{ flex: 1, marginLeft: 6 }}><Button label={tr('WhatsApp')} icon="logo-whatsapp" iconOnly kind="ghost" onPress={() => whatsApp(p.phone)} /></View> : null}
                     </View>
-                </Card>
+                </Card>}
 
-                <SectionTitle title={tr(cook ? 'What they made' : 'What they served')} />
-                <Card>
+                {desk ? null : <SectionTitle title={tr(cook ? 'What they made' : 'What they served')} />}
+                {desk ? null : <Card>
                     <View style={{ flexDirection: 'row' }}>
                         <Stat label={tr('Today')} value={String(s.today.orders)} hint={`${s.today.dishes} ${tr('dishes')}`} />
                         {!easy ? <Stat label={tr('This week')} value={String(s.week.orders)} hint={`${s.week.dishes} ${tr('dishes')}`} /> : null}
                         <Stat label={tr(cook ? 'Avg cooking' : 'Avg wait')} value={s.avgMin != null ? `${s.avgMin} ${tr('min')}` : '—'} hint={tr(cook ? 'start to ready' : 'ready to served')} />
                     </View>
                     {!cook ? <Text style={{ color: muted, fontSize: 12.5, marginTop: 10 }}>{tr('Tables served today: {n}', { n: s.tables })}</Text> : null}
-                </Card>
+                </Card>}
 
+                <Masonry desk={desk} gap={16}>
                 {cook ? (
                     <>
                         <SectionTitle title={tr('Making now')} />
@@ -132,10 +161,11 @@ export default function OwnerStaffPersonScreen() {
                     </>
                 ) : null}
 
+                <Sep />
                 <SectionTitle title={tr('Leave and days off')} />
                 <Card>
                     {!d.leaves.length && !d.holidays.length ? <Text style={{ color: muted }}>{tr('No leave asked for and no days off yet.')}</Text> : null}
-                    {d.leaves.map((l, i) => (
+                    <Limited items={d.leaves} render={(l, i) => (
                         <View key={l.id} style={{ paddingVertical: 8, borderTopWidth: i ? 0.5 : 0, borderTopColor: muted + '55' }}>
                             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                                 <Text style={{ color: text, fontWeight: '800', flex: 1 }}>{range(l.from, l.to)} · {l.days} {l.days === 1 ? tr('day') : tr('days')}</Text>
@@ -151,16 +181,17 @@ export default function OwnerStaffPersonScreen() {
                             ) : null}
                             {!easy && l.status === 'approved' && l.to >= today ? <View style={{ marginTop: 8 }}><Button label={tr('Take this leave away')} icon="close-circle" kind="danger" onPress={() => takeLeaveBack(l)} /></View> : null}
                         </View>
-                    ))}
-                    {d.holidays.filter((h) => !h.leave).map((h) => (
+                    )} />
+                    <Limited items={d.holidays.filter((h) => !h.leave)} render={(h) => (
                         <View key={h.id} style={{ paddingVertical: 8, borderTopWidth: 0.5, borderTopColor: muted + '55' }}>
                             <Text style={{ color: text, fontWeight: '800' }}>{range(h.from, h.to)} · {h.days} {h.days === 1 ? tr('day') : tr('days')} <Text style={{ color: muted, fontWeight: '600' }}>({tr('day off they set')})</Text></Text>
                             {h.note ? <Text style={{ color: muted, marginTop: 2 }}>{h.note}</Text> : null}
                             {!easy ? <View style={{ marginTop: 8 }}><Button label={tr('Remove this day off')} icon="close-circle" kind="danger" onPress={() => takeDayOffBack(h)} /></View> : null}
                         </View>
-                    ))}
+                    )} />
                 </Card>
 
+                <Sep />
                 <SectionTitle title={tr('Staff')} />
                 <Card>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -173,6 +204,8 @@ export default function OwnerStaffPersonScreen() {
                     {!easy ? <View style={{ marginTop: 12 }}><Button label={tr('Change name')} icon="create" kind="ghost" onPress={() => { setName(p.name || ''); setNameOpen(true); }} /></View> : null}
                     <View style={{ marginTop: 10 }}><Button label={tr('Remove from staff')} icon="trash" kind="danger" onPress={remove} /></View>
                 </Card>
+                </Masonry>
+              </Frame>
             </ScrollView>
             <Sheet visible={!!taking} onClose={() => setTaking(null)} title={taking?.kind === 'approve' ? tr('Approve this leave?') : taking?.kind === 'reject' ? tr('Do not approve this leave?') : taking?.kind === 'leave' ? tr('Take this leave away?') : tr('Remove this day off?')}>
                 {taking ? <Text style={{ color: muted, marginBottom: 10 }}>{range(taking.item.from, taking.item.to)}. {['approve', 'reject'].includes(taking.kind) ? tr('{name} is told with a notification and a sound.', { name: p.name || p.phone }) : tr('{name} is on duty on those days again and is told with a notification and a sound.', { name: p.name || p.phone })}</Text> : null}

@@ -18,8 +18,11 @@ import { useAuthStore } from '../../store/common/useAuthStore';
 import { saveStaffName } from '../../api/staff/staffApi';
 import { takeAndUploadStaffPhoto, removeStaffPhoto } from '../../utils/riders/riderPhotos';
 import { LANGS, useLang, tr } from '../../i18n';
+import { useStaffDesktop } from '../../utils/common/layout';
+import { Frame } from '../../components/owners/RiderDesk';
 
 export default function StaffProfileScreen() {
+    const desk = useStaffDesktop();
     const { background, text, muted, error } = useBrand();
     const nav = useNavigation();
     const me = useStaffStore((s) => s.me);
@@ -73,6 +76,7 @@ export default function StaffProfileScreen() {
         <View style={{ flex: 1, backgroundColor: background }}>
             <StaffHeader title={tr('Profile')} />
             <ScrollView contentContainerStyle={{ paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
+              <Frame desk={desk} max={760}>
                 {/* 1. who you are */}
                 <View style={{ alignItems: 'center', marginBottom: 18, paddingHorizontal: 16 }}>
                     <Avatar uri={me?.photo} size={92} onPress={changePhoto} busy={photoBusy} />
@@ -112,6 +116,7 @@ export default function StaffProfileScreen() {
                         <Row icon="log-out-outline" title={tr('Log out')} color={error} onPress={signOut} last />
                     </Card>
                 </View>
+              </Frame>
             </ScrollView>
             <Sheet visible={nameOpen} onClose={() => setNameOpen(false)} title={tr('Your name')}>
                 <Text style={{ color: muted, marginBottom: 10 }}>{tr('The owner sees this name next to what you do.')}</Text>

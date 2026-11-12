@@ -12,6 +12,10 @@ import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { fetchStaff, fetchStaffLeaves, decideStaffLeave, addStaff, updateStaff, removeStaff, apiError } from '../../api/owners/shopApi';
 import { showToast } from '../../components/customers/shop';
 import { ask } from '../../components/common/dialog';
+import { useOwnerDesktop } from '../../utils/common/layout';
+import { Frame, Hero, HeroBtn, GlassStat } from '../../components/owners/RiderDesk';
+import StaffTile from '../../components/owners/StaffTile';
+import { MiniAvatar, MiniDuty } from '../../components/owners/MiniStaff';
 import { tr } from '../../i18n';
 
 const JOB_LABEL = { kitchen: 'Kitchen', waiter: 'Waiter' };
@@ -115,6 +119,7 @@ export function LeaveRequests({ onChanged, role }) {
 }
 
 export default function OwnerStaffScreen() {
+    const desk = useOwnerDesktop();
     const { text, muted, ok, warn } = useBrand();
     const access = useOwnerStore((st) => st.access);
     const [data, setData] = useState(null);
@@ -137,7 +142,7 @@ export default function OwnerStaffScreen() {
     const full = items.length >= (rules.max || 0);
 
     return (
-        <FormPage title={tr('Staff')}>
+        <FormPage title={tr('Staff')} wide>
             {!data && !error ? <ListShimmer /> : null}
             {error && !data ? <Empty icon="cloud-offline-outline" title={tr('Could not load')} hint={error} /> : null}
             {data && !anyOn ? (
@@ -145,12 +150,34 @@ export default function OwnerStaffScreen() {
             ) : null}
             {data && anyOn ? (
                 <>
-                    <Text style={{ color: muted, paddingHorizontal: 16, marginBottom: 12, lineHeight: 20 }}>
+                    {desk ? (
+                        <Hero icon="people" title={tr('Your team')} subtitle={tr('Cooks and waiters sign in with their mobile number and see only their own screen.')}
+                            right={<HeroBtn label={full ? tr('Staff limit reached ({n})', { n: rules.max }) : tr('Add staff')} icon="person-add" solid onPress={() => { if (!full) setAdding(true); }} />}>
+                            <View style={{ flexDirection: 'row', marginTop: 18 }}>
+                                <GlassStat label={tr('Cooks')} value={String(items.filter((p) => p.role === 'kitchen').length)} icon="flame-outline" />
+                                <GlassStat label={tr('Waiters')} value={String(items.filter((p) => p.role === 'waiter').length)} icon="restaurant-outline" />
+                                <GlassStat label={tr('On duty now')} value={String(items.filter((p) => p.isActive && p.duty === 'on').length)} icon="radio-button-on" />
+                                <GlassStat label={tr('Places used')} value={`${items.length} / ${rules.max || 0}`} icon="albums-outline" />
+                            </View>
+                        </Hero>
+                    ) : null}
+                    {desk ? null : <Text style={{ color: muted, paddingHorizontal: 16, marginBottom: 12, lineHeight: 20 }}>
                         {tr('Add your cooks and waiters with their mobile numbers. They sign in with an OTP and see only their own screen: no money, no customers, no settings.')}
-                    </Text>
+                    </Text>}
                     <LeaveRequests onChanged={load} />
                     {!items.length ? <Empty icon="people-outline" title={tr('No staff yet')} hint={tr('Add a cook or a waiter to start.')} /> : null}
-                    {items.map((p) => (
+                    {desk ? (
+                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: 8 }}>
+                            {items.map((p) => (
+                                <View key={p.userId} style={{ width: '33.333%' }}>
+                                    <StaffTile avatar={<MiniAvatar p={p} />} dot={!p.isActive ? muted : p.duty === 'on' ? ok : warn} name={p.name || p.phone} phone={p.name ? p.phone : ''} active={p.isActive}
+                                        pills={<><View style={{ marginRight: 6, marginBottom: 6 }}><Pill label={tr(JOB_LABEL[p.role])} icon={p.role === 'kitchen' ? 'flame' : 'restaurant'} /></View><View style={{ marginRight: 6, marginBottom: 6 }}><MiniDuty p={p} /></View>{p.isActive && !p.panelOn ? <View style={{ marginBottom: 6 }}><Pill label={tr('Screen is off')} color={warn} /></View> : null}</>}
+                                        onOpen={() => setEdit(p)} switchOn={p.isActive} onSwitch={(on) => toggle(p, on)} locked={access !== 'ok' && access !== 'paused'} />
+                                </View>
+                            ))}
+                        </View>
+                    ) : null}
+                    {desk ? null : items.map((p) => (
                         <Card key={p.userId} onPress={() => setEdit(p)} style={{ opacity: p.isActive ? 1 : 0.6 }}>
                             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                                 <View style={{ flex: 1, minWidth: 0 }}>
@@ -169,10 +196,10 @@ export default function OwnerStaffScreen() {
                             </View>
                         </Card>
                     ))}
-                    <View style={{ paddingHorizontal: 16, marginTop: 4 }}>
+                    {desk ? null : <View style={{ paddingHorizontal: 16, marginTop: 4 }}>
                         <Button label={full ? tr('Staff limit reached ({n})', { n: rules.max }) : tr('Add staff')} icon="person-add" disabled={full} onPress={() => setAdding(true)} />
                         <Text style={{ color: muted, fontSize: 12.5, textAlign: 'center', marginTop: 8 }}>{tr('{n} of {max} used', { n: items.length, max: rules.max })}</Text>
-                    </View>
+                    </View>}
                 </>
             ) : null}
             <AddSheet visible={adding} rules={rules} onClose={() => setAdding(false)} onDone={load} />

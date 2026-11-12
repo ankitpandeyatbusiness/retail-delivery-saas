@@ -24,6 +24,13 @@ export function useOwnerDesktop() {
     return desktop && role === 'admin' && !preview;
 }
 
+// the desktop COOK and WAITER panel: a wide browser and a person whose job is kitchen or waiter
+export function useStaffDesktop() {
+    const desktop = useIsDesktopWeb();
+    const role = useAuthStore((s) => s.user?.role);
+    return desktop && (role === 'kitchen' || role === 'waiter');
+}
+
 export function useIsDesktopWeb() {
     const { width } = useWindowDimensions();
     return Platform.OS === 'web' && width >= DESKTOP_MIN_WIDTH;

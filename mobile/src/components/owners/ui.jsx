@@ -72,11 +72,12 @@ export function Chips({ options, value, onChange, style }) {
                     <Pressable
                         key={String(v)}
                         onPress={() => onChange(v)}
-                        style={{
+                        style={({ hovered }) => ({
+                            ...(hovered && !on ? { backgroundColor: alpha(primary, 0.08), borderColor: alpha(primary, 0.55) } : null), cursor: 'pointer', transitionProperty: 'background-color, border-color', transitionDuration: '140ms',
                             flexGrow: 1, minWidth: 76, maxWidth: '100%', marginRight: 8, marginBottom: 8, paddingHorizontal: 14, paddingVertical: 11,   // a long word never runs past the screen
                             borderRadius: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1,
-                            borderColor: on ? primary : border, backgroundColor: on ? primary : 'transparent',
-                        }}
+                            ...(on ? { borderColor: primary, backgroundColor: primary } : (hovered ? null : { borderColor: border, backgroundColor: 'transparent' })),
+                        })}
                     >
                         <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={{ color: on ? onPrimary : text, fontWeight: '800', fontSize: 14, flexShrink: 1 }}>{tr(label)}</Text>
                     </Pressable>
@@ -92,7 +93,7 @@ export function Option({ selected, title, subtitle, badge, onPress, last }) {
     return (
         <Pressable
             onPress={onPress}
-            style={({ pressed }) => [s.option, !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: border }, pressed && { opacity: 0.7 }]}
+            style={({ pressed, hovered }) => [s.option, !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: border }, pressed && { opacity: 0.7 }, hovered && { backgroundColor: alpha(primary, 0.06), cursor: 'pointer', borderRadius: 14, marginHorizontal: -10, paddingHorizontal: 10 }]}
         >
             <View style={[s.radio, { borderColor: selected ? primary : muted }]}>
                 {selected ? <View style={[s.radioDot, { backgroundColor: primary }]} /> : null}
@@ -132,13 +133,15 @@ export function Button({ label, onPress, icon, kind = 'primary', busy, working, 
             onPress={onPress}
             disabled={disabled || busy}
             accessibilityRole="button" accessibilityLabel={iconOnly ? label : undefined}
-            style={({ pressed }) => [
+            style={({ pressed, hovered }) => [
                 s.btn,
+                hovered && !disabled && { cursor: 'pointer', filter: kind === 'ghost' ? 'none' : 'brightness(1.1)', transitionProperty: 'filter, background-color', transitionDuration: '140ms' },
                 {
                     paddingHorizontal: 0, backgroundColor: fill, borderRadius: radius, borderColor: kind === 'ghost' ? border : fill,
                     opacity: disabled ? 0.45 : pressed ? 0.72 : 1,
                 },
                 kind === 'ghost' && pressed && { backgroundColor: alpha(text, 0.1) },
+                kind === 'ghost' && hovered && !pressed && !disabled && { backgroundColor: alpha(text, 0.06) },
                 style,
             ]}
         >
@@ -166,7 +169,7 @@ export function Row({ icon, title, subtitle, onPress, right, color, last }) {
     const { text, muted, border, primary } = useBrand();
     const c = color || primary;
     return (
-        <Pressable onPress={onPress} disabled={!onPress} style={({ pressed }) => [s.row, !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: border }, pressed && { opacity: 0.7 }]}>
+        <Pressable onPress={onPress} disabled={!onPress} style={({ pressed, hovered }) => [s.row, !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: border }, pressed && { opacity: 0.7 }, onPress && hovered && { backgroundColor: alpha(c, 0.07), cursor: 'pointer', borderRadius: 14, marginHorizontal: -10, paddingHorizontal: 10 }]}>
             {icon ? <View style={[s.rowIcon, { backgroundColor: alpha(c, 0.14) }]}><Ionicons name={icon} size={20} color={c} /></View> : null}
             <View style={{ flex: 1, minWidth: 0 }}>
                 <Text style={{ color: text, fontWeight: '800', fontSize: 15 }}>{title}</Text>

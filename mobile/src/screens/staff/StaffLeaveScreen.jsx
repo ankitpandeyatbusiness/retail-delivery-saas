@@ -11,6 +11,7 @@ import { apiError } from '../../api/owners/shopApi';
 import { fetchDuty, addDayOff, removeDayOff, askLeave, cancelLeave } from '../../api/staff/staffApi';
 import { useStaffStore } from '../../store/staff/useStaffStore';
 import { onNotification } from '../../api/common/socket';
+import Limited from '../../components/common/ShowMore';
 import { tr } from '../../i18n';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -88,7 +89,7 @@ export default function StaffLeaveScreen() {
                     <SectionTitle title={tr('Days off')} />
                     <Card>
                         <Text style={{ color: muted, fontSize: 12.5 }}>{tr('A holiday you take yourself. No approval needed. You get no alerts on these days.')}</Text>
-                        {d.holidays.map((h) => (
+                        <Limited items={d.holidays} render={(h) => (
                             <View key={h.id} style={{ flexDirection: 'row', alignItems: 'center', paddingTop: 12, marginTop: 10, borderTopWidth: 1, borderTopColor: alpha(border, 0.7) }}>
                                 <View style={{ flex: 1 }}>
                                     <Text style={{ color: text, fontWeight: '800' }}>{range(h.from, h.to)}</Text>
@@ -96,13 +97,13 @@ export default function StaffLeaveScreen() {
                                 </View>
                                 {h.leave ? <Pill label={tr('Leave')} color={ok} /> : <Pressable onPress={() => act(() => removeDayOff(h.id))} hitSlop={10}><Ionicons name="trash-outline" size={20} color={error} /></Pressable>}
                             </View>
-                        ))}
+                        )} />
                         <Button label={tr('Add days off')} icon="add" kind="ghost" onPress={() => setOffOpen(true)} style={{ marginTop: 12 }} />
                     </Card>
                     <SectionTitle title={tr('Leave')} />
                     <Card>
                         <Text style={{ color: muted, fontSize: 12.5 }}>{tr('Ask the owner for leave. You are told when they decide. Approved leave is added to your days off.')}</Text>
-                        {(d.leaves || []).map((l) => {
+                        <Limited items={d.leaves || []} render={(l) => {
                             const tone = l.status === 'approved' ? ok : l.status === 'pending' ? warn : error;
                             return (
                                 <View key={l.id} style={{ paddingTop: 12, marginTop: 12, borderTopWidth: 1, borderTopColor: alpha(border, 0.7) }}>
@@ -119,7 +120,7 @@ export default function StaffLeaveScreen() {
                                     ) : null}
                                 </View>
                             );
-                        })}
+                        }} />
                         <Button label={tr('Ask for leave')} icon="calendar-outline" kind="ghost" onPress={() => setLeaveOpen(true)} style={{ marginTop: 12 }} />
                     </Card>
                 </ScrollView>

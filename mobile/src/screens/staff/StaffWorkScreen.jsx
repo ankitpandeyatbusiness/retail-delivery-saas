@@ -14,9 +14,13 @@ import { istToday } from '../../utils/owners/txRules';
 import { onKitchenUpdate, onWaiterUpdate } from '../../api/common/socket';
 import { LEAVE_PILL, range } from '../owners/OwnerStaffPersonScreen';
 import { ago } from '../../utils/owners/riderRules';
+import { useStaffDesktop } from '../../utils/common/layout';
+import { Frame, Hero, GlassStat } from '../../components/owners/RiderDesk';
+import Limited from '../../components/common/ShowMore';
 import { tr } from '../../i18n';
 
 export default function StaffWorkScreen() {
+    const desk = useStaffDesktop();
     const { background, text, muted, ok, warn, error, primary } = useBrand();
     const role = useStaffStore((s) => s.me?.role);
     const [d, setD] = useState(null);
@@ -49,15 +53,26 @@ export default function StaffWorkScreen() {
             {failed && !d ? <Empty icon="cloud-offline-outline" title={tr('Could not load')} hint={tr('Pull down to try again.')} /> : null}
             {d ? (
                 <ScrollView contentContainerStyle={{ paddingBottom: 120 }} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={busy} onRefresh={pull} tintColor={primary} colors={[primary]} />}>
-                    <SectionTitle title={tr(cook ? 'What I made' : 'What I served')} />
-                    <Card>
+                  <Frame desk={desk} max={980}>
+                    {desk ? (
+                        <Hero icon={cook ? 'flame' : 'restaurant'} title={tr(cook ? 'What I made' : 'What I served')} subtitle={cook ? tr('Your numbers, what is on the stove and your leave.') : tr('Your numbers and your leave.')}>
+                            <View style={{ flexDirection: 'row', marginTop: 18 }}>
+                                <GlassStat label={tr('Today')} value={String(s.today.orders)} icon="today-outline" />
+                                <GlassStat label={tr('This week')} value={String(s.week.orders)} icon="calendar-outline" />
+                                <GlassStat label={tr(cook ? 'Avg cooking' : 'Avg wait')} value={s.avgMin != null ? `${s.avgMin} ${tr('min')}` : '—'} icon="time-outline" />
+                                {!cook ? <GlassStat label={tr('Tables served')} value={String(s.tables)} icon="people-outline" /> : null}
+                            </View>
+                        </Hero>
+                    ) : null}
+                    {desk ? null : <SectionTitle title={tr(cook ? 'What I made' : 'What I served')} />}
+                    {desk ? null : <Card>
                         <View style={{ flexDirection: 'row' }}>
                             <Stat label={tr('Today')} value={String(s.today.orders)} hint={`${s.today.dishes} ${tr('dishes')}`} />
                             <Stat label={tr('This week')} value={String(s.week.orders)} hint={`${s.week.dishes} ${tr('dishes')}`} />
                             <Stat label={tr(cook ? 'Avg cooking' : 'Avg wait')} value={s.avgMin != null ? `${s.avgMin} ${tr('min')}` : '—'} hint={tr(cook ? 'start to ready' : 'ready to served')} />
                         </View>
                         {!cook ? <Text style={{ color: muted, fontSize: 12.5, marginTop: 10 }}>{tr('Tables served today: {n}', { n: s.tables })}</Text> : null}
-                    </Card>
+                    </Card>}
 
                     {cook ? (
                         <>
@@ -99,7 +114,7 @@ export default function StaffWorkScreen() {
                     <SectionTitle title={tr('My leave and days off')} />
                     <Card>
                         {!d.leaves.length && !d.holidays.length ? <Text style={{ color: muted }}>{tr('No leave asked for yet. You can ask for leave on the Profile tab, under Working time.')}</Text> : null}
-                        {d.leaves.map((l, i) => (
+                        <Limited items={d.leaves} render={(l, i) => (
                             <View key={l.id} style={{ paddingVertical: 8, borderTopWidth: i ? 0.5 : 0, borderTopColor: muted + '55' }}>
                                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                                     <Text style={{ color: text, fontWeight: '800', flex: 1 }}>{range(l.from, l.to)} · {l.days} {l.days === 1 ? tr('day') : tr('days')}</Text>
@@ -109,15 +124,16 @@ export default function StaffWorkScreen() {
                                 {l.note ? <Text style={{ color: muted, marginTop: 2, fontStyle: 'italic' }}>{tr('The owner said')}: {l.note}</Text> : null}
                                 {['pending', 'approved'].includes(l.status) && l.to >= today ? <View style={{ marginTop: 8 }}><Button label={tr('Cancel this leave')} icon="close-circle" kind="ghost" onPress={() => takeBack(l)} /></View> : null}
                             </View>
-                        ))}
-                        {d.holidays.filter((h) => !h.leave).map((h) => (
+                        )} />
+                        <Limited items={d.holidays.filter((h) => !h.leave)} render={(h) => (
                             <View key={h.id} style={{ paddingVertical: 8, borderTopWidth: 0.5, borderTopColor: muted + '55' }}>
                                 <Text style={{ color: text, fontWeight: '800' }}>{range(h.from, h.to)} · {h.days} {h.days === 1 ? tr('day') : tr('days')} <Text style={{ color: muted, fontWeight: '600' }}>({tr('day off I set')})</Text></Text>
                                 {h.note ? <Text style={{ color: muted, marginTop: 2 }}>{h.note}</Text> : null}
                                 <View style={{ marginTop: 8 }}><Button label={tr('Remove this day off')} icon="close-circle" kind="ghost" onPress={() => dropDay(h)} /></View>
                             </View>
-                        ))}
+                        )} />
                     </Card>
+                  </Frame>
                 </ScrollView>
             ) : null}
         </View>

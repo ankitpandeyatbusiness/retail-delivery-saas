@@ -11,6 +11,7 @@ import { fetchLeaves, decideLeave, removeRiderLeave, apiError } from '../../api/
 import { useRidersStore } from '../../store/owners/useRidersStore';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { showToast } from '../customers/shop';
+import Limited from '../common/ShowMore';
 import { tr } from '../../i18n';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -56,7 +57,7 @@ export function LeavePanel({ riderId, monthDays }) {
     };
 
     const pending = (items || []).filter((l) => l.status === 'pending');
-    const decided = (items || []).filter((l) => l.status !== 'pending').slice(0, riderId ? 8 : 4);
+    const decided = (items || []).filter((l) => l.status !== 'pending');
     if (items && !pending.length && !decided.length && !riderId) return null;   // nothing to show on the Riders tab
     const tone = { approved: [tr('Approved'), ok], rejected: [tr('Rejected'), error], cancelled: [tr('Cancelled'), muted] };
 
@@ -82,7 +83,7 @@ export function LeavePanel({ riderId, monthDays }) {
                         </View>
                     </View>
                 ))}
-                {decided.map((l) => {
+                <Limited items={decided} phoneMax={riderId ? 8 : 4} render={(l) => {
                     const [label, color] = tone[l.status] || tone.cancelled;
                     return (
                         <View key={l.id} style={{ flexDirection: 'row', alignItems: 'center', paddingTop: 10, marginTop: 10, borderTopWidth: 1, borderTopColor: alpha(border, 0.7) }}>
@@ -98,7 +99,7 @@ export function LeavePanel({ riderId, monthDays }) {
                             <Pill label={label} color={color} />
                         </View>
                     );
-                })}
+                }} />
             </Card>
         </View>
     );

@@ -14,6 +14,7 @@ import { ListShimmer } from '../../components/owners/shimmer';
 import { showToast } from '../../components/customers/shop';
 import { fetchDuty, saveDuty, addHoliday, removeHoliday, requestLeave, cancelLeave } from '../../api/riders/riderApi';
 import { errText } from '../../utils/riders/riderText';
+import Limited from '../../components/common/ShowMore';
 import { tr } from '../../i18n';
 import { trNote } from '../../utils/common/noteText';
 
@@ -165,7 +166,7 @@ export default function RiderDutyScreen() {
                         {d.month.pending ? <Pill label={`${d.month.pending} ${tr('waiting')}`} color={warn} /> : null}
                     </View>
                     <Button label={tr('Ask for leave')} icon="calendar-outline" kind="ghost" onPress={() => setLeaveOpen(true)} style={{ marginTop: 12 }} />
-                    {d.leaves.map((l) => {
+                    <Limited items={d.leaves} render={(l) => {
                         const [label, tone] = STATUS[l.status] || STATUS.pending;
                         return (
                             <View key={l.id} style={{ paddingTop: 12, marginTop: 12, borderTopWidth: 1, borderTopColor: alpha(border, 0.7) }}>
@@ -182,13 +183,13 @@ export default function RiderDutyScreen() {
                                 ) : null}
                             </View>
                         );
-                    })}
+                    }} />
                 </Card>
 
                 <SectionTitle title={tr('My holidays')} />
                 <Card>
                     <Text style={{ color: muted, fontSize: 12.5 }}>{tr('Days you will not work. No approval needed. Automatic duty skips them.')}</Text>
-                    {d.holidays.map((h) => (
+                    <Limited items={d.holidays} render={(h) => (
                         <View key={h.id} style={{ flexDirection: 'row', alignItems: 'center', paddingTop: 12, marginTop: 10, borderTopWidth: 1, borderTopColor: alpha(border, 0.7) }}>
                             <View style={{ flex: 1 }}>
                                 <Text style={{ color: text, fontWeight: '800' }}>{range(h.from, h.to)}</Text>
@@ -196,7 +197,7 @@ export default function RiderDutyScreen() {
                             </View>
                             <Pressable onPress={() => act(() => removeHoliday(h.id))} hitSlop={10}><Ionicons name="trash-outline" size={20} color={error} /></Pressable>
                         </View>
-                    ))}
+                    )} />
                     <Button label={tr('Add a holiday')} icon="add" kind="ghost" onPress={() => setHolOpen(true)} style={{ marginTop: 12 }} />
                 </Card>
             </ScrollView>

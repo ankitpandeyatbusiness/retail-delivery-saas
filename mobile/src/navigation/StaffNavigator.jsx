@@ -5,6 +5,7 @@ import { AppState, View, Easing } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useBrand } from '../components/common/kit';
 import { FloatingTabBar, slideScenes, gate } from './tabKit';
+import { useStaffDesktop } from '../utils/common/layout';
 import { useMotion } from '../components/common/motion';
 import StaffHomeScreen from '../screens/staff/StaffHomeScreen';
 import StaffProfileScreen from '../screens/staff/StaffProfileScreen';
@@ -30,6 +31,7 @@ const TABS = {
 
 export default function StaffTabs() {
     const { background } = useBrand();
+    const deskStaff = useStaffDesktop();   // on a computer the sidebar replaces the bottom bar
     const motion = useMotion();
     const state = useStaffStore((s) => s.state);
     const uid = useAuthStore((s) => s.user?.id);
@@ -66,7 +68,7 @@ export default function StaffTabs() {
                     // do not start a tab switch on top of a page that is still sliding (see tabKit)
                     tabPress: (e) => { if (gate.busy) { e.preventDefault(); gate.pending = route.name; } },
                 })}
-                tabBar={(props) => <FloatingTabBar {...props} defs={TABS} />}
+                tabBar={deskStaff ? () => null : (props) => <FloatingTabBar {...props} defs={TABS} />}
                 screenOptions={{
                     headerShown: false,
                     sceneStyle: { backgroundColor: background },

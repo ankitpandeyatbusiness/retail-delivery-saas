@@ -2,6 +2,7 @@
 // the "sold out for how long" sheet, and the item row. All of it wears the shop's brand through useBrand().
 import React, { useEffect, useRef, useState } from 'react';
 import { useIsDesktopWeb, useOwnerDesktop } from '../../utils/common/layout';
+import Masonry from '../common/Masonry';
 import { View, Text, Pressable, ScrollView, Switch, TextInput, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
@@ -163,7 +164,7 @@ export function Group({ title, hint, children, flush, flash, flashText, onLayout
 // The frame of a form page: back arrow + title, the fields scrolling, and the main button pinned to the bottom.
 // fixed: the children fill the space and manage their own scrolling (a chat); the page itself does not scroll
 // bare: no bar at the top and no gap: the first child is a picture header that has its own back button (the service pages)
-export function FormPage({ title, children, footer, right, scrollRef, fixed, bare, hideableFooter, footerKey, cols }) {
+export function FormPage({ title, children, footer, right, scrollRef, fixed, bare, hideableFooter, footerKey, cols, wide }) {
     const { background, border, muted } = useBrand();
     const embedded = React.useContext(EmbeddedCtx);   // inside a side panel (the menu's item editor): keep it one column
     const deskOwner = useOwnerDesktop() && !embedded;   // the owner on a computer: every form is a centred page, and a long one runs in two columns
@@ -182,7 +183,10 @@ export function FormPage({ title, children, footer, right, scrollRef, fixed, bar
                     {desk ? (() => {
                         const kids = React.Children.toArray(children).filter(Boolean);
                         const mid = Math.ceil(kids.length / 2);
+                        if (deskOwner && wide) return <View style={{ width: '100%', maxWidth: 1240, alignSelf: 'center' }}>{kids}</View>;   // the page lays itself out
                         if (deskOwner && !cols && kids.length < 5) return <View style={{ width: '100%', maxWidth: 760, alignSelf: 'center', paddingHorizontal: 24 }}>{kids}</View>;   // a short form: one centred column
+                        // the owner's forms: each section goes under the shorter column, so one side never stays empty while the other scrolls
+                        if (deskOwner && !cols) return <View style={{ width: '100%', maxWidth: 1180, alignSelf: 'center', paddingHorizontal: 24 }}><Masonry desk gap={24}>{kids}</Masonry></View>;
                         return (
                             <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 24, width: '100%', maxWidth: 1180, alignSelf: 'center', paddingHorizontal: 24 }}>
                                 <View style={{ flex: 1, minWidth: 0 }}>{kids.slice(0, mid)}</View>

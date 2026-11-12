@@ -14,6 +14,9 @@ import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { fetchStaff, updateStaff, saveSettings, fetchSettings, apiError } from '../../api/owners/shopApi';
 import { showToast } from '../../components/customers/shop';
 import { useMenuFlags } from '../../utils/owners/menuFlags';
+import { useOwnerDesktop } from '../../utils/common/layout';
+import { Hero, HeroBtn, GlassStat } from '../../components/owners/RiderDesk';
+import StaffTile from '../../components/owners/StaffTile';
 import { tr } from '../../i18n';
 
 const JOB = {
@@ -41,6 +44,7 @@ export function DutyPills({ p }) {
 }
 
 function Group({ role }) {
+    const desk = useOwnerDesktop();
     const nav = useNavigation();
     const { text, muted, ok } = useBrand();
     const access = useOwnerStore((st) => st.access);
@@ -74,20 +78,31 @@ function Group({ role }) {
     };
 
     return (
-        <FormPage title={tr(j.title)}>
+        <FormPage title={tr(j.title)} wide>
             {!data && !error ? <ListShimmer /> : null}
             {error && !data ? <Empty icon="cloud-offline-outline" title={tr('Could not load')} hint={error} /> : null}
             {data && !on ? <Empty icon="lock-closed-outline" title={tr('This screen is not switched on')} hint={tr('Kitchen and waiter screens are switched on for your shop by the platform. Please contact support to get them.')} /> : null}
             {data && on ? (
                 <>
-                    <Card>
+                    {desk ? (
+                        <Hero icon={j.icon} title={tr(j.title)} subtitle={tr(j.none)}
+                            right={<HeroBtn label={full ? tr('Staff limit reached ({n})', { n: rules.max }) : tr(role === 'kitchen' ? 'Add a cook' : 'Add a waiter')} icon="person-add" solid onPress={() => { if (!full) setAdding(true); }} />}>
+                            <View style={{ flexDirection: 'row', marginTop: 18 }}>
+                                <GlassStat label={tr('On duty now')} value={`${onDuty} ${tr('of')} ${active.length}`} icon="radio-button-on" />
+                                <GlassStat label={tr(j.did)} value={String(today)} icon="today-outline" />
+                                <GlassStat label={tr(j.didWeek)} value={String(week)} icon="calendar-outline" />
+                                <GlassStat label={tr('Average time')} value={avgMin != null ? `${avgMin} ${tr('min')}` : '—'} icon="time-outline" />
+                            </View>
+                        </Hero>
+                    ) : null}
+                    {desk ? null : <Card>
                         <View style={{ flexDirection: 'row' }}>
                             <Stat label={tr('On duty now')} value={`${onDuty} ${tr('of')} ${active.length}`} color={onDuty ? ok : text} />
                             <Stat label={tr(j.did)} value={String(today)} hint={tr(j.unit)} />
                             {!easy ? <Stat label={tr(j.didWeek)} value={String(week)} hint={tr(j.unit)} /> : null}
                         </View>
                         {!easy && avgMin != null ? <Text style={{ color: muted, fontSize: 12.5, marginTop: 10 }}>{tr(j.avg)}: {avgMin} {tr('min')}</Text> : null}
-                    </Card>
+                    </Card>}
 
                     <LeaveRequests role={role} onChanged={load} />
 
@@ -108,7 +123,19 @@ function Group({ role }) {
 
                     <SectionTitle title={tr('Your {many} ({n})', { many: tr(j.many), n: people.length })} />
                     {!people.length ? <Empty icon="people-outline" title={tr('No {many} yet', { many: tr(j.many) })} hint={tr(j.none)} /> : null}
-                    {people.map((p) => (
+                    {desk ? (
+                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: 8 }}>
+                            {people.map((p) => (
+                                <View key={p.userId} style={{ width: '33.333%' }}>
+                                    <StaffTile avatar={<PersonAvatar person={p} size={62} />} dot={!p.isActive ? muted : p.duty === 'on' ? ok : '#F59E0B'} name={p.name || p.phone} phone={p.name ? p.phone : ''} active={p.isActive}
+                                        pills={<><View style={{ marginRight: 6, marginBottom: 6 }}><DutyPills p={p} /></View>{p.isActive && !p.panelOn ? <View style={{ marginBottom: 6 }}><Pill label={tr('Screen is off')} color={muted} /></View> : null}</>}
+                                        numbers={p.stats ? [[tr(j.did), String(p.stats.today.orders)], [tr('This week'), String(p.stats.week.orders)], [tr('Avg time'), p.stats.avgMin != null ? `${p.stats.avgMin}m` : '–']] : []}
+                                        onOpen={() => nav.navigate('OwnerStaffPerson', { userId: p.userId })} switchOn={p.isActive} onSwitch={(v) => toggle(p, v)} locked={access !== 'ok' && access !== 'paused'} />
+                                </View>
+                            ))}
+                        </View>
+                    ) : null}
+                    {desk ? null : people.map((p) => (
                         <Card key={p.userId} onPress={() => nav.navigate('OwnerStaffPerson', { userId: p.userId })} style={{ opacity: p.isActive ? 1 : 0.6 }}>
                             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                                 <PersonAvatar person={p} />

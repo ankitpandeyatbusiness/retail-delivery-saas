@@ -18,9 +18,13 @@ import { useWaiterStore } from '../../store/staff/useWaiterStore';
 import { useStaffStore } from '../../store/staff/useStaffStore';
 import { apiError } from '../../api/owners/shopApi';
 import { showToast } from '../../components/customers/shop';
+import { useStaffDesktop } from '../../utils/common/layout';
+import { Hero, HeroBtn, GlassStat } from '../../components/owners/RiderDesk';
+import { Board, Column } from '../../components/staff/StaffDesk';
 import { tr } from '../../i18n';
 
 export default function WaiterScreen() {
+    const desk = useStaffDesktop();   // a waiter on a computer: serve, requests and the tables side by side
     const { background, text, warn, primary, muted } = useBrand();
     const nav = useNavigation();
     const shop = useStaffStore((s) => s.me?.shop);
@@ -52,6 +56,45 @@ export default function WaiterScreen() {
     const tabs = [['serve', tr('Serve'), w.counts.serve, w.counts.late > 0], ['requests', tr('Requests'), w.counts.requests, false], ['tables', tr('Tables'), 0, false]];
     const tableRows = useMemo(() => w.tables, [w.tables]);
     const pad = (tcols - (tableRows.length % tcols)) % tcols;
+
+    if (desk) {
+        const eating = tableRows.filter((t) => t.sessionId).length;
+        return (
+            <View style={{ flex: 1, backgroundColor: background }}>
+                <StaffHeader title={tr('Waiter')} subtitle={sub} />
+                <OffDutyBanner />
+                <Hero icon="restaurant" title={tr('The floor')} subtitle={w.counts.late > 0 ? tr('{n} waiting too long', { n: w.counts.late }) : tr('Dishes to serve and tables that call you appear here, with a sound.')}
+                    right={<HeroBtn label={tr('Scan booking')} icon="qr-code-outline" solid onPress={() => nav.navigate('BookingScan', { who: 'waiter' })} />}>
+                    <View style={{ flexDirection: 'row', marginTop: 18 }}>
+                        <GlassStat label={tr('To serve')} value={String(w.counts.serve)} icon="restaurant-outline" />
+                        <GlassStat label={tr('Requests')} value={String(w.counts.requests)} icon="hand-left-outline" />
+                        <GlassStat label={tr('Tables eating')} value={String(eating)} icon="people-outline" />
+                        <GlassStat label={tr('Waiting too long')} value={String(w.counts.late || 0)} icon="alarm-outline" />
+                    </View>
+                </Hero>
+                {failedFirst ? (
+                    <View>
+                        <Empty icon="cloud-offline-outline" title={tr('Could not load the floor')} hint={tr('Check your internet.')} />
+                        <Pressable onPress={refresh} style={{ alignSelf: 'center', padding: 12 }}><Text style={{ color: primary, fontWeight: '900' }}>{tr('Try again')}</Text></Pressable>
+                    </View>
+                ) : first ? <ListShimmer /> : (
+                    <Board>
+                        <Column title={tr('Serve')} hint={tr('Dishes the kitchen finished')} icon="restaurant" color="#F59E0B" count={w.serve.length} emptyText={tr('Nothing to serve')}>
+                            <ServedStrip list={w.served} busyOf={(o) => !!w.busy[`undo${o.id}`]} onUndo={(o) => undoServed(o)} />
+                            {w.serve.map((o) => <ServeCard key={o.id} o={o} lateMin={w.rules.serveLateMin} busy={!!w.busy[`serve${o.id}`]} onServe={() => act('serve', o.id)} />)}
+                        </Column>
+                        <Column title={tr('Requests')} hint={tr('A table calls or wants the bill')} icon="hand-left" color="#3B82F6" count={w.requests.length} emptyText={tr('No requests')}>
+                            {w.requests.map((q) => <RequestCard key={q.id} q={q} lateMin={w.rules.serveLateMin} busy={!!w.busy[`done${q.id}`]} onDone={() => act('done', q.id)} onOpenBill={() => openBill(q.table, q.sessionId)} />)}
+                        </Column>
+                        <Column title={tr('Tables')} hint={tr('Tap a table for its bill')} icon="grid" color="#10B981" count={null} width={430}>
+                            {tableRows.length === 0 ? <Empty icon="grid-outline" title={tr('No tables')} hint={tr('Dine in is not set up yet.')} /> : <TableBoard tables={tableRows} rules={w.rules} onOpen={openBill} />}
+                        </Column>
+                    </Board>
+                )}
+                <TableSheet session={open} onClose={() => setOpen(null)} onPaid={() => { setOpen(null); useWaiterStore.getState().load(); }} />
+            </View>
+        );
+    }
 
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
