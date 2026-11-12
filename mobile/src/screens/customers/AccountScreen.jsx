@@ -33,13 +33,16 @@ import OwedStrip from '../../components/customers/OwedStrip';
 import { tr, LANGS, useLang } from '../../i18n';
 import LanguageSheet from '../../components/common/LanguageSheet';
 import { useBottomSpace } from '../../store/customers/useLiveTripStore';
-import { useCustomerDesktop } from '../../utils/common/layout';
+import { useCustomerDesktop, useIsDesktopWeb } from '../../utils/common/layout';
+import { Sheet } from '../../components/owners/ui';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const WEB = Platform.OS === 'web';   // on the website the sliders are CSS transitions (smooth even while the page is busy)
 
 function EditDialog({ visible, me, onClose, onSaved }) {
     const { primary, radius, text, muted, surface, border, background } = useBrand();
+    const deskWeb = useIsDesktopWeb();   // the desktop website: a centred window like the other popups (false in the phone app)
+    const [focused, setFocused] = useState('');
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [saving, setSaving] = useState(false);
@@ -65,6 +68,29 @@ function EditDialog({ visible, me, onClose, onSaved }) {
     };
 
     const input = [s.input, { color: text, borderColor: border, backgroundColor: background }];
+    if (deskWeb) {
+        const box = (k) => ({ height: 52, borderRadius: 16, borderWidth: 1.5, paddingHorizontal: 18, fontSize: 15.5, color: text, backgroundColor: background, borderColor: focused === k ? primary : border, outlineStyle: 'none', outlineWidth: 0, boxShadow: focused === k ? `0 0 0 4px ${primary}26` : '0 0 0 0 transparent', transitionProperty: 'border-color, box-shadow', transitionDuration: '160ms' });
+        const lab = { color: muted, fontSize: 12.5, fontWeight: '800', letterSpacing: 0.6, marginTop: 16, marginBottom: 8 };
+        return (
+            <Sheet visible={visible} onClose={onClose} title={tr('Edit profile')}>
+                <Text style={[lab, { marginTop: 0 }]}>{tr('Name').toUpperCase()}</Text>
+                <TextInput value={name} onChangeText={setName} maxLength={80} placeholder={tr('Your name')} placeholderTextColor={muted} onFocus={() => setFocused('n')} onBlur={() => setFocused('')} style={box('n')} />
+                <Text style={lab}>{tr('Email (optional)').toUpperCase()}</Text>
+                <TextInput value={email} onChangeText={setEmail} maxLength={120} placeholder={tr('you@example.com')} placeholderTextColor={muted} keyboardType="email-address" autoCapitalize="none" autoCorrect={false} onFocus={() => setFocused('e')} onBlur={() => setFocused('')} style={box('e')} />
+                <Text style={lab}>{tr('Phone').toUpperCase()}</Text>
+                <TextInput value={me?.phone ? `+91 ${me.phone}` : ''} editable={false} style={[box('p'), { color: muted, backgroundColor: border, borderColor: border }]} />
+                <Text style={{ color: muted, fontSize: 12.5, marginTop: 8 }}>{tr('Your phone number is your login, so it cannot be changed.')}</Text>
+                <View style={{ flexDirection: 'row', marginTop: 24, gap: 12 }}>
+                    <Pressable onPress={onClose} accessibilityRole="button" style={({ hovered }) => ({ flex: 1, height: 54, borderRadius: radius, borderWidth: 1.5, borderColor: border, alignItems: 'center', justifyContent: 'center', backgroundColor: hovered ? border : 'transparent', cursor: 'pointer', transitionProperty: 'background-color', transitionDuration: '150ms' })}>
+                        <Text style={{ color: text, fontWeight: '800', fontSize: 15 }}>{tr('Cancel')}</Text>
+                    </Pressable>
+                    <Pressable onPress={save} disabled={saving} accessibilityRole="button" style={({ hovered }) => ({ flex: 1.4, height: 54, borderRadius: radius, backgroundColor: primary, alignItems: 'center', justifyContent: 'center', filter: hovered ? 'brightness(1.1)' : 'brightness(1)', boxShadow: hovered ? `0 12px 26px ${primary}55` : '0 0 0 rgba(0,0,0,0)', cursor: 'pointer', transitionProperty: 'filter, box-shadow', transitionDuration: '170ms' })}>
+                        {saving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={{ color: '#FFFFFF', fontWeight: '900', fontSize: 15 }}>{tr('Save')}</Text>}
+                    </Pressable>
+                </View>
+            </Sheet>
+        );
+    }
     return (
         <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
             <KeyboardAvoidingView style={s.backdrop} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>

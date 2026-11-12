@@ -14,3 +14,18 @@ export default function DeskGrid({ children, cols = 2 }) {
         </View>
     );
 }
+
+// A page of blocks, for the DESKTOP website: the first half of the blocks in one column, the rest in a second one, on a page as wide as the window allows.
+// On the phone, and in a narrow browser, the children are returned exactly as they are.
+export function DeskCols({ children }) {
+    const desk = useIsDesktopWeb();
+    if (!desk) return <>{children}</>;
+    const list = React.Children.toArray(children).filter(Boolean);
+    const mid = Math.ceil(list.length / 2);
+    return (
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 24, width: '100%', maxWidth: 1180, alignSelf: 'center', paddingHorizontal: 24 }}>
+            <View style={{ flex: 1, minWidth: 0 }}>{list.slice(0, mid)}</View>
+            <View style={{ flex: 1, minWidth: 0 }}>{list.slice(mid)}</View>
+        </View>
+    );
+}

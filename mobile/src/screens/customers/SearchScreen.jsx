@@ -22,6 +22,7 @@ import { FadeIn } from '../../components/common/motion';
 import { SkelDish } from '../../components/customers/skeletons';
 import { tr } from '../../i18n';
 import { useBottomSpace } from '../../store/customers/useLiveTripStore';
+import { useIsDesktopWeb } from '../../utils/common/layout';
 
 // Popular card: photo, name, price and the ADD / − 1 + pill, so dishes can be added straight from here.
 function Poster({ item, w }) {
@@ -92,6 +93,11 @@ export default function SearchScreen() {
     const term = q.trim();
     const active = term.length >= 2;
     const pw = Math.floor((width - 32 - 12) / 2);
+    // the desktop website: the dishes are cards in a grid, the shop's chosen card shape (Big, Grid or Compact), as on Home (false in the phone app)
+    const desk = useIsDesktopWeb();
+    const cardStyle = useHomeStore((st) => st.config.cardStyle);
+    const deskVariant = cardStyle === 'big' ? 'deskBig' : cardStyle === 'compact' ? 'deskCompact' : 'desk';
+    const deskCols = Math.max(1, Math.min(cardStyle === 'grid' ? 5 : 3, Math.floor((Math.min(width, 1180) - 32 + 16) / ((cardStyle === 'big' ? 300 : cardStyle === 'compact' ? 360 : 215) + 16))));
 
     const voice = useVoice((t) => setQ(t));
     const mic = () => { Keyboard.dismiss(); voice.start(); };
@@ -192,8 +198,9 @@ export default function SearchScreen() {
                     <Text style={[s.emptyTxt, { color: muted, marginTop: 20 }]}>{emptyText}</Text>
                 ) : (
                     <View style={s.grid}>
-                        {popular.map((i, k) => (
-                            <View key={i._id} style={{ marginRight: k % 2 === 1 ? 0 : 12 }}><Poster item={i} w={pw} /></View>
+                        {popular.map((i, k) => (desk
+                            ? <View key={i._id} style={{ width: `${100 / deskCols}%`, padding: 8 }}><ItemCard item={i} variant={deskVariant} /></View>
+                            : <View key={i._id} style={{ marginRight: k % 2 === 1 ? 0 : 12 }}><Poster item={i} w={pw} /></View>
                         ))}
                     </View>
                 )}
@@ -225,11 +232,12 @@ export default function SearchScreen() {
     } else {
         body = (
             <FlatList
+                key={desk ? `c${deskCols}` : 'one'} numColumns={desk ? deskCols : 1}
                 data={shown} keyExtractor={(i) => i._id} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag"
-                renderItem={({ item }) => <ItemCard item={item} variant="compact" />}
+                renderItem={({ item }) => (desk ? <View style={{ width: `${100 / deskCols}%`, padding: 8 }}><ItemCard item={item} variant={deskVariant} /></View> : <ItemCard item={item} variant="compact" />)}
                 onEndReached={loadMore} onEndReachedThreshold={0.4}
                 ListFooterComponent={more ? <ListShimmer count={2} /> : null}
-                contentContainerStyle={{ paddingTop: 8, paddingBottom: space }}
+                contentContainerStyle={{ paddingTop: 8, paddingBottom: space, paddingHorizontal: desk ? 16 : 0 }}
             />
         );
     }

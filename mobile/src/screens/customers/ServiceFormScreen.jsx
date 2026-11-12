@@ -157,6 +157,7 @@ export default function ServiceFormScreen() {
     return (
         <FormPage
             title={tr(s.name)}
+            cols
             footer={(
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                     <View style={{ flex: 1, paddingRight: 12 }}>

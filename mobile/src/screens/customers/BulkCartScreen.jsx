@@ -165,7 +165,7 @@ export default function BulkCartScreen() {
 
     const input = { color: text, borderColor: border, backgroundColor: surface, borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, fontSize: 15, marginTop: 6 };
     return (
-        <FormPage title={tr('BULK ORDER')} footer={footer}>
+        <FormPage title={tr('BULK ORDER')} footer={footer} cols>
             <View style={{ flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', marginHorizontal: 16, marginBottom: 6, paddingHorizontal: 12, paddingVertical: 5, borderRadius: 99, backgroundColor: primary + '1F' }}>
                 <Ionicons name="cube" size={14} color={primary} style={{ marginRight: 6 }} />
                 <Text style={{ color: primary, fontWeight: '900', fontSize: 12.5 }}>{tr('This is a bulk order: the shop sends a quote first. You pay after you accept it.')}</Text>

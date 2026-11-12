@@ -159,14 +159,9 @@ import { webLinking } from './webLinking';
 import { deskColumn } from '../components/common/deskColumn';
 
 // These phone screens become pages of the desktop website: centred in a column (the phone app gets the screen itself, untouched: see deskColumn).
-const DBookTable = deskColumn(BookTableScreen, 1000);
 const DMyBookings = deskColumn(MyBookingsScreen, 1120);
-const DBulkOrder = deskColumn(BulkOrderScreen, 920);
-const DBulkCart = deskColumn(BulkCartScreen, 920);
-const DBulkOrderDetail = deskColumn(BulkOrderDetailScreen, 860);
 const DMyBulkOrders = deskColumn(MyBulkOrdersScreen, 1120);
 const DServices = deskColumn(ServicesScreen, 1120);
-const DServiceForm = deskColumn(ServiceFormScreen, 860);
 const DInquiry = deskColumn(InquiryScreen, 860);
 const DMyInquiries = deskColumn(MyInquiriesScreen, 1120);
 const DChat = deskColumn(ChatScreen, 860);
@@ -401,16 +396,16 @@ export default function AppNavigator() {
                     <Stack.Screen name="StaffLeave" component={StaffLeaveScreen} />
                     <Stack.Screen name="RiderPoints" component={RiderPointsScreen} />
                     <Stack.Screen name="MyPoints" component={MyPointsScreen} />
-                    <Stack.Screen name="BookTable" component={DBookTable} />
+                    <Stack.Screen name="BookTable" component={BookTableScreen} />
                     <Stack.Screen name="MyBookings" component={DMyBookings} />
                     <Stack.Screen name="Services" component={DServices} />
-                    <Stack.Screen name="ServiceForm" component={DServiceForm} />
+                    <Stack.Screen name="ServiceForm" component={ServiceFormScreen} />
                     <Stack.Screen name="Inquiry" component={DInquiry} />
                     <Stack.Screen name="MyInquiries" component={DMyInquiries} />
-                    <Stack.Screen name="BulkOrder" component={DBulkOrder} />
-                    <Stack.Screen name="BulkCart" component={DBulkCart} />
+                    <Stack.Screen name="BulkOrder" component={BulkOrderScreen} />
+                    <Stack.Screen name="BulkCart" component={BulkCartScreen} />
                     <Stack.Screen name="Chat" component={DChat} />
-                    <Stack.Screen name="BulkOrderDetail" component={DBulkOrderDetail} />
+                    <Stack.Screen name="BulkOrderDetail" component={BulkOrderDetailScreen} />
                     <Stack.Screen name="MyBulkOrders" component={DMyBulkOrders} />
                     <Stack.Screen name="TableBill" component={TableBillScreen} />
                     <Stack.Screen name="ReferFriend" component={ReferFriendScreen} />

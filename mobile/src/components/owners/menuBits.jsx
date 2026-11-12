@@ -1,6 +1,7 @@
 // The menu screens' building blocks: form fields, the picture box, choice groups, quick sizes, category hours,
 // the "sold out for how long" sheet, and the item row. All of it wears the shop's brand through useBrand().
 import React, { useEffect, useRef, useState } from 'react';
+import { useIsDesktopWeb } from '../../utils/common/layout';
 import { View, Text, Pressable, ScrollView, Switch, TextInput, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
@@ -154,8 +155,9 @@ export function Group({ title, hint, children, flush, flash, flashText, onLayout
 // The frame of a form page: back arrow + title, the fields scrolling, and the main button pinned to the bottom.
 // fixed: the children fill the space and manage their own scrolling (a chat); the page itself does not scroll
 // bare: no bar at the top and no gap: the first child is a picture header that has its own back button (the service pages)
-export function FormPage({ title, children, footer, right, scrollRef, fixed, bare, hideableFooter, footerKey }) {
+export function FormPage({ title, children, footer, right, scrollRef, fixed, bare, hideableFooter, footerKey, cols }) {
     const { background, border, muted } = useBrand();
+    const desk = useIsDesktopWeb() && !!cols;   // the desktop website, for a page that asked for two columns (false in the phone app)
     const [down, setDown] = useState(false);   // hideableFooter: the bar is slid down to a thin strip
     useEffect(() => { setDown(false); }, [footerKey]);   // it comes back when what it shows changes (a dish was added)
     const insets = useSafeAreaInsets();
@@ -167,7 +169,16 @@ export function FormPage({ title, children, footer, right, scrollRef, fixed, bar
                 <View ref={boxRef} collapsable={false} style={{ flex: 1, paddingBottom: lift }}>
                 {fixed ? <View style={{ flex: 1, paddingTop: 6 }}>{children}</View> : (
                 <KeyboardScroll ref={scrollRef} contentContainerStyle={{ paddingTop: bare ? 0 : 6, paddingBottom: 40 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-                    {children}
+                    {desk ? (() => {
+                        const kids = React.Children.toArray(children).filter(Boolean);
+                        const mid = Math.ceil(kids.length / 2);
+                        return (
+                            <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 24, width: '100%', maxWidth: 1180, alignSelf: 'center', paddingHorizontal: 24 }}>
+                                <View style={{ flex: 1, minWidth: 0 }}>{kids.slice(0, mid)}</View>
+                                <View style={{ flex: 1, minWidth: 0 }}>{kids.slice(mid)}</View>
+                            </View>
+                        );
+                    })() : children}
                 </KeyboardScroll>)}
                 {footer && hideableFooter && down ? (
                     <Pressable onPress={() => setDown(false)} accessibilityRole="button" accessibilityLabel={tr('Show the bar')} hitSlop={8} style={{ alignItems: 'center', paddingTop: 4, paddingBottom: Math.max(insets.bottom, 4), borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: border, backgroundColor: background }}>
@@ -180,7 +191,7 @@ export function FormPage({ title, children, footer, right, scrollRef, fixed, bar
                                 <Ionicons name="chevron-down" size={22} color={muted} />
                             </Pressable>
                         ) : null}
-                        {footer}
+                        {desk ? <View style={{ width: '100%', maxWidth: 1180, alignSelf: 'center' }}>{footer}</View> : footer}
                     </View>
                 ) : null}
                 </View>

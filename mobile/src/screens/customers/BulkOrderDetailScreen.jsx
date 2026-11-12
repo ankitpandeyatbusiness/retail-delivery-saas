@@ -20,6 +20,7 @@ import { Thumb } from './BulkOrderScreen';
 import ChatButton from '../../components/common/ChatButton';
 import BulkFeedback from '../../components/customers/BulkFeedback';
 import { tr } from '../../i18n';
+import { DeskCols } from '../../components/common/DeskGrid';
 
 export const BULK_STATUS = {
     requested: 'Waiting for the shop\'s quote', quoted: 'Quote received', confirmed: 'Confirmed', preparing: 'Being made', ready: 'Ready', out_for_delivery: 'On the way',
@@ -155,6 +156,7 @@ export default function BulkOrderDetailScreen() {
         <View style={{ flex: 1, backgroundColor: background }}>
             <PageHeader title={`${tr('Bulk order')} ${o.code}`} />
             <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
+                <DeskCols>
                 <Card>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <Text style={{ flex: 1, color: text, fontWeight: '900', fontSize: 16 }}>{o.fulfilment === 'delivery' ? tr('Delivery') : tr('Pickup')} · {whenText(o.when)}</Text>
@@ -256,6 +258,7 @@ export default function BulkOrderDetailScreen() {
                         <Button label={o.status === 'confirmed' ? tr('Cancel this order') : tr('Cancel this request')} icon="close-circle-outline" kind="ghost" busy={busy} onPress={cancel} />
                     </View>
                 ) : null}
+                </DeskCols>
             </ScrollView>
 
             <Sheet visible={changeOpen} onClose={() => setChangeOpen(false)} title={tr('What should change?')}>

@@ -2,12 +2,12 @@
 // What he picks goes into the BULK ORDER cart (a bar at the bottom shows it). The rest (pickup or delivery, the day and time, the address, the
 // instructions, who he is) is filled in on the cart page, like for a normal order. Nothing is paid here.
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, Pressable, TextInput } from 'react-native';
+import { View, Text, Pressable, TextInput, ScrollView } from 'react-native';
 import { Image } from 'expo-image';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand } from '../../components/common/kit';
-import { Button, Empty, Sheet } from '../../components/owners/ui';
+import { Button, Empty, Sheet, PageHeader } from '../../components/owners/ui';
 import { FormPage, Group, TextBox, VegMark } from '../../components/owners/menuBits';
 import { FormShimmer } from '../../components/owners/shimmer';
 import BulkCartBar from '../../components/customers/BulkCartBar';
@@ -16,6 +16,7 @@ import { rs } from '../../components/customers/orders';
 import { fetchBulkConfig, fetchBulkMenu } from '../../api/customers/shopApi';
 import { useBulkCartStore, keyOfBulk, allowBulkStart } from '../../store/customers/useBulkCartStore';
 import { tr } from '../../i18n';
+import { useIsDesktopWeb } from '../../utils/common/layout';
 
 const clean = (x, max) => Math.max(0, Math.min(max, Math.floor(Number(x) || 0)));
 
@@ -64,7 +65,8 @@ export function Thumb({ uri, size = 56 }) {
 export default function BulkOrderScreen() {
     const nav = useNavigation();
     const again = useRoute().params?.again;   // from Orders: an earlier bulk order to fill in again { fulfilment, lines: [{ productId, quantity, options, pick }] }
-    const { text, muted, primary, border, ok, error } = useBrand();
+    const { text, muted, primary, border, ok, error, background, surface } = useBrand();
+    const desk = useIsDesktopWeb();   // the desktop website: the menu as cards two across, and your bulk order beside it (false in the phone app)
     const [cfg, setCfg] = useState(null);
     const [menu, setMenu] = useState(null);
     const [err, setErr] = useState('');
@@ -193,6 +195,80 @@ export default function BulkOrderScreen() {
     const footer = lines.length
         ? <BulkCartBar inFooter />
         : <Text style={{ color: muted, textAlign: 'center', fontWeight: '700', paddingVertical: 6 }}>{tr('Pick dishes to start your bulk order')}</Text>;
+
+    if (desk) {
+        const pieces = lines.reduce((n, l) => n + (Number(l.quantity) || 0), 0);
+        const field = { height: 50, borderRadius: 25, borderWidth: 1.5, borderColor: border, backgroundColor: surface, paddingHorizontal: 20, color: text, fontSize: 15, outlineStyle: 'none', outlineWidth: 0 };
+        return (
+            <View style={{ flex: 1, backgroundColor: background }}>
+                <PageHeader title={tr('Bulk order')} right={<Button label={tr('My bulk orders')} icon="receipt-outline" kind="ghost" onPress={() => nav.navigate('MyBulkOrders')} style={{ minWidth: 190 }} />} />
+                <View style={{ flex: 1, flexDirection: 'row', width: '100%', maxWidth: 1180, alignSelf: 'center', paddingHorizontal: 24, paddingTop: 12, gap: 28 }}>
+                    {/* LEFT: the menu, each dish on its own card, two across */}
+                    <ScrollView style={{ flex: 1, minWidth: 0 }} contentContainerStyle={{ paddingBottom: 60 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                        <Text style={{ color: muted, fontSize: 14, lineHeight: 20, marginBottom: 12 }}>{cfg.minOrderAmount ? tr('The minimum bulk order is {a}. Hold + to add 10 at a time, or type the number.', { a: rs(cfg.minOrderAmount) }) : tr('Hold + to add 10 at a time, or type the number.')}</Text>
+                        <TextInput value={find} onChangeText={setFind} placeholder={tr('Search a dish')} placeholderTextColor={muted} maxLength={40} style={field} />
+                        {shown.map((c) => (
+                            <View key={c.id} style={{ marginTop: 26 }}>
+                                <Text style={{ color: primary, fontWeight: '900', marginBottom: 12, textTransform: 'uppercase', fontSize: 13, letterSpacing: 1.2 }}>{c.name}</Text>
+                                <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -7 }}>
+                                    {c.items.map((i) => (
+                                        <View key={i.id} style={{ width: '50%', minWidth: 330, padding: 7 }}>
+                                            <View style={{ borderRadius: 20, borderWidth: 1, borderColor: border, backgroundColor: surface, paddingHorizontal: 16, overflow: 'hidden' }}>
+                                                <View style={{ marginBottom: -2 }}>{dish(i)}</View>
+                                            </View>
+                                        </View>
+                                    ))}
+                                </View>
+                            </View>
+                        ))}
+                        {!shown.length ? <Text style={{ color: muted, marginTop: 20 }}>{tr('No dish found')}</Text> : null}
+                    </ScrollView>
+
+                    {/* RIGHT: what he has picked so far */}
+                    <View style={{ width: 400, flexGrow: 0, marginBottom: 24, borderRadius: 24, borderWidth: 1, borderColor: border, backgroundColor: surface, padding: 22 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 14 }}>
+                            <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: primary + '24', alignItems: 'center', justifyContent: 'center' }}><Ionicons name="cube" size={20} color={primary} /></View>
+                            <View style={{ flex: 1, marginLeft: 12 }}>
+                                <Text style={{ color: text, fontSize: 18, fontWeight: '900' }}>{tr('Your bulk order')}</Text>
+                                <Text style={{ color: muted, fontSize: 12.5, marginTop: 1 }}>{lines.length ? tr('{n} dishes · {p} pieces', { n: lines.length, p: pieces }) : tr('Pick dishes to start your bulk order')}</Text>
+                            </View>
+                        </View>
+                        <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+                            {lines.map((l) => (
+                                <View key={l.key} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderTopWidth: 1, borderTopColor: border }}>
+                                    <Thumb uri={l.image} size={44} />
+                                    <View style={{ flex: 1, marginLeft: 12, minWidth: 0 }}>
+                                        <Text numberOfLines={1} style={{ color: text, fontWeight: '800', fontSize: 14 }}>{l.name}</Text>
+                                        {l.label ? <Text numberOfLines={1} style={{ color: muted, fontSize: 12 }}>{l.label}</Text> : null}
+                                    </View>
+                                    <Text style={{ color: primary, fontWeight: '900', fontSize: 16 }}>×{l.quantity}</Text>
+                                </View>
+                            ))}
+                        </ScrollView>
+                        <View style={{ marginTop: 14 }}>{lines.length ? <BulkCartBar inFooter /> : null}</View>
+                    </View>
+                </View>
+            <Sheet visible={!!sheet} onClose={() => setSheet(null)} title={sheet?.item?.name || ''}>
+                {[...(sheet?.item?.optionGroups || [])].sort((a, b) => (a.kind === b.kind ? 0 : a.kind === 'choice' ? -1 : 1)).map((g) => (
+                    <View key={g.id} style={{ marginBottom: 12 }}>
+                        <Text style={{ color: text, fontWeight: '900', marginBottom: 6 }}>{g.name}{g.min ? ' *' : ''}{g.kind === 'addon' ? <Text style={{ color: muted, fontWeight: '700' }}>{`  (${tr('add-on')})`}</Text> : null}</Text>
+                        <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                            {g.options.filter((o) => o.isAvailable !== false).map((o) => {
+                                const on = (sheet.picks[g.id] || []).includes(o.id);
+                                return (
+                                    <Pressable key={o.id} onPress={() => togglePick(g, o)} style={{ marginRight: 8, marginBottom: 8, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: on ? primary : border, backgroundColor: on ? primary : 'transparent' }}>
+                                        <Text style={{ color: on ? '#fff' : text, fontWeight: '800' }}>{o.name}{o.price ? `  +${rs(o.price)}` : ''}{o.bulkMin > 0 ? `  · ${tr('min {n}', { n: o.bulkMin })}` : ''}</Text>
+                                    </Pressable>
+                                );
+                            })}
+                        </View>
+                    </View>
+                ))}
+                <Button label={tr('Add')} icon="add" onPress={addPicked} />
+            </Sheet>
+            </View>
+        );
+    }
 
     return (
         <FormPage title={tr('Bulk order')} footer={footer} hideableFooter footerKey={lines.reduce((n, l) => n + (Number(l.quantity) || 0), 0)}>
