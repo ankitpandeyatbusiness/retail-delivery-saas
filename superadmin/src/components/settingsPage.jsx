@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, Pressable } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { SETUP_STEPS, goSetupStep } from '../utils/setupFlow';
 import { useTheme, spacing, radius, font, tint } from '../theme';
@@ -9,6 +9,25 @@ import { Loading, ErrorBox } from './feedback';
 import Icon from './Icon';
 import { previewFrom } from '../utils/settings';
 import PhonePreview from './preview/PhonePreview';
+import DesktopPreview from './preview/DesktopPreview';
+
+// the pinned preview: the phone, or the website as it looks on a computer (drawn wide and scaled to fit this screen)
+function PreviewTabs({ phone }) {
+    const t = useTheme();
+    const [mode, setMode] = useState('phone');
+    return (
+        <View>
+            <View style={{ flexDirection: 'row', marginBottom: spacing.xs }}>
+                {[['phone', 'Phone'], ['desktop', 'Desktop view']].map(([k, l]) => (
+                    <Pressable key={k} onPress={() => setMode(k)} style={{ paddingHorizontal: 14, height: 30, borderRadius: 15, backgroundColor: mode === k ? t.text : 'transparent', borderWidth: 1, borderColor: mode === k ? t.text : t.border, alignItems: 'center', justifyContent: 'center', marginRight: 8 }}>
+                        <Text style={{ color: mode === k ? t.surface : t.text, fontSize: font.xs, fontWeight: '800' }}>{l}</Text>
+                    </Pressable>
+                ))}
+            </View>
+            {mode === 'phone' ? <PhonePreview config={phone} scale={0.46} collapsible /> : <DesktopPreview config={phone} />}
+        </View>
+    );
+}
 
 const TAB_ICON = { home: 'home', search: 'search', offers: 'coupon', orders: 'receipt', profile: 'user' };
 const BLOCK_ICON = {
@@ -62,7 +81,7 @@ export function SettingsPage({ ed, title, subtitle, children, preview = false, s
             footer={ed.ready ? footer : null}
             pinned={phone ? (
                 <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.sm, backgroundColor: t.surface, borderBottomWidth: 1, borderBottomColor: t.border }}>
-                    <PhonePreview config={phone} scale={0.46} collapsible />
+                    <PreviewTabs phone={phone} />
                 </View>
             ) : null}
         >

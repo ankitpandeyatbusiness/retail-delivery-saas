@@ -28,21 +28,21 @@ const nameFit = (name, compact) => {
 };
 
 /* ============================== colours (the same rules as the customer app's kit.jsx) ============================== */
-const isHex = (c) => /^#[0-9a-fA-F]{6}$/.test(c || '');
+export const isHex = (c) => /^#[0-9a-fA-F]{6}$/.test(c || '');
 const rgb = (c) => [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16));
 const toHex = (a) => `#${a.map((v) => Math.round(v).toString(16).padStart(2, '0')).join('').toUpperCase()}`;
-const mix = (a, b, t) => (isHex(a) && isHex(b) ? toHex(rgb(a).map((v, i) => v + (rgb(b)[i] - v) * t)) : a);
+export const mix = (a, b, t) => (isHex(a) && isHex(b) ? toHex(rgb(a).map((v, i) => v + (rgb(b)[i] - v) * t)) : a);
 const lin = (v) => { const x = v / 255; return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4; };
 const lum = (c) => { const [r, g, b] = rgb(c); return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b); };
-const onColor = (c) => (isHex(c) && lum(c) > 0.6 ? '#1A1A1A' : '#FFFFFF');
-const alpha = (c, a) => (isHex(c) ? `${c}${Math.round(a * 255).toString(16).padStart(2, '0')}` : c);
+export const onColor = (c) => (isHex(c) && lum(c) > 0.6 ? '#1A1A1A' : '#FFFFFF');
+export const alpha = (c, a) => (isHex(c) ? `${c}${Math.round(a * 255).toString(16).padStart(2, '0')}` : c);
 const HAIR = StyleSheet.hairlineWidth;
 
 const RADIUS = { rounded: 12, pill: 99, square: 3 };
 
 // The same fonts the customer app uses (one file per weight, because Android needs that):
 //   classic = Lora, rounded = Nunito, modern = Inter (only when the look is not "bold", exactly like the app)
-const FONT_MAP = {
+export const FONT_MAP = {
     Inter_400: require('@expo-google-fonts/inter/400Regular').Inter_400Regular,
     Inter_500: require('@expo-google-fonts/inter/500Medium').Inter_500Medium,
     Inter_600: require('@expo-google-fonts/inter/600SemiBold').Inter_600SemiBold,
@@ -59,14 +59,14 @@ const FONT_MAP = {
 };
 const FAMILY_WEIGHTS = { Inter: [400, 500, 600, 700, 800], Lora: [400, 500, 600, 700], Nunito: [400, 600, 700, 800] };
 const familyFor = (fontStyle, look) => (fontStyle === 'classic' ? 'Lora' : fontStyle === 'rounded' ? 'Nunito' : (look !== 'bold' ? 'Inter' : null));
-const pickFont = (family, w) => {
+export const pickFont = (family, w) => {
     const ws = FAMILY_WEIGHTS[family];
     let best = ws[0];
     ws.forEach((x) => { if (x <= w) best = x; });
     return `${family}_${best}`;
 };
 
-function tokens(brand, forceDark) {
+export function tokens(brand, forceDark) {
     const c = brand.colors || {};
     const look = forceDark ? brand.darkLook : brand.lightLook;   // the shop has one theme for light mode and one for dark mode
     const basePrimary = isHex(c.primary) ? c.primary : '#E23744';
@@ -107,7 +107,7 @@ function tokens(brand, forceDark) {
 const DARK_IDS = ['midnight', 'charcoal', 'black', 'slate'];
 const addressText = (a) => (typeof a === 'string' ? a.trim() : [a?.line, a?.city, a?.pincode].filter(Boolean).join(', '));
 
-function normalize(c) {
+export function normalize(c) {
     const cfg = c || {};
     const b = cfg.brand || {};
     const h = cfg.home || {};
