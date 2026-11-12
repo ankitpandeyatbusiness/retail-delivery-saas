@@ -2,6 +2,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, Pressable, ScrollView } from 'react-native';
 import { useRoute } from '@react-navigation/native';
+import { useOwnerDesktop } from '../../utils/common/layout';
+import { Hero } from '../../components/owners/RiderDesk';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand } from '../../components/common/kit';
 import { OwnerScreen, Card, SectionTitle, Option, Chips, Button, Sheet } from '../../components/owners/ui';
@@ -33,6 +35,7 @@ function rangeOf(period) {
 export default function OwnerExportBuildScreen() {
     const { key } = useRoute().params;
     const { text, muted, primary, border, error: red } = useBrand();
+    const desk = useOwnerDesktop();
     const [cat, setCat] = useState(null);
     const [err, setErr] = useState('');
     const [shopIds, setShopIds] = useState([]);
@@ -56,10 +59,10 @@ export default function OwnerExportBuildScreen() {
 
     useEffect(() => {
         if (!item) return undefined;
-        setCount(null);
+        if (!desk) setCount(null);   // on a computer the old number stays (dimmed) until the new one lands
         const id = setTimeout(() => { countExport(key, { ...params, format }).then(setCount).catch(() => setCount({ error: true })); }, 400);
         return () => clearTimeout(id);
-    }, [item, key, params, format]);
+    }, [item, key, params, format, desk]);
 
     if (!item) return <OwnerScreen title={tr('Download your data')} page>{err ? <Text style={{ color: red, margin: 16 }}>{err}</Text> : <View style={{ padding: 16 }}><ListShimmer /></View>}</OwnerScreen>;
 
@@ -76,10 +79,30 @@ export default function OwnerExportBuildScreen() {
         } catch (e) { showToast(e && e.safe ? e.message : apiError(e)); } finally { setBusy(false); }
     };
 
+    const summary = (
+        <>
+                {desk ? null : <SectionTitle title={tr('File')} />}
+                <Chips options={[['xlsx', 'Excel'], ['csv', 'CSV']]} value={format} onChange={setFormat} />
+
+                <Card style={{ marginTop: desk ? 0 : 16, opacity: desk && count === null ? 0.55 : 1, transitionProperty: 'opacity', transitionDuration: '160ms' }}>
+                    <Text style={{ color: count && count.capped ? red : text, fontWeight: '800', fontSize: 18 }}>
+                        {count === null ? tr('Counting...') : count.error ? tr('Could not count') : `${count.count.toLocaleString('en-IN')} ${tr(count.count === 1 ? 'row' : 'rows')}`}
+                    </Text>
+                    <Text style={{ color: muted, fontSize: 12.5, marginTop: 2 }}>
+                        {count && count.capped ? tr('The file holds the first {n}. Pick a shorter period to get them all.', { n: count.max.toLocaleString('en-IN') }) + (format === 'xlsx' ? ' ' + tr('Or choose CSV: it holds more.') : '') : count && count.count === 0 ? tr('Nothing matches. Change the period or the filters.') : tr('This is what the file will hold.')}
+                    </Text>
+                </Card>
+                <Button label={busy ? tr('Making the file...') : tr(format === 'csv' ? 'Download CSV' : 'Download Excel')} icon="download" onPress={go} busy={busy} disabled={count && count.count === 0} style={{ marginTop: 16 }} />
+        </>
+    );
+
     return (
-        <OwnerScreen title={tr(item.title)} page>
+        <OwnerScreen title={tr(item.title)} page wide={desk}>
+            {desk ? <Hero icon="download" title={tr(item.title)} subtitle={tr(item.hint)} /> : null}
             <View style={{ padding: 16 }}>
-                <Text style={{ color: muted, fontSize: 13 }}>{tr(item.hint)}</Text>
+              <View style={desk ? { flexDirection: 'row', alignItems: 'flex-start' } : undefined}>
+              <View style={desk ? { flex: 1, minWidth: 0, marginRight: 24 } : undefined}>
+                {desk ? null : <Text style={{ color: muted, fontSize: 13 }}>{tr(item.hint)}</Text>}
 
                 {pickShops ? (
                     <>
@@ -122,18 +145,10 @@ export default function OwnerExportBuildScreen() {
                     </>
                 ) : null}
 
-                <SectionTitle title={tr('File')} />
-                <Chips options={[['xlsx', 'Excel'], ['csv', 'CSV']]} value={format} onChange={setFormat} />
-
-                <Card style={{ marginTop: 16 }}>
-                    <Text style={{ color: count && count.capped ? red : text, fontWeight: '800', fontSize: 18 }}>
-                        {count === null ? tr('Counting...') : count.error ? tr('Could not count') : `${count.count.toLocaleString('en-IN')} ${tr(count.count === 1 ? 'row' : 'rows')}`}
-                    </Text>
-                    <Text style={{ color: muted, fontSize: 12.5, marginTop: 2 }}>
-                        {count && count.capped ? tr('The file holds the first {n}. Pick a shorter period to get them all.', { n: count.max.toLocaleString('en-IN') }) + (format === 'xlsx' ? ' ' + tr('Or choose CSV: it holds more.') : '') : count && count.count === 0 ? tr('Nothing matches. Change the period or the filters.') : tr('This is what the file will hold.')}
-                    </Text>
-                </Card>
-                <Button label={busy ? tr('Making the file...') : tr(format === 'csv' ? 'Download CSV' : 'Download Excel')} icon="download" onPress={go} busy={busy} disabled={count && count.count === 0} style={{ marginTop: 16 }} />
+                {desk ? null : summary}
+              </View>
+              {desk ? <View style={{ width: 380 }}><SectionTitle title={tr('File')} />{summary}</View> : null}
+              </View>
             </View>
 
             <Sheet visible={picker} onClose={() => setPicker(false)} title={tr('Which shops?')}>
