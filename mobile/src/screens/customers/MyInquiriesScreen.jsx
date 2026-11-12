@@ -10,6 +10,7 @@ import { ListShimmer } from '../../components/owners/shimmer';
 import { STATUS_LABEL } from '../../components/common/InquiryThread';
 import { fetchMyInquiries } from '../../api/customers/shopApi';
 import { tr } from '../../i18n';
+import DeskGrid from '../../components/common/DeskGrid';
 
 export default function MyInquiriesScreen() {
     const nav = useNavigation();
@@ -26,6 +27,7 @@ export default function MyInquiriesScreen() {
             <ScrollView contentContainerStyle={{ paddingTop: 6, paddingBottom: 32 }}>
                 {items === null ? <ListShimmer /> : null}
                 {items && !items.length ? <Empty icon="chatbubbles-outline" title={tr('No inquiries yet')} hint={tr('Open Services and send one.')} /> : null}
+                <DeskGrid>
                 {(items || []).map((i) => {
                     const last = i.messages?.[i.messages.length - 1];
                     return (
@@ -40,6 +42,7 @@ export default function MyInquiriesScreen() {
                         </Card>
                     );
                 })}
+                </DeskGrid>
             </ScrollView>
         </View>
     );

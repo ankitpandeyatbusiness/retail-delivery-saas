@@ -33,8 +33,9 @@ export const money = (n) => `₹${Math.round(Number(n) || 0).toLocaleString('en-
 /* ------------------------------ surfaces ------------------------------ */
 export function Card({ children, style, onPress, tone }) {
     const { surface, border, primary } = useBrand();
+    const desk = useIsDesktopWeb();   // the desktop website: a card that opens something lights up under the mouse (false in the phone app)
     const base = [s.card, { backgroundColor: surface, borderColor: tone ? alpha(tone === true ? primary : tone, 0.35) : border }, style];
-    if (onPress) return <Pressable onPress={onPress} style={({ pressed }) => [...base, pressed && { opacity: 0.85 }]}>{children}</Pressable>;
+    if (onPress) return <Pressable onPress={onPress} style={({ pressed, hovered }) => [...base, pressed && { opacity: 0.85 }, desk && { cursor: 'pointer', borderColor: hovered ? primary : (tone ? alpha(tone === true ? primary : tone, 0.35) : border), backgroundColor: hovered ? alpha(primary, 0.06) : surface, boxShadow: hovered ? `0 10px 26px ${alpha(primary, 0.2)}, inset 0 0 0 1px ${primary}` : '0 0 0 rgba(0,0,0,0)', transform: [{ translateY: hovered ? -2 : 0 }], transitionProperty: 'background-color, border-color, box-shadow, transform', transitionDuration: '180ms' }]}>{children}</Pressable>;
     return <View style={base}>{children}</View>;
 }
 

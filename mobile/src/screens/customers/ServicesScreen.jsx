@@ -13,6 +13,7 @@ import ServiceHeroCard from '../../components/customers/ServiceHeroCard';
 import { fetchServices } from '../../api/customers/shopApi';
 import { priceLine } from '../owners/OwnerServicesScreen';
 import { tr } from '../../i18n';
+import DeskGrid from '../../components/common/DeskGrid';
 
 export default function ServicesScreen() {
     const nav = useNavigation();
@@ -30,7 +31,9 @@ export default function ServicesScreen() {
                 {items === null ? <ListShimmer /> : null}
                 {err && !items?.length ? <Empty icon="cloud-offline-outline" title={tr('Could not load')} hint={err} /> : null}
                 {items && !items.length && !err ? <Empty icon="briefcase-outline" title={tr('Nothing here right now')} hint={tr('This shop has not switched on any services.')} /> : null}
-                {(items || []).map((s) => <ServiceHeroCard key={s._id} service={s} priceText={priceLine(s)} onPress={() => nav.navigate('ServiceForm', { id: String(s._id) })} />)}
+                <DeskGrid>
+                    {(items || []).map((s) => <ServiceHeroCard key={s._id} service={s} priceText={priceLine(s)} onPress={() => nav.navigate('ServiceForm', { id: String(s._id) })} />)}
+                </DeskGrid>
             </ScrollView>
         </View>
     );

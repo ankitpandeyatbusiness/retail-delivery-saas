@@ -18,6 +18,7 @@ import { ask } from '../../components/common/dialog';
 import { ease } from '../../utils/common/ease';
 import ChatButton from '../../components/common/ChatButton';
 import { tr } from '../../i18n';
+import DeskGrid from '../../components/common/DeskGrid';
 import { niceDate } from '../../utils/common/dayNames';
 
 const clock = (d) => new Date(d).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -89,6 +90,7 @@ export default function MyBookingsScreen() {
             <ScrollView contentContainerStyle={{ paddingTop: 6, paddingBottom: 32 }}>
                 {items === null ? <ListShimmer /> : null}
                 {items && !shown.length ? <Empty icon="calendar-outline" title={filter === 'upcoming' ? tr('No upcoming reservations') : tr('Nothing here')} hint={filter === 'upcoming' ? tr('Reserve a table from your account.') : tr('Pick another tab above.')} /> : null}
+                <DeskGrid>
                 {shown.map((b) => (
                     <Card key={b._id} style={{ opacity: b.status === 'cancelled' ? 0.6 : 1 }}>
                         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -110,6 +112,7 @@ export default function MyBookingsScreen() {
                         {(b.status === 'confirmed' ? new Date(b.startsAt).getTime() - Date.now() >= 3600000 : waiting(b)) && new Date(b.startsAt) > new Date() ? <Button label={tr('Cancel booking')} kind="ghost" busy={busyId === b._id} onPress={() => cancel(b)} style={{ marginTop: 10 }} /> : null}
                     </Card>
                 ))}
+                </DeskGrid>
                 {filter === 'upcoming' ? waits.map((w) => (
                     <Card key={w._id}>
                         <Text style={{ color: text, fontWeight: '900', fontSize: 16 }}>{tr('Waiting for a table')}</Text>

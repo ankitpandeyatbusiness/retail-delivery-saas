@@ -12,6 +12,7 @@ import { fetchMyBulk } from '../../api/customers/shopApi';
 import { BULK_STATUS, bulkTone, whenText } from './BulkOrderDetailScreen';
 import { ChatBadge } from '../../components/common/ChatButton';
 import { tr } from '../../i18n';
+import DeskGrid from '../../components/common/DeskGrid';
 
 export default function MyBulkOrdersScreen() {
     const nav = useNavigation();
@@ -30,6 +31,7 @@ export default function MyBulkOrdersScreen() {
                 {items === null ? <ListShimmer /> : null}
                 {err && !items?.length ? <Empty icon="cloud-offline-outline" title={tr('Could not load')} hint={err} /> : null}
                 {items && !items.length && !err ? <Empty icon="cube-outline" title={tr('No bulk orders yet')} hint={tr('Ask a shop for a large order, like an office lunch or a function.')} /> : null}
+                <DeskGrid>
                 {(items || []).map((o) => (
                     <Card key={o.id} onPress={() => nav.navigate('BulkOrderDetail', { id: o.id })}>
                         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -41,6 +43,7 @@ export default function MyBulkOrdersScreen() {
                         <Text style={{ color: text, fontWeight: '800', marginTop: 4 }}>{o.quote?.pricing ? `${tr('Quote')} ${rs(o.quote.pricing.total)}` : `${tr('Estimate')} ${rs(o.pricing?.total)}`}</Text>
                     </Card>
                 ))}
+                </DeskGrid>
                 <View style={{ paddingHorizontal: 16, marginTop: 8 }}>
                     <Button label={tr('New bulk order')} icon="add" onPress={() => nav.navigate('BulkOrder')} />
                 </View>

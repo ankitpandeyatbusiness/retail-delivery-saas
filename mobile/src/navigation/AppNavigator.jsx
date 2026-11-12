@@ -160,21 +160,20 @@ import { deskColumn } from '../components/common/deskColumn';
 
 // These phone screens become pages of the desktop website: centred in a column (the phone app gets the screen itself, untouched: see deskColumn).
 const DBookTable = deskColumn(BookTableScreen, 1000);
-const DMyBookings = deskColumn(MyBookingsScreen, 860);
+const DMyBookings = deskColumn(MyBookingsScreen, 1120);
 const DBulkOrder = deskColumn(BulkOrderScreen, 920);
 const DBulkCart = deskColumn(BulkCartScreen, 920);
 const DBulkOrderDetail = deskColumn(BulkOrderDetailScreen, 860);
-const DMyBulkOrders = deskColumn(MyBulkOrdersScreen, 860);
-const DServices = deskColumn(ServicesScreen, 860);
+const DMyBulkOrders = deskColumn(MyBulkOrdersScreen, 1120);
+const DServices = deskColumn(ServicesScreen, 1120);
 const DServiceForm = deskColumn(ServiceFormScreen, 860);
 const DInquiry = deskColumn(InquiryScreen, 860);
-const DMyInquiries = deskColumn(MyInquiriesScreen, 860);
+const DMyInquiries = deskColumn(MyInquiriesScreen, 1120);
 const DChat = deskColumn(ChatScreen, 860);
-const DMyPoints = deskColumn(MyPointsScreen, 860);
 const DAboutUs = deskColumn(AboutUsScreen, 820);
 const DLegalList = deskColumn(LegalListScreen, 820);
 const DLegalDoc = deskColumn(LegalDocScreen, 820);
-const DSessions = deskColumn(SessionsScreen, 860);
+const DSessions = deskColumn(SessionsScreen, 1120);
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -401,7 +400,7 @@ export default function AppNavigator() {
                     <Stack.Screen name="RiderDuty" component={RiderDutyScreen} />
                     <Stack.Screen name="StaffLeave" component={StaffLeaveScreen} />
                     <Stack.Screen name="RiderPoints" component={RiderPointsScreen} />
-                    <Stack.Screen name="MyPoints" component={DMyPoints} />
+                    <Stack.Screen name="MyPoints" component={MyPointsScreen} />
                     <Stack.Screen name="BookTable" component={DBookTable} />
                     <Stack.Screen name="MyBookings" component={DMyBookings} />
                     <Stack.Screen name="Services" component={DServices} />

@@ -10,6 +10,7 @@ import { themedAlert } from '../../components/common/dialog';
 import { showToast } from '../../components/customers/shop';
 import { fetchSessions, endSession, endOtherSessions } from '../../api/common/sessionApi';
 import { tr } from '../../i18n';
+import DeskGrid from '../../components/common/DeskGrid';
 
 const when = (iso) => {
     if (!iso) return '';
@@ -75,6 +76,7 @@ export default function SessionsScreen() {
                     </View>
                 ) : null}
 
+                <DeskGrid>
                 {(items || []).map((s) => (
                     <Card key={s.id} style={{ marginHorizontal: 16, marginBottom: 10 }}>
                         <View style={{ flexDirection: 'row', alignItems: 'flex-start', padding: 14 }}>
@@ -96,6 +98,7 @@ export default function SessionsScreen() {
                         </View>
                     </Card>
                 ))}
+                </DeskGrid>
 
                 {others.length > 0 ? (
                     <View style={{ paddingHorizontal: 16, marginTop: 6 }}>
