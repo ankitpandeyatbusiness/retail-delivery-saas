@@ -1,14 +1,17 @@
 // Orders: the live board. Chips for each stage (with counts), search by order number, and the orders as cards with
 // Accept / Reject and the next step right on them. It refreshes by itself when an order changes anywhere.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, FlatList, Pressable, ScrollView, RefreshControl, LayoutAnimation } from 'react-native';
+import { View, Text, FlatList, Pressable, ScrollView, RefreshControl, LayoutAnimation, ActivityIndicator } from 'react-native';
+import GlowBorder from '../../components/common/GlowBorder';
 import { useIsFocused, useNavigation, useRoute } from '@react-navigation/native';
 import { useFocusEffect } from '../../hooks/common/useLiveFocus';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand, alpha } from '../../components/common/kit';
-import { OwnerScreen, Empty, Field, Card, Pill, money } from '../../components/owners/ui';
+import { OwnerScreen, Empty, Field, Card, Pill, Button, money } from '../../components/owners/ui';
 import { useBulkAwaiting } from '../../hooks/owners/useBulkAwaiting';
-import { OrderCard, useOrderActions } from '../../components/owners/orderBits';
+import { OrderCard, useOrderActions, PayBadge, Countdown } from '../../components/owners/orderBits';
+import { useNow } from '../../hooks/owners/useNow';
+import * as flow from '../../utils/owners/orderFlow';
 import { useOrdersStore } from '../../store/owners/useOrdersStore';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { onOrderUpdate } from '../../api/common/socket';
@@ -18,16 +21,42 @@ import { ListShimmer } from '../../components/owners/shimmer';
 import { DebtCard, DebtSheet, RemindAll, useDebts } from '../../components/owners/UnpaidBills';
 import { tr } from '../../i18n';
 
-// the owner's desktop board: one column per stage of a live order, and the finished ones as a grid under their own tabs
-const BOARD_COLS = [['placed', 'New', 'alert-circle'], ['accepted', 'Accepted', 'checkmark-circle'], ['preparing', 'Preparing', 'flame'], ['ready', 'Ready', 'bag-check'], ['out_for_delivery', 'On the road', 'bicycle']];
-const BOARD_TABS = [['active', 'Live board'], ['table', 'On the table'], ['delivered', 'Delivered'], ['cancelled', 'Cancelled'], ['history', 'History']];
+// the owner's desktop board: one column per stage of a live order (each with its own colour), and the finished ones as a grid under their own tabs
+const BOARD_COLS = [
+    ['placed', 'New', 'flash', '#F59E0B'],
+    ['accepted', 'Accepted', 'checkmark-circle', '#3B82F6'],
+    ['preparing', 'Preparing', 'flame', '#F97316'],
+    ['ready', 'Ready', 'bag-check', '#10B981'],
+    ['out_for_delivery', 'On the road', 'bicycle', '#8B5CF6'],
+];
+const STAGE_COLOR = Object.fromEntries(BOARD_COLS.map((c) => [c[0], c[3]]));
+const BOARD_TABS = [['active', 'Live board', 'flash'], ['placed', 'New', 'alert-circle'], ['accepted', 'Accepted', 'checkmark-circle'], ['preparing', 'Preparing', 'flame'], ['ready', 'Ready', 'bag-check'], ['table', 'On the table', 'restaurant'], ['out_for_delivery', 'On the road', 'bicycle'], ['delivered', 'Delivered', 'checkmark-done'], ['cancelled', 'Cancelled', 'close-circle'], ['history', 'History', 'time']];
 
-function DeskTab({ label, count, on, urgent, onPress }) {
-    const { primary, onPrimary, text, border, error } = useBrand();
+function DeskTab({ label, icon, count, on, urgent, onPress }) {
+    const { primary, onPrimary, text, error } = useBrand();
     return (
-        <Pressable onPress={onPress} style={({ hovered }) => ({ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, height: 42, borderRadius: 21, marginRight: 8, borderWidth: 1, borderColor: on ? primary : border, backgroundColor: on ? primary : hovered ? border : 'transparent', cursor: 'pointer' })}>
-            <Text style={{ color: on ? onPrimary : text, fontWeight: '800', fontSize: 14 }}>{label}</Text>
+        <Pressable onPress={onPress} style={({ hovered }) => ({ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, height: 42, borderRadius: 21, backgroundColor: on ? primary : hovered ? alpha(primary, 0.1) : 'transparent', cursor: 'pointer', boxShadow: on ? `0 6px 16px ${alpha(primary, 0.35)}` : 'none', transitionProperty: 'background-color', transitionDuration: '140ms' })}>
+            <Ionicons name={on ? icon : `${icon}-outline`} size={17} color={on ? onPrimary : text} />
+            <Text style={{ color: on ? onPrimary : text, fontWeight: '800', fontSize: 14, marginLeft: 8 }}>{label}</Text>
             {count > 0 ? <View style={{ marginLeft: 8, minWidth: 22, height: 22, borderRadius: 11, paddingHorizontal: 6, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? alpha(onPrimary, 0.25) : (urgent ? error : primary) }}><Text style={{ fontSize: 12, fontWeight: '900', color: on || urgent ? '#FFFFFF' : onPrimary }}>{count > 99 ? '99+' : count}</Text></View> : null}
+        </Pressable>
+    );
+}
+
+// the big button on a card
+function Act({ label, icon, onPress, busy, color, ghost, iconOnly, style }) {
+    const { primary, onPrimary, text, border } = useBrand();
+    const bg = ghost ? 'transparent' : (color || primary);
+    const ink = ghost ? (color || text) : (color ? '#FFFFFF' : onPrimary);
+    return (
+        <Pressable onPress={onPress} disabled={busy} accessibilityRole="button" accessibilityLabel={iconOnly ? label : undefined}
+            style={({ hovered }) => [{ height: 42, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: iconOnly ? 0 : 16, width: iconOnly ? 44 : undefined, backgroundColor: bg, borderWidth: ghost ? 1.5 : 0, borderColor: ghost ? alpha(color || border, 0.5) : 'transparent', cursor: 'pointer', opacity: busy ? 0.7 : hovered ? 0.9 : 1 }, style]}>
+            {busy ? <ActivityIndicator size="small" color={ink} /> : (
+                <>
+                    {icon ? <Ionicons name={icon} size={iconOnly ? 20 : 17} color={ink} /> : null}
+                    {iconOnly ? null : <Text style={{ color: ink, fontWeight: '900', fontSize: 14, marginLeft: icon ? 7 : 0 }} numberOfLines={1}>{label}</Text>}
+                </>
+            )}
         </Pressable>
     );
 }
@@ -78,6 +107,100 @@ function BulkWaitCard({ o, onOpen }) {
     );
 }
 
+// One order on the desktop board: a card made for a column. The customer's round letter and the order number on top, how long it has waited (it turns amber, then
+// red, while a live order is not moved on), the dishes, how it is paid and the total, and the button for what to do next (the same rules as the phone's card).
+function DeskOrderCard({ order, busy, onOpen, onAdvance, onFoodReady, onReject }) {
+    const { text, muted, accent, error, primary, surface, border, ok } = useBrand();
+    const now = useNow(30000, true);
+    const isNew = order.status === 'placed';
+    const final = flow.isFinal(order.status);
+    const next = flow.forwardStep(order);
+    const warn = accent || '#F59E0B';
+    const stage = STAGE_COLOR[boardStatus(order)] || (order.status === 'delivered' ? ok : final ? error : primary);
+    const mins = Math.max(0, Math.floor((now - new Date(order.createdAt).getTime()) / 60000));
+    const late = final ? null : mins >= 30 ? error : mins >= 12 ? warn : null;
+    const dishes = (flow.itemsSummary(order) || '').split(', ').filter(Boolean);
+    const shown = dishes.slice(0, 3);
+    const who = String(order.customer?.name || '?').trim();
+    const card = (
+        <Pressable onPress={onOpen} style={({ hovered }) => ({ borderRadius: 18, borderWidth: 1, borderColor: isNew ? alpha(warn, 0.75) : border, overflow: 'hidden', cursor: 'pointer', backgroundColor: hovered ? alpha(stage, 0.07) : surface, boxShadow: hovered ? `inset 0 0 0 1.5px ${stage}` : 'inset 0 0 0 0 transparent', transitionProperty: 'background-color, box-shadow', transitionDuration: '140ms' })}>
+            <View pointerEvents="none" style={{ height: 4, backgroundColor: stage }} />
+            <View style={{ padding: 14 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: alpha(stage, 0.16), alignItems: 'center', justifyContent: 'center' }}>
+                        <Text style={{ color: stage, fontWeight: '900', fontSize: 17 }}>{(who[0] || '?').toUpperCase()}</Text>
+                    </View>
+                    <View style={{ flex: 1, minWidth: 0, marginLeft: 10 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <Text style={{ color: text, fontSize: 18, fontWeight: '900' }}>#{order.orderNo}</Text>
+                            {order.bulkId ? <View style={{ marginLeft: 6, paddingHorizontal: 7, height: 20, borderRadius: 10, backgroundColor: alpha(primary, 0.14), justifyContent: 'center' }}><Text style={{ color: primary, fontSize: 10.5, fontWeight: '900' }}>{tr('BULK')}</Text></View> : null}
+                        </View>
+                        <Text numberOfLines={1} style={{ color: muted, fontSize: 12.5, fontWeight: '700' }}>{order.customer?.name || tr('Customer')}</Text>
+                    </View>
+                    <View style={{ alignItems: 'flex-end' }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 9, height: 24, borderRadius: 12, backgroundColor: alpha(late || muted, 0.14) }}>
+                            <Ionicons name="time-outline" size={12.5} color={late || muted} />
+                            <Text style={{ color: late || muted, fontSize: 11.5, fontWeight: '900', marginLeft: 4 }}>{flow.ago(order.createdAt, now)}</Text>
+                        </View>
+                    </View>
+                </View>
+
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 9, height: 24, borderRadius: 12, backgroundColor: alpha(stage, 0.13) }}>
+                        <Ionicons name={order.orderType === 'delivery' ? 'bicycle' : order.orderType === 'pickup' ? 'walk' : 'restaurant'} size={13} color={stage} />
+                        <Text style={{ color: stage, fontSize: 11.5, fontWeight: '900', marginLeft: 5 }}>{flow.typeLabel(order.orderType)}</Text>
+                    </View>
+                    {order.scheduledFor ? (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 8 }}>
+                            <Ionicons name="calendar-outline" size={13} color={muted} />
+                            <Text style={{ color: muted, fontSize: 12, fontWeight: '700', marginLeft: 4 }}>{flow.dayTime(order.scheduledFor)}</Text>
+                        </View>
+                    ) : null}
+                </View>
+
+                <View style={{ marginTop: 10, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 12, backgroundColor: alpha(muted, 0.08) }}>
+                    {shown.map((d, i) => <Text key={i} numberOfLines={1} style={{ color: text, fontSize: 13.5, lineHeight: 20 }}>{d}</Text>)}
+                    {dishes.length > shown.length ? <Text style={{ color: muted, fontSize: 12, fontWeight: '800', marginTop: 2 }}>+{dishes.length - shown.length} {tr('more')}</Text> : null}
+                </View>
+
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
+                    <View style={{ flex: 1 }}><PayBadge order={order} /></View>
+                    <Text style={{ color: text, fontWeight: '900', fontSize: 22, letterSpacing: -0.4 }}>{order.bulkId ? `${tr('Balance')} ${money(order.pricing?.total)}` : money(order.pricing?.total)}</Text>
+                </View>
+
+                {order.needsLook && !order.needsLook.seenAt ? (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10, paddingVertical: 7, paddingHorizontal: 10, borderRadius: 10, backgroundColor: alpha(order.needsLook.urgent ? error : warn, 0.13) }}>
+                        <Ionicons name={order.needsLook.urgent ? 'warning' : 'information-circle'} size={16} color={order.needsLook.urgent ? error : warn} />
+                        <Text style={{ flex: 1, marginLeft: 6, color: order.needsLook.urgent ? error : warn, fontWeight: '800', fontSize: 12 }}>{tr('Please have a look')}</Text>
+                    </View>
+                ) : null}
+                {isNew && order.acceptBy ? <View style={{ marginTop: 10 }}><Countdown until={order.acceptBy} compact /></View> : null}
+
+                {isNew && next ? (
+                    <View style={{ flexDirection: 'row', marginTop: 12 }}>
+                        {flow.canCancel(order) ? <Act label={tr('Reject')} icon="close" iconOnly ghost color={error} onPress={() => onReject(order)} busy={busy} style={{ marginRight: 8 }} /> : null}
+                        <Act label={tr('Accept')} icon="checkmark" color={ok} onPress={() => onAdvance(order)} busy={busy} style={{ flex: 1 }} />
+                    </View>
+                ) : null}
+                {!isNew && order.orderType === 'delivery' && order.status === 'preparing' && order.foodReady === false && onFoodReady ? (
+                    <Act label={tr('Food is ready')} icon="checkmark-done" color={ok} onPress={() => onFoodReady(order)} busy={busy} style={{ marginTop: 12 }} />
+                ) : null}
+                {!isNew && next && order.foodReady !== false && flow.riderHandles(order, next) ? (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12, paddingVertical: 9, paddingHorizontal: 12, borderRadius: 12, backgroundColor: alpha(STAGE_COLOR.out_for_delivery, 0.1) }}>
+                        <Ionicons name="bicycle" size={17} color={STAGE_COLOR.out_for_delivery} />
+                        <Text style={{ flex: 1, marginLeft: 8, color: muted, fontWeight: '700', fontSize: 12.5 }}>{next === 'out_for_delivery' ? tr('The delivery partner will collect it.') : tr('On the way.')}</Text>
+                    </View>
+                ) : null}
+                {!isNew && next && !flow.riderHandles(order, next) && !(order.foodReady === false && next === 'out_for_delivery') ? (
+                    <Act label={flow.stepLabel(order, next)} onPress={() => onAdvance(order)} busy={busy} color={STAGE_COLOR[next] || primary} style={{ marginTop: 12 }} />
+                ) : null}
+            </View>
+        </Pressable>
+    );
+    // a new order glows until it is accepted or rejected, like the pipeline on Home
+    return <View style={{ marginBottom: 14 }}>{isNew ? <GlowBorder active radius={18}>{card}</GlowBorder> : card}</View>;
+}
+
 function Skeleton() {
     const { surface, border } = useBrand();
     return (
@@ -94,8 +217,9 @@ function Skeleton() {
 export default function OwnerOrdersScreen() {
     const nav = useNavigation();
     const route = useRoute();
-    const { primary, muted } = useBrand();
+    const { primary, muted, text, surface, border, ok } = useBrand();
     const s = useOrdersStore();
+    const dash = useOwnerStore((st) => st.dashboard);   // today's sales, for the top strip on a computer
     const access = useOwnerStore((st) => st.access);
     const { items: bulkWait, reload: reloadBulk } = useBulkAwaiting();   // bulk requests and sent quotes not paid yet: they live in New until the advance is paid
     const live = useOwnerStore((st) => st.live);
@@ -174,36 +298,61 @@ export default function OwnerOrdersScreen() {
         BOARD_COLS.forEach(([id]) => { byCol[id] = []; });
         data.forEach((o) => { const k = boardStatus(o); if (byCol[k]) byCol[k].push(o); });
         const orderCard = (o) => (
-            <OrderCard key={o.id} order={o} busy={actions.busyId === o.id} onOpen={() => openOrder(o)} onAdvance={actions.advance} onFoodReady={actions.foodReady} onReject={actions.requestReject} />
+            <DeskOrderCard key={o.id} order={o} busy={actions.busyId === o.id} onOpen={() => openOrder(o)} onAdvance={actions.advance} onFoodReady={actions.foodReady} onReject={actions.requestReject} />
         );
         const onBoard = !unpaid && s.filter === 'active';
+        const waitingNew = (active.placed || 0) + bulkWait.length;
+        const kpi = (label, value, icon, color) => (
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 12, paddingHorizontal: 14, height: 56, borderRadius: 16, backgroundColor: surface, borderWidth: 1, borderColor: border }}>
+                <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: alpha(color, 0.15), alignItems: 'center', justifyContent: 'center' }}><Ionicons name={icon} size={18} color={color} /></View>
+                <View style={{ marginLeft: 10 }}>
+                    <Text style={{ color: muted, fontSize: 11, fontWeight: '800' }}>{label}</Text>
+                    <Text style={{ color: text, fontSize: 17, fontWeight: '900' }}>{value}</Text>
+                </View>
+            </View>
+        );
+        const shownTotal = data.reduce((n, o) => n + (o.pricing?.total || 0), 0);
         return (
             <OwnerScreen title={tr('Orders')} scroll={false}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, paddingBottom: 14, paddingTop: 4 }}>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }}>
-                        {BOARD_TABS.map(([id, label]) => <DeskTab key={id} label={tr(label)} count={id === 'active' ? activeTotal : countOf(id)} on={!unpaid && s.filter === id} urgent={false} onPress={() => { setUnpaid(false); useOrdersStore.getState().setFilter(id); }} />)}
-                        {debts?.length || unpaid ? <DeskTab label={tr('Unpaid bills')} count={debts?.length || 0} on={unpaid} urgent onPress={() => setUnpaid(true)} /> : null}
+                {/* the top of the page: what needs you right now, today's numbers and the search */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginHorizontal: 24, marginBottom: 14, padding: 16, borderRadius: 22, backgroundColor: alpha(waitingNew ? '#F59E0B' : primary, 0.1), borderWidth: 1, borderColor: alpha(waitingNew ? '#F59E0B' : primary, 0.25) }}>
+                    <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: waitingNew ? '#F59E0B' : primary, alignItems: 'center', justifyContent: 'center' }}>
+                        <Ionicons name={waitingNew ? 'flash' : 'checkmark-done'} size={24} color="#FFFFFF" />
+                    </View>
+                    <View style={{ flex: 1, marginLeft: 14, minWidth: 0 }}>
+                        <Text style={{ color: text, fontSize: 20, fontWeight: '900', letterSpacing: -0.3 }}>{waitingNew ? tr('{n} new order(s) waiting for you', { n: waitingNew }) : tr('All caught up')}</Text>
+                        <Text style={{ color: muted, fontSize: 13, marginTop: 2 }}>{tr('{n} live orders on the board', { n: activeTotal })}</Text>
+                    </View>
+                    {dash ? kpi(tr('Sales today'), money(dash.today?.revenue), 'cash-outline', primary) : null}
+                    {dash ? kpi(tr('Delivered'), String(dash.today?.orders ?? '–'), 'checkmark-done-outline', ok) : null}
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, paddingBottom: 14 }}>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }} contentContainerStyle={{ alignItems: 'center' }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', padding: 4, borderRadius: 25, backgroundColor: alpha(muted, 0.12) }}>
+                            {BOARD_TABS.map(([id, label, icon]) => <DeskTab key={id} label={tr(label)} icon={icon} count={id === 'active' ? activeTotal : countOf(id)} on={!unpaid && s.filter === id} urgent={id === 'placed'} onPress={() => { setUnpaid(false); useOrdersStore.getState().setFilter(id); }} />)}
+                            {debts?.length || unpaid ? <DeskTab label={tr('Unpaid bills')} icon="alert-circle" count={debts?.length || 0} on={unpaid} urgent onPress={() => setUnpaid(true)} /> : null}
+                        </View>
                     </ScrollView>
-                    <View style={{ width: 280, marginLeft: 12 }}><Field value={typed} onChangeText={onType} placeholder={tr('Find by order number')} maxLength={9} style={{ minHeight: 42 }} /></View>
+                    <View style={{ width: 280, marginLeft: 12 }}><Field value={typed} onChangeText={onType} placeholder={tr('Find by order number')} maxLength={9} style={{ minHeight: 42, borderRadius: 21, paddingHorizontal: 18 }} /></View>
                 </View>
                 {s.error && !s.items.length ? <Empty icon="cloud-offline-outline" title={tr('Could not load the orders')} hint={s.error} /> : null}
                 {onBoard ? (
-                    <ScrollView horizontal style={{ flex: 1 }} contentContainerStyle={{ minWidth: '100%', paddingHorizontal: 16, paddingBottom: 16 }} showsHorizontalScrollIndicator={false}>
-                        {BOARD_COLS.map(([id, label, icon]) => {
+                    <ScrollView horizontal style={{ flex: 1 }} contentContainerStyle={{ minWidth: '100%', height: '100%', paddingHorizontal: 16, paddingBottom: 16 }} showsHorizontalScrollIndicator={false}>
+                        {BOARD_COLS.map(([id, label, icon, color]) => {
                             const list = byCol[id];
                             const bulk = id === 'placed' && !searching ? bulkWait : [];
                             const n = list.length + bulk.length;
                             return (
-                                <View key={id} style={{ flex: 1, minWidth: 290, marginHorizontal: 8, borderRadius: 18, backgroundColor: alpha(id === 'placed' ? '#F59E0B' : '#808080', id === 'placed' ? 0.1 : 0.07), padding: 10 }}>
-                                    <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 6, paddingVertical: 8 }}>
-                                        <Ionicons name={icon} size={18} color={id === 'placed' ? '#F59E0B' : muted} />
-                                        <Text style={{ flex: 1, marginLeft: 8, color: muted, fontWeight: '900', fontSize: 14, letterSpacing: 0.3 }}>{tr(label).toUpperCase()}</Text>
-                                        <View style={{ minWidth: 24, height: 24, borderRadius: 12, paddingHorizontal: 7, alignItems: 'center', justifyContent: 'center', backgroundColor: n && id === 'placed' ? '#F59E0B' : alpha('#808080', 0.2) }}><Text style={{ fontWeight: '900', fontSize: 12, color: n && id === 'placed' ? '#FFFFFF' : muted }}>{n}</Text></View>
+                                <View key={id} style={{ flex: 1, minWidth: 300, marginHorizontal: 8, borderRadius: 22, backgroundColor: alpha(color, 0.07), borderWidth: 1, borderColor: alpha(color, 0.2), overflow: 'hidden' }}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 12, backgroundColor: alpha(color, 0.13) }}>
+                                        <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: color, alignItems: 'center', justifyContent: 'center' }}><Ionicons name={icon} size={17} color="#FFFFFF" /></View>
+                                        <Text style={{ flex: 1, marginLeft: 10, color: text, fontWeight: '900', fontSize: 15.5 }}>{tr(label)}</Text>
+                                        <View style={{ minWidth: 28, height: 28, borderRadius: 14, paddingHorizontal: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: n ? color : alpha(muted, 0.2) }}><Text style={{ fontWeight: '900', fontSize: 13, color: n ? '#FFFFFF' : muted }}>{n}</Text></View>
                                     </View>
-                                    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 8 }}>
-                                        {bulk.map((o) => <BulkWaitCard key={o.id} o={o} onOpen={() => nav.navigate('OwnerBulkOrder', { id: String(o.id) })} />)}
+                                    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 12 }}>
+                                        {bulk.map((o) => <View key={o.id} style={{ marginHorizontal: -16 }}><BulkWaitCard o={o} onOpen={() => nav.navigate('OwnerBulkOrder', { id: String(o.id) })} /></View>)}
                                         {list.map(orderCard)}
-                                        {n === 0 && !s.loading ? <Text style={{ color: muted, textAlign: 'center', paddingVertical: 28, fontSize: 13 }}>{tr('Nothing here')}</Text> : null}
+                                        {n === 0 && !s.loading ? <View style={{ alignItems: 'center', paddingVertical: 44 }}><View style={{ width: 54, height: 54, borderRadius: 27, backgroundColor: alpha(color, 0.12), alignItems: 'center', justifyContent: 'center' }}><Ionicons name={`${icon}-outline`} size={26} color={alpha(color, 0.8)} /></View><Text style={{ color: muted, fontSize: 13.5, fontWeight: '700', marginTop: 10 }}>{tr('Nothing here')}</Text></View> : null}
                                     </ScrollView>
                                 </View>
                             );
@@ -217,7 +366,7 @@ export default function OwnerOrdersScreen() {
                         contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}
                         data={unpaid ? (debts || []) : (s.loading ? [] : data)}
                         keyExtractor={(o) => String(o.id)}
-                        ListHeaderComponent={unpaid && debts?.length ? <View style={{ paddingHorizontal: 8, paddingBottom: 12 }}><RemindAll count={debts.length} onDone={loadDebts} /></View> : null}
+                        ListHeaderComponent={unpaid ? (debts?.length ? <View style={{ paddingHorizontal: 8, paddingBottom: 12 }}><RemindAll count={debts.length} onDone={loadDebts} /></View> : null) : (data.length ? <Text style={{ color: muted, fontSize: 13, fontWeight: '800', paddingHorizontal: 8, paddingBottom: 12 }}>{tr('{n} orders', { n: data.length })} · {money(shownTotal)}</Text> : null)}
                         renderItem={({ item }) => <View style={{ width: '33.333%', paddingHorizontal: 8 }}>{unpaid ? <DebtCard d={item} onOpen={() => setOpenDebt(item)} /> : orderCard(item)}</View>}
                         ListEmptyComponent={s.loading && !unpaid ? <Skeleton /> : <Empty icon={unpaid ? 'checkmark-circle-outline' : 'receipt-outline'} title={unpaid ? tr('No unpaid bills') : searching ? tr('No order with that number') : tr('Nothing here')} hint={unpaid ? tr('Customers who leave a table without paying will show here.') : tr('Orders in this stage will show here.')} />}
                         ListFooterComponent={s.loadingMore ? <ListShimmer count={1} /> : <View style={{ height: 24 }} />}

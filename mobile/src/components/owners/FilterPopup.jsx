@@ -7,6 +7,7 @@ import { Modal, View, Text, Pressable, ScrollView, StyleSheet } from 'react-nati
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBrand, alpha } from '../common/kit';
+import { useIsDesktopWeb } from '../../utils/common/layout';
 import { tr } from '../../i18n';
 
 export function FunnelButton({ count = 0, onPress, style }) {
@@ -28,7 +29,7 @@ function Chip({ on, label, onPress }) {
     const { primary, text, border } = useBrand();
     return (
         <Pressable onPress={onPress} accessibilityRole="button" accessibilityState={{ selected: on }}
-            style={{ marginRight: 8, marginBottom: 8, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 18, borderWidth: 1.5, borderColor: on ? primary : border, backgroundColor: on ? alpha(primary, 0.14) : 'transparent' }}>
+            style={({ hovered }) => ({ cursor: 'pointer', marginRight: 8, marginBottom: 8, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 18, borderWidth: 1.5, borderColor: on ? primary : border, backgroundColor: on ? alpha(primary, 0.14) : 'transparent', ...(hovered && !on ? { backgroundColor: alpha(primary, 0.07), borderColor: alpha(primary, 0.5) } : null) })}>
             <Text style={{ color: on ? primary : text, fontSize: 12.5, fontWeight: '700', textAlign: 'center' }}>{tr(label)}</Text>
         </Pressable>
     );
@@ -37,11 +38,12 @@ function Chip({ on, label, onPress }) {
 export function FilterPopup({ visible, onClose, title, sections, onClear, activeCount = 0 }) {
     const { primary, onPrimary, text, background, border, surface, radius } = useBrand();
     const insets = useSafeAreaInsets();
+    const desk = useIsDesktopWeb();   // a computer: a centred dialog, not a card as wide as the window (false on the phone)
     return (
         <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
-            <View style={{ flex: 1, justifyContent: 'center', padding: 18, paddingTop: insets.top + 18, paddingBottom: insets.bottom + 18 }}>
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: desk ? 'center' : undefined, padding: 18, paddingTop: insets.top + 18, paddingBottom: insets.bottom + 18 }}>
                 <Pressable style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.5)' }]} onPress={onClose} />
-                <View style={{ backgroundColor: background, borderRadius: 22, padding: 18, maxHeight: '86%', elevation: 10 }}>
+                <View style={{ backgroundColor: background, borderRadius: 22, padding: desk ? 26 : 18, maxHeight: '86%', elevation: 10, ...(desk ? { width: '100%', maxWidth: 580, boxShadow: '0 24px 70px rgba(0,0,0,0.35)' } : null) }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
                         <Text style={{ color: text, fontSize: 19, fontWeight: '900', letterSpacing: -0.3 }}>{title || tr('Filters')}</Text>
                         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -61,7 +63,7 @@ export function FilterPopup({ visible, onClose, title, sections, onClear, active
                             </View>
                         ))}
                     </ScrollView>
-                    <Pressable onPress={onClose} accessibilityRole="button" style={{ marginTop: 14, paddingVertical: 14, alignItems: 'center', borderRadius: radius ?? 14, backgroundColor: primary }}>
+                    <Pressable onPress={onClose} accessibilityRole="button" style={({ hovered }) => ({ marginTop: 14, paddingVertical: 14, alignItems: 'center', borderRadius: radius ?? 14, backgroundColor: primary, cursor: 'pointer', opacity: hovered ? 0.9 : 1 })}>
                         <Text style={{ color: onPrimary, fontSize: 15, fontWeight: '900' }}>{tr('Show results')}</Text>
                     </Pressable>
                 </View>

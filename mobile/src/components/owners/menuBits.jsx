@@ -140,14 +140,22 @@ export function ChoiceBox({ label, hint, error, options, value, onChange, last }
 
 // a titled group of fields on one card
 // flash: this group is what the person still has to fill in: a red frame and a line saying so. onLayout: lets the page slide to it.
-export function Group({ title, hint, children, flush, flash, flashText, onLayout }) {
-    const { text, muted, error } = useBrand();
+export function Group({ title, hint, children, flush, flash, flashText, onLayout, icon }) {
+    const { text, muted, error, primary } = useBrand();
+    const deskOwner = useOwnerDesktop();   // the owner on a computer: an icon beside the title and a rounder, roomier card
     return (
         <View style={{ marginBottom: 4 }} onLayout={onLayout}>
+            {deskOwner && icon ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, marginTop: 10, marginBottom: hint || flash ? 4 : 12 }}>
+                    <View style={{ width: 34, height: 34, borderRadius: 11, backgroundColor: flash ? error : primary, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}><Ionicons name={icon} size={18} color="#FFFFFF" /></View>
+                    <Text style={{ color: flash ? error : text, fontSize: 18, fontWeight: '900', letterSpacing: -0.3, flex: 1 }}>{title}</Text>
+                </View>
+            ) : (
             <Text style={{ color: flash ? error : text, fontSize: 16, fontWeight: '900', paddingHorizontal: 16, marginTop: 6, marginBottom: hint || flash ? 2 : 10 }}>{title}</Text>
+            )}
             {flash ? <Text style={{ color: error, fontSize: 12.5, fontWeight: '800', paddingHorizontal: 16, marginBottom: 10 }}>{flashText || title}</Text> : null}
             {hint ? <Text style={{ color: muted, fontSize: 12, paddingHorizontal: 16, marginBottom: 10 }}>{hint}</Text> : null}
-            <Card style={[flush ? { paddingVertical: 2 } : null, flash ? { borderWidth: 2, borderColor: error } : null]}>{children}</Card>
+            <Card style={[flush ? { paddingVertical: 2 } : null, flash ? { borderWidth: 2, borderColor: error } : null, deskOwner ? { borderRadius: 22, padding: flush ? 8 : 20 } : null]}>{children}</Card>
         </View>
     );
 }

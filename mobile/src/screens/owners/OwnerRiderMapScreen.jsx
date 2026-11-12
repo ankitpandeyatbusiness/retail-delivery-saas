@@ -6,12 +6,14 @@
 //   - tap a rider or a customer: a card with his details (call, order, time left or late, the customer's address, what to collect)
 // Everything comes from one call (GET /shop/live-map) every 10 seconds while the screen is open.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, Platform, Pressable, StyleSheet } from 'react-native';
+import { View, Text, Platform, Pressable, StyleSheet, ScrollView } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { useNavigation } from '@react-navigation/native';
 import { useFocusEffect } from '../../hooks/common/useLiveFocus';
 import { Ionicons } from '@expo/vector-icons';
-import { useBrand } from '../../components/common/kit';
+import { useBrand, alpha } from '../../components/common/kit';
+import { useOwnerDesktop } from '../../utils/common/layout';
+import { Avatar } from './OwnerRidersScreen';
 import { PageHeader, Button, money } from '../../components/owners/ui';
 import { callPhone } from '../../components/owners/orderBits';
 import RiderTrack from '../../components/common/RiderTrack';
@@ -120,8 +122,65 @@ function Details({ kind, rider, trip, colour, now, onClose, onOrder }) {
     );
 }
 
+/* ------------------------------ the list beside the map (computer) ------------------------------ */
+// The riders and the deliveries as a list: tap one and the map goes to it and its card opens.
+function MapPanel({ riders, trips, sel, onRider, onTrip, colourOf, onDelivery, late, noSignal }) {
+    const { text, muted, surface, border, error, ok, primary } = useBrand();
+    const mini = (label, value, color) => (
+        <View style={{ flex: 1, alignItems: 'center', paddingVertical: 10, marginHorizontal: 4, borderRadius: 14, backgroundColor: alpha(color, 0.1) }}>
+            <Text style={{ color, fontWeight: '900', fontSize: 22 }}>{value}</Text>
+            <Text style={{ color: muted, fontSize: 11.5, fontWeight: '800' }}>{label}</Text>
+        </View>
+    );
+    const row = (on, onPress, key, children) => (
+        <Pressable key={key} onPress={onPress} style={({ hovered }) => ({ flexDirection: 'row', alignItems: 'center', padding: 10, marginBottom: 6, borderRadius: 16, borderWidth: 1.5, borderColor: on ? primary : 'transparent', backgroundColor: on ? alpha(primary, 0.08) : hovered ? alpha(primary, 0.05) : 'transparent', cursor: 'pointer' })}>{children}</Pressable>
+    );
+    return (
+        <View style={{ width: 360, backgroundColor: surface, borderRightWidth: 1, borderRightColor: border }}>
+            <View style={{ flexDirection: 'row', padding: 14, paddingBottom: 6 }}>
+                {mini(tr('On delivery'), onDelivery, primary)}
+                {mini(tr('Late'), late, late ? error : muted)}
+                {mini(tr('No signal'), noSignal, noSignal ? error : muted)}
+            </View>
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 14, paddingTop: 8 }}>
+                <Text style={{ color: muted, fontSize: 12, fontWeight: '900', letterSpacing: 0.5, marginBottom: 8 }}>{tr('Riders').toUpperCase()} · {riders.length}</Text>
+                {!riders.length ? <Text style={{ color: muted, fontSize: 13, paddingVertical: 10 }}>{tr('No rider is online')}</Text> : null}
+                {riders.map((r) => {
+                    const t = trips.find((x) => x.riderId === r.riderId);
+                    return row(sel?.kind === 'rider' && sel.id === r.riderId, () => onRider(r.riderId), r.riderId, (
+                        <>
+                            <View>
+                                <Avatar rider={{ name: r.name }} size={42} />
+                                <View style={{ position: 'absolute', right: -1, bottom: -1, width: 13, height: 13, borderRadius: 7, backgroundColor: r.quiet ? error : t ? primary : ok, borderWidth: 2.5, borderColor: surface }} />
+                            </View>
+                            <View style={{ flex: 1, minWidth: 0, marginLeft: 12 }}>
+                                <Text style={{ color: text, fontWeight: '900', fontSize: 14.5 }} numberOfLines={1}>{r.name || tr('Rider')}</Text>
+                                <Text style={{ color: r.quiet ? error : muted, fontSize: 12, marginTop: 1 }} numberOfLines={1}>{r.quiet ? tr('No signal') : t ? tr('On delivery · order #{orderNo}', { orderNo: t.orderNo }) : tr('Online, free')}</Text>
+                            </View>
+                            <Ionicons name="locate-outline" size={18} color={muted} />
+                        </>
+                    ));
+                })}
+                <Text style={{ color: muted, fontSize: 12, fontWeight: '900', letterSpacing: 0.5, marginTop: 14, marginBottom: 8 }}>{tr('Deliveries').toUpperCase()} · {trips.length}</Text>
+                {!trips.length ? <Text style={{ color: muted, fontSize: 13, paddingVertical: 10 }}>{tr('No delivery on the road right now.')}</Text> : null}
+                {trips.map((t) => row(sel?.kind === 'customer' && sel.id === t.orderId, () => onTrip(t.orderId), t.orderId, (
+                    <>
+                        <View style={{ width: 14, height: 14, borderRadius: 7, backgroundColor: colourOf(t.orderId), marginHorizontal: 14 }} />
+                        <View style={{ flex: 1, minWidth: 0 }}>
+                            <Text style={{ color: text, fontWeight: '900', fontSize: 14.5 }} numberOfLines={1}>#{t.orderNo} · {t.customer?.name || tr('Customer')}</Text>
+                            <Text style={{ color: muted, fontSize: 12, marginTop: 1 }} numberOfLines={1}>{t.riderName || tr('assigned')}{t.address?.area ? ` → ${t.address.area}` : ''}</Text>
+                        </View>
+                        {t.late ? <View style={{ paddingHorizontal: 8, height: 22, borderRadius: 11, backgroundColor: alpha(error, 0.14), justifyContent: 'center' }}><Text style={{ color: error, fontSize: 11, fontWeight: '900' }}>{tr('LATE')}</Text></View> : null}
+                    </>
+                )))}
+            </ScrollView>
+        </View>
+    );
+}
+
 /* ------------------------------ the screen ------------------------------ */
 export default function OwnerRiderMapScreen() {
+    const desk = useOwnerDesktop();
     const { background, text, muted, surface, border, error, primary } = useBrand();
     const mapStyle = useMapStyle();
     const nav = useNavigation();
@@ -197,6 +256,8 @@ export default function OwnerRiderMapScreen() {
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
             <PageHeader title={tr('Live map')} />
+            <View style={{ flex: 1, flexDirection: 'row' }}>
+            {desk ? <MapPanel riders={riders} trips={tripsOrdered} sel={sel} onRider={pickRider} onTrip={pickCustomer} colourOf={colourOf} onDelivery={onDelivery} late={lateCount} noSignal={noSignal} /> : null}
             <View style={{ flex: 1 }}>
                 <MapView
                     ref={map}
@@ -254,6 +315,7 @@ export default function OwnerRiderMapScreen() {
                             onClose={() => setSel(null)} onOrder={(id) => nav.navigate('OwnerOrder', { id: String(id) })} />
                     ) : null}
                 </View>
+            </View>
             </View>
         </View>
     );

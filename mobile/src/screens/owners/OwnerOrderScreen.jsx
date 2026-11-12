@@ -23,8 +23,15 @@ import { FormShimmer } from '../../components/owners/shimmer';
 import RiderLiveMap from '../../components/owners/RiderLiveMap';
 import TripClock from '../../components/riders/TripClock';
 import { Avatar } from './OwnerRidersScreen';
+import { useOwnerDesktop } from '../../utils/common/layout';
 import { tr } from '../../i18n';
 import { trNote } from '../../utils/common/noteText';
+
+// On a computer (owner) the page is a centred frame with two columns: the order (items, bill, history) and the people (customer, rider, review).
+// On the phone these wrappers draw nothing of their own, so the phone page is as it was.
+const Frame = ({ desk, children }) => (desk ? <View style={{ width: '100%', maxWidth: 1200, alignSelf: 'center' }}>{children}</View> : <>{children}</>);
+const TwoCol = ({ desk, children }) => (desk ? <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>{children}</View> : <>{children}</>);
+const Col = ({ desk, grow, children }) => (desk ? <View style={{ flex: grow, minWidth: 0 }}>{children}</View> : <>{children}</>);
 
 // Everything that happened to the order, newest first: every step, and the kitchen's and the delivery partner's own moments
 function timeline(o) {
@@ -70,6 +77,7 @@ function riderStatusText(delivery, rider) {
 
 export default function OwnerOrderScreen() {
     const { id } = useRoute().params || {};
+    const desk = useOwnerDesktop();
     const { background, text, muted, error, ok, accent, primary } = useBrand();
     const nav = useNavigation();
     const tones = useToneColors();
@@ -160,6 +168,7 @@ export default function OwnerOrderScreen() {
                 showsVerticalScrollIndicator={false}
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={pull} />}
             >
+                <Frame desk={desk}>
                 {order.bulkId ? (
                     <Card tone={primary} style={{ marginTop: 6 }} onPress={() => nav.navigate('OwnerBulkOrder', { id: String(order.bulkId) })}>
                         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -194,6 +203,8 @@ export default function OwnerOrderScreen() {
                 </View>
                 <Text style={{ color: muted, fontSize: 12, paddingHorizontal: 16, marginBottom: 8 }}>{tr('Placed {v1} · {v2}', { v1: flow.dayTime(order.createdAt), v2: flow.ago(order.createdAt, now) })}</Text>
 
+                <TwoCol desk={desk}>
+                <Col desk={desk} grow={3}>
                 <SectionTitle title={tr('Items ({v1})', { v1: flow.itemCount(order) })} />
                 <Card>
                     {(order.items || []).map((l, i) => (
@@ -236,6 +247,8 @@ export default function OwnerOrderScreen() {
                     <Text style={{ color: muted, fontSize: 12, marginTop: 4 }}>{flow.paymentLabel(order)}</Text>
                 </Card>
 
+                </Col>
+                <Col desk={desk} grow={2}>
                 <SectionTitle title={tr('Customer')} />
                 <Card>
                     <Text style={{ color: text, fontWeight: '900', fontSize: 16 }}>{order.customer?.name || tr('Customer')}</Text>
@@ -399,6 +412,8 @@ export default function OwnerOrderScreen() {
                         </Card>
                     </>
                 ) : null}
+                </Col>
+                </TwoCol>
                 <PhotoViewer uri={viewing} onClose={() => setViewing(null)} />
 
                 {order.status === 'delivered' ? (
@@ -417,11 +432,12 @@ export default function OwnerOrderScreen() {
                         <Text style={{ color: muted, fontSize: 12 }}>{tr('The rider reported a problem. You can mark this order as not delivered in {v1} (15 minutes after the first problem).', { v1: flow.mmss(undeliveredWait) })}</Text>
                     </Card>
                 ) : null}
+                </Frame>
             </ScrollView>
 
             {/* the buttons that move the order on: always in reach */}
             {next ? (
-                <View onLayout={(e) => setDockH(Math.ceil(e.nativeEvent.layout.height))} style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: 16, paddingBottom: 24, backgroundColor: background, borderTopWidth: 1, borderTopColor: alpha(muted, 0.25) }}>
+                <View onLayout={(e) => setDockH(Math.ceil(e.nativeEvent.layout.height))} style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: 16, paddingBottom: 24, backgroundColor: background, borderTopWidth: 1, borderTopColor: alpha(muted, 0.25), ...(desk ? { maxWidth: 1200, marginHorizontal: 'auto' } : null) }}>
                     {order.orderType === 'delivery' && order.status === 'preparing' && order.foodReady === false ? (
                         <>
                             <Text style={{ color: warn, fontWeight: '800', fontSize: 13, marginBottom: 8, textAlign: 'center' }}>{tr('The food is not ready yet. It cannot go out until it is.')}</Text>

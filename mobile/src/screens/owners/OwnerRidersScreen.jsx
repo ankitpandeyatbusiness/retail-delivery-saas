@@ -19,6 +19,8 @@ import { Image } from 'expo-image';
 import { LeavePanel } from '../../components/owners/RiderLeave';
 import { RiderBadge, BADGES } from '../../components/common/RiderBadge';
 import { useMenuFlags } from '../../utils/owners/menuFlags';
+import { useOwnerDesktop } from '../../utils/common/layout';
+import { Frame, Hero, HeroBtn, GlassStat, Tile, StatusDot } from '../../components/owners/RiderDesk';
 import { tr } from '../../i18n';
 
 export function Avatar({ rider, size = 44 }) {
@@ -43,6 +45,49 @@ function Quick({ icon, label, onPress }) {
 }
 const StyleSheetHair = 0.8;
 
+// one rider as a card on a computer: the round picture with his status colour, name and number, what he is doing, and three numbers
+function RiderTile({ r, cashPaise, locked, onOpen, onToggle }) {
+    const { text, muted, surface, border, ok, error, warn, primary } = useBrand();
+    const tone = !r.isActive ? muted : r.isOnline ? ok : warn;
+    const word = !r.isActive ? tr('Switched off') : r.isOnline ? tr('Online') : tr('Offline');
+    const num = (label, value, color) => (
+        <View style={{ flex: 1, alignItems: 'center' }}>
+            <Text style={{ color: color || text, fontWeight: '900', fontSize: 18 }} numberOfLines={1}>{value}</Text>
+            <Text style={{ color: muted, fontSize: 11.5, fontWeight: '700', marginTop: 1 }} numberOfLines={1}>{label}</Text>
+        </View>
+    );
+    return (
+        <View style={{ padding: 8 }}>
+            <Pressable onPress={onOpen} style={({ hovered }) => ({ borderRadius: 24, borderWidth: 1, borderColor: hovered ? primary : border, backgroundColor: hovered ? alpha(primary, 0.05) : surface, padding: 18, opacity: r.isActive ? 1 : 0.7, cursor: 'pointer', boxShadow: hovered ? `inset 0 0 0 1.5px ${primary}` : 'inset 0 0 0 0 transparent', transitionProperty: 'background-color, box-shadow', transitionDuration: '140ms' })}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <View>
+                        <Avatar rider={r} size={62} />
+                        <View style={{ position: 'absolute', right: 0, bottom: 0, width: 16, height: 16, borderRadius: 8, backgroundColor: tone, borderWidth: 3, borderColor: surface }} />
+                    </View>
+                    <View style={{ flex: 1, minWidth: 0, marginLeft: 14 }}>
+                        <Text style={{ color: text, fontWeight: '900', fontSize: 17 }} numberOfLines={1}>{riderName(r)}</Text>
+                        <Text style={{ color: muted, fontSize: 13, marginTop: 2 }}>{r.phone || ''}</Text>
+                    </View>
+                    <Toggle value={r.isActive} onValueChange={onToggle} disabled={locked} />
+                </View>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 14 }}>
+                    <View style={{ marginRight: 6, marginBottom: 6 }}><StatusDot color={tone} label={word} /></View>
+                    {r.activeOrderCount > 0 ? <View style={{ marginRight: 6, marginBottom: 6 }}><Pill label={tr('{activeOrderCount} on delivery', { activeOrderCount: r.activeOrderCount })} color={primary} icon="navigate" /></View> : null}
+                    {r.ratingCount ? <View style={{ marginRight: 6, marginBottom: 6 }}><Pill label={`★ ${Number(r.ratingAvg).toFixed(1)}`} color="#D97706" /></View> : null}
+                    {r.leave?.onLeaveToday ? <View style={{ marginRight: 6, marginBottom: 6 }}><Pill label={tr('On leave today')} color={warn} /></View> : null}
+                    {r.leave?.pending > 0 ? <View style={{ marginRight: 6, marginBottom: 6 }}><Pill label={tr('Leave request')} color={warn} /></View> : null}
+                    {r.standing ? <View style={{ marginBottom: 6 }}><RiderBadge badge={r.standing.badge} /></View> : null}
+                </View>
+                <View style={{ flexDirection: 'row', marginTop: 8, paddingTop: 14, borderTopWidth: 1, borderTopColor: alpha(muted, 0.2) }}>
+                    {num(tr('Deliveries'), String(r.deliveryCount || 0))}
+                    {num(tr('Avg time'), r.avgDeliveryMin ? `${r.avgDeliveryMin}m` : '–')}
+                    {num(tr('Cash held'), rupees(cashPaise), cashPaise > 0 ? error : undefined)}
+                </View>
+            </Pressable>
+        </View>
+    );
+}
+
 function AddSheet({ visible, onClose }) {
     const { muted, error } = useBrand();
     // the plan's number of riders (Partner 2): at the limit the sheet says so and does not add
@@ -63,8 +108,24 @@ function AddSheet({ visible, onClose }) {
             useRidersStore.getState().load({ quiet: true });
         } catch (e) { useOwnerStore.getState().noteError(e); showToast(apiError(e)); } finally { setBusy(false); }
     };
+    const desk = useOwnerDesktop();
+    const { primary, text, border } = useBrand();
     return (
         <Sheet visible={visible} onClose={onClose} title={tr('Add a rider')}>
+            {desk ? (
+                <View style={{ alignItems: 'center', marginBottom: 16 }}>
+                    <View style={{ width: 76, height: 76, borderRadius: 38, backgroundColor: alpha(primary, 0.14), alignItems: 'center', justifyContent: 'center' }}><Ionicons name="bicycle" size={38} color={primary} /></View>
+                    <Text style={{ color: text, fontSize: 18, fontWeight: '900', marginTop: 10 }}>{tr('Welcome a new rider')}</Text>
+                    <View style={{ flexDirection: 'row', marginTop: 12 }}>
+                        {[['call-outline', tr('Enter his number')], ['log-in-outline', tr('He logs in with it')], ['bicycle-outline', tr('He sees his deliveries')]].map(([ic, t2], i) => (
+                            <View key={i} style={{ alignItems: 'center', width: 118, paddingHorizontal: 4 }}>
+                                <View style={{ width: 38, height: 38, borderRadius: 19, borderWidth: 1.5, borderColor: border, alignItems: 'center', justifyContent: 'center' }}><Ionicons name={ic} size={18} color={primary} /></View>
+                                <Text style={{ color: muted, fontSize: 11.5, fontWeight: '700', textAlign: 'center', marginTop: 6 }}>{t2}</Text>
+                            </View>
+                        ))}
+                    </View>
+                </View>
+            ) : null}
             <Text style={{ color: muted, marginBottom: 10 }}>{tr('The rider logs in to this app with his phone number and sees his deliveries.')}</Text>
             <Field value={phone} onChangeText={(x) => setPhone(x.replace(/\D/g, '').slice(0, 10))} placeholder={tr('Mobile number (10 digits)')} maxLength={10} keyboardType="number-pad" style={{ marginBottom: 10 }} />
             <Field value={name} onChangeText={setName} placeholder={tr('Name (optional)')} maxLength={40} style={{ marginBottom: 14 }} />
@@ -75,6 +136,7 @@ function AddSheet({ visible, onClose }) {
 }
 
 export default function OwnerRidersScreen() {
+    const desk = useOwnerDesktop();   // a computer: the riders in two columns
     const nav = useNavigation();
     useFocusEffect(useCallback(() => { setRiderAttention(false); }, []));   // he is looking at the riders now: the dot on the menu goes
     const { primary, muted, text, ok, error, warn } = useBrand();
@@ -101,6 +163,7 @@ export default function OwnerRidersScreen() {
     return (
         <OwnerScreen
             page
+            wide
             title={tr('Riders')}
             onRefresh={() => useRidersStore.getState().load({ quiet: true })}
             refreshing={s.refreshing}
@@ -109,19 +172,37 @@ export default function OwnerRidersScreen() {
             {s.error && !s.riders.length ? <Empty icon="cloud-offline-outline" title={tr('Could not load')} hint={s.error} /> : null}
 
             {!s.loading && !(s.error && !s.riders.length) ? (
-                <>
-                    <Card>
+                <Frame desk={desk}>
+                    {desk ? (
+                        <>
+                            <Hero icon="bicycle" title={tr('Your delivery team')} subtitle={s.riders.length ? tr('{online} online · {total} riders', { online, total: s.riders.length }) : tr('Add your first rider to start delivering')}
+                                right={<>
+                                    <HeroBtn label={tr('Live map')} icon="map-outline" onPress={() => nav.navigate('OwnerRiderMap')} />
+                                    {!easy ? <HeroBtn label={tr('Performance')} icon="stats-chart-outline" onPress={() => nav.navigate('OwnerPerformance')} /> : null}
+                                    {!easy ? <HeroBtn label={tr('Rules')} icon="options-outline" onPress={() => nav.navigate('OwnerRiderRules')} /> : null}
+                                    <HeroBtn label={tr('Add a rider')} icon="person-add" solid onPress={() => setAdding(true)} />
+                                </>}>
+                                <View style={{ flexDirection: 'row', marginTop: 20 }}>
+                                    <GlassStat label={tr('Online now')} value={String(online)} icon="radio-button-on" />
+                                    <GlassStat label={tr('On delivery')} value={String(s.riders.filter((x) => x.activeOrderCount > 0).length)} icon="navigate-outline" />
+                                    <GlassStat label={tr('Cash with riders')} value={rupees(s.totalOwedPaise)} icon="cash-outline" />
+                                    <GlassStat label={tr('All riders')} value={String(s.riders.length)} icon="people-outline" />
+                                </View>
+                            </Hero>
+                        </>
+                    ) : null}
+                    {desk ? null : <Card>
                         <View style={{ flexDirection: 'row' }}>
                             <Stat label={tr('Online now')} value={`${online} of ${s.riders.filter((r) => r.isActive).length}`} color={online ? ok : text} />
                             <Stat label={tr('Cash with riders')} value={rupees(s.totalOwedPaise)} color={s.totalOwedPaise > 0 ? error : text} hint={s.totalOwedPaise > 0 ? tr('to collect') : tr('all settled')} />
                         </View>
-                    </Card>
+                    </Card>}
 
-                    <View style={{ flexDirection: 'row', paddingHorizontal: 12, marginBottom: 14 }}>
+                    {desk ? null : <View style={{ flexDirection: 'row', paddingHorizontal: 12, marginBottom: 14 }}>
                         <Quick icon="map" label={tr('Live map')} onPress={() => nav.navigate('OwnerRiderMap')} />
                         {!easy ? <Quick icon="stats-chart" label={tr('Performance')} onPress={() => nav.navigate('OwnerPerformance')} /> : null}
                         {!easy ? <Quick icon="options" label={tr('Rules')} onPress={() => nav.navigate('OwnerRiderRules')} /> : null}
-                    </View>
+                    </View>}
 
                     {owing.length ? (
                         <>
@@ -159,8 +240,10 @@ export default function OwnerRidersScreen() {
 
                     <SectionTitle title={tr('Your riders ({length})', { length: s.riders.length })} />
                     {!s.riders.length ? <Empty icon="bicycle" title={tr('No riders yet')} hint={tr('Add a rider with his mobile number. He logs in to this app and gets delivery requests.')} /> : null}
-                    {s.riders.map((r) => (
-                        <Card key={r.userId} onPress={() => nav.navigate('OwnerRider', { userId: String(r.userId) })} style={{ opacity: r.isActive ? 1 : 0.6 }}>
+                    <View style={desk ? { flexDirection: 'row', flexWrap: 'wrap' } : undefined}>
+                    {s.riders.map((r) => (desk ? <View key={r.userId} style={{ width: '33.333%' }}><RiderTile r={r} cashPaise={s.cash[String(r.userId)]?.balancePaise || 0} locked={access !== 'ok' && access !== 'paused'} onOpen={() => nav.navigate('OwnerRider', { userId: String(r.userId) })} onToggle={(on) => toggle(r, on)} /></View> : (
+                        <View key={r.userId}>
+                        <Card onPress={() => nav.navigate('OwnerRider', { userId: String(r.userId) })} style={{ opacity: r.isActive ? 1 : 0.6 }}>
                             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                                 <Avatar rider={r} />
                                 <View style={{ flex: 1, minWidth: 0, marginLeft: 12 }}>
@@ -177,11 +260,13 @@ export default function OwnerRidersScreen() {
                                 <Toggle value={r.isActive} onValueChange={(on) => toggle(r, on)} disabled={access !== 'ok' && access !== 'paused'} />
                             </View>
                         </Card>
-                    ))}
+                        </View>
+                    )))}
+                    </View>
                     <View style={{ paddingHorizontal: 16, marginTop: 4 }}>
                         <Button label={tr('Add a rider')} icon="person-add" onPress={() => setAdding(true)} />
                     </View>
-                </>
+                </Frame>
             ) : null}
             <AddSheet visible={adding} onClose={() => setAdding(false)} />
         </OwnerScreen>

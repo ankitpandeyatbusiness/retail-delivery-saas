@@ -6,6 +6,8 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { useFocusEffect } from '../../hooks/common/useLiveFocus';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand } from '../../components/common/kit';
+import { useOwnerDesktop } from '../../utils/common/layout';
+import { Frame, TwoCol, Col, Hero, HeroBtn, GlassStat, StatusDot } from '../../components/owners/RiderDesk';
 import { PageHeader, Card, Pill, Button, Row, Sheet, Field, Chips, SectionTitle, Empty } from '../../components/owners/ui';
 import { Toggle } from '../../components/owners/menuBits';
 import { callPhone, whatsApp } from '../../components/owners/orderBits';
@@ -77,6 +79,7 @@ function PaymentSheet({ visible, plan, onClose, onSubmit, busy }) {
 }
 
 export default function OwnerRiderScreen() {
+    const desk = useOwnerDesktop();   // a computer: a banner with his numbers, then two columns
     const nav = useNavigation();
     const { userId } = useRoute().params || {};
     const { background, text, muted, error, ok, primary } = useBrand();
@@ -92,6 +95,7 @@ export default function OwnerRiderScreen() {
     const [rows, setRows] = useState(null);
     const [more, setMore] = useState(false);
     const [page, setPage] = useState(1);
+    const [shown, setShown] = useState(6);   // a computer: the cash history opens with the first 6 entries, "Show more" adds 6 at a time
 
     const balance = cash?.balancePaise || 0;
 
@@ -169,7 +173,30 @@ export default function OwnerRiderScreen() {
         <View style={{ flex: 1, backgroundColor: background }}>
             <PageHeader title={String(riderName(rider)).replace(/^Rider /, `${tr('Rider')} `)} />
             <ScrollView contentContainerStyle={{ paddingTop: 6, paddingBottom: 32 }}>
-                <Card>
+              <Frame desk={desk}>
+                {desk ? (
+                    <Hero
+                        lead={<View style={{ marginRight: 18, borderRadius: 40, borderWidth: 3, borderColor: 'rgba(255,255,255,0.6)' }}><Avatar rider={rider} size={74} /></View>}
+                        title={riderName(rider)}
+                        subtitle={`${rider.phone || ''}${seen ? `  ·  ${tr('Location last seen {ago}', { ago: ago(seen) })}` : ''}`}
+                        right={<>
+                            <HeroBtn label={tr('Call')} icon="call" onPress={() => callPhone(rider.phone)} />
+                            <HeroBtn label={tr('WhatsApp')} icon="logo-whatsapp" solid onPress={() => whatsApp(rider.phone)} />
+                        </>}
+                    >
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 16 }}>
+                            <View style={{ marginRight: 8 }}><StatusDot color={!rider.isActive ? '#CBD5E1' : rider.isOnline ? '#4ADE80' : '#FCD34D'} label={!rider.isActive ? tr('Switched off') : rider.isOnline ? tr('Online') : tr('Offline')} /></View>
+                            {rider.faultCount > 0 ? <Text style={{ color: '#FEE2E2', fontSize: 13, fontWeight: '800' }}>{tr('Marked at fault in {faultCount} complaint{v2}', { faultCount: rider.faultCount, v2: rider.faultCount === 1 ? '' : 's' })}</Text> : null}
+                        </View>
+                        <View style={{ flexDirection: 'row', marginTop: 16 }}>
+                            <GlassStat label={balance > 0 ? tr('He owes the shop') : tr('Cash to collect')} value={rupees(balance)} icon="cash-outline" />
+                            <GlassStat label={tr('Deliveries')} value={String(rider.deliveryCount || 0)} icon="bicycle" />
+                            <GlassStat label={tr('Rating')} value={rider.ratingCount ? `★ ${Number(rider.ratingAvg).toFixed(1)}` : '–'} icon="star-outline" />
+                            <GlassStat label={tr('Average time')} value={rider.avgDeliveryMin ? `${rider.avgDeliveryMin} min` : '–'} icon="time-outline" />
+                        </View>
+                    </Hero>
+                ) : null}
+                {desk ? null : <Card>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <Avatar rider={rider} size={56} />
                         <View style={{ flex: 1, marginLeft: 14 }}>
@@ -189,8 +216,10 @@ export default function OwnerRiderScreen() {
                         <View style={{ flex: 1, marginRight: 6 }}><Button label={tr('Call')} icon="call" iconOnly kind="ghost" onPress={() => callPhone(rider.phone)} /></View>
                         <View style={{ flex: 1, marginLeft: 6 }}><Button label={tr('WhatsApp')} icon="logo-whatsapp" iconOnly kind="ghost" onPress={() => whatsApp(rider.phone)} /></View>
                     </View>
-                </Card>
+                </Card>}
 
+                <TwoCol desk={desk}>
+                <Col desk={desk}>
                 {rider.activeOrders?.length ? (
                     <>
                         <SectionTitle title={tr('Delivering now')} />
@@ -239,6 +268,8 @@ export default function OwnerRiderScreen() {
 
                 <LeavePanel riderId={userId} monthDays={rider.leave?.monthDays || 0} />
 
+                </Col>
+                <Col desk={desk}>
                 <SectionTitle title={tr('Cash')} />
                 <Card tone={balance > 0 ? error : undefined}>
                     <Text style={{ color: muted, fontWeight: '700', fontSize: 12 }}>{balance > 0 ? tr('He owes the shop') : tr('Nothing to collect')}</Text>
@@ -254,7 +285,7 @@ export default function OwnerRiderScreen() {
                 <Card>
                     {rows === null ? <ListShimmer count={2} rows /> : null}
                     {rows && !rows.length ? <Text style={{ color: muted }}>{tr('No cash entries yet. They appear when he delivers a cash-on-delivery order.')}</Text> : null}
-                    {(rows || []).map((r, i) => {
+                    {(desk ? (rows || []).slice(0, shown) : (rows || [])).map((r, i) => {
                         const [title, sign] = ledgerLine(r);
                         return (
                             <View key={r.id} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderTopWidth: i ? 0.5 : 0, borderTopColor: muted + '55' }}>
@@ -266,7 +297,7 @@ export default function OwnerRiderScreen() {
                             </View>
                         );
                     })}
-                    {more ? <View style={{ marginTop: 8 }}><Button label={tr('Show more')} kind="ghost" onPress={() => loadLedger(page + 1)} /></View> : null}
+                    {desk ? ((rows || []).length > shown || more ? <View style={{ marginTop: 8 }}><Button label={tr('Show more')} kind="ghost" onPress={() => { if ((rows || []).length > shown) setShown((n) => n + 6); else { loadLedger(page + 1); setShown((n) => n + 6); } }} /></View> : null) : (more ? <View style={{ marginTop: 8 }}><Button label={tr('Show more')} kind="ghost" onPress={() => loadLedger(page + 1)} /></View> : null)}
                 </Card>
 
                 <SectionTitle title={tr('Rider')} />
@@ -282,6 +313,9 @@ export default function OwnerRiderScreen() {
                 <View style={{ paddingHorizontal: 16 }}>
                     <Button label={tr('Remove this rider')} icon="trash" kind="danger" onPress={remove} />
                 </View>
+                </Col>
+                </TwoCol>
+              </Frame>
             </ScrollView>
             <Sheet visible={planSheet} onClose={() => setPlanSheet(false)} title={tr('How is he paid?')}>
                 <PayPlanForm value={plan} onChange={setPlan} allowSame sameText={tr('Follows the plan in Delivery rules')} />

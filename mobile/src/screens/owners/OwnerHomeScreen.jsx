@@ -4,19 +4,21 @@ import PlanChip from '../../components/owners/PlanChip';
 import { usePlanHas } from '../../utils/owners/menuFlags';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useMenuFlags } from '../../utils/owners/menuFlags';
-import { View, Text, Pressable } from 'react-native';
+import { View, Text, Pressable, ScrollView } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import GlowBorder from '../../components/common/GlowBorder';
 import { useNavigation } from '@react-navigation/native';
 import { useFocusEffect } from '../../hooks/common/useLiveFocus';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand, alpha } from '../../components/common/kit';
-import { OwnerScreen, Card, SectionTitle, Stat, Row, Button, Pill, money } from '../../components/owners/ui';
+import { OwnerScreen, Card, SectionTitle, Stat, Row, Button, Pill, Sheet, money } from '../../components/owners/ui';
+import { useAuthStore } from '../../store/common/useAuthStore';
 import { Countdown } from '../../components/owners/orderBits';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { useSoundboxStore } from '../../store/owners/useSoundboxStore';
 import { useAlertStore } from '../../store/owners/useAlertStore';
 import { useHomeStore } from '../../store/customers/useHomeStore';
-import { setAcceptingOrders, fetchStaff, apiError, booking as bookingApi, fetchComplaints, updateComplaint } from '../../api/owners/shopApi';
+import { fetchOrders, setAcceptingOrders, fetchStaff, apiError, booking as bookingApi, fetchComplaints, updateComplaint } from '../../api/owners/shopApi';
 import { ask } from '../../components/common/dialog';
 import { COMPLAINT_TYPES } from '../../utils/owners/hubRules';
 import { ago } from '../../utils/owners/riderRules';
@@ -54,21 +56,115 @@ const TwoCol = ({ desk, children }) => (desk ? <View style={{ flexDirection: 'ro
 const Left = ({ desk, children }) => (desk ? <View style={{ flex: 3, minWidth: 0 }}>{children}</View> : <>{children}</>);
 const Right = ({ desk, children }) => (desk ? <View style={{ flex: 2, minWidth: 0 }}>{children}</View> : <>{children}</>);
 
+const PIPE_COLOR = { placed: '#F59E0B', accepted: '#3B82F6', preparing: '#F97316', ready: '#10B981', out_for_delivery: '#8B5CF6' };
+
+// the big numbers. A tile with an onPress opens what is behind it (the delivered or the live orders).
 function KpiRow({ items }) {
     const { surface, border, text, muted } = useBrand();
     return (
-        <View style={{ flexDirection: 'row', marginHorizontal: 8, marginTop: 8, marginBottom: 4 }}>
-            {items.map(([label, value, icon, color, sub]) => (
-                <View key={label} style={{ flex: 1, marginHorizontal: 8, padding: 18, borderRadius: 20, borderWidth: 1, borderColor: border, backgroundColor: surface }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: alpha(color, 0.14), alignItems: 'center', justifyContent: 'center' }}><Ionicons name={icon} size={20} color={color} /></View>
-                        <Text style={{ color: muted, fontWeight: '800', fontSize: 13, marginLeft: 10 }}>{label}</Text>
+        <View style={{ flexDirection: 'row', marginHorizontal: 8, marginTop: 4, marginBottom: 8 }}>
+            {items.map(([label, value, icon, color, sub, onPress]) => (
+                <Pressable key={label} onPress={onPress} disabled={!onPress} style={({ hovered }) => ({ flex: 1, marginHorizontal: 8, borderRadius: 22, borderWidth: 1, borderColor: onPress && hovered ? color : border, backgroundColor: onPress && hovered ? alpha(color, 0.06) : surface, overflow: 'hidden', cursor: onPress ? 'pointer' : 'default', boxShadow: onPress && hovered ? `inset 0 0 0 1.5px ${color}` : 'inset 0 0 0 0 transparent', transitionProperty: 'background-color, box-shadow, border-color', transitionDuration: '140ms' })}>
+                    <View pointerEvents="none" style={{ position: 'absolute', right: -26, top: -26, width: 110, height: 110, borderRadius: 55, backgroundColor: alpha(color, 0.1) }} />
+                    <View style={{ padding: 18 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <View style={{ width: 42, height: 42, borderRadius: 14, backgroundColor: color, alignItems: 'center', justifyContent: 'center' }}><Ionicons name={icon} size={22} color="#FFFFFF" /></View>
+                            <Text style={{ flex: 1, color: muted, fontWeight: '800', fontSize: 13.5, marginLeft: 12 }}>{label}</Text>
+                            {onPress ? <Ionicons name="arrow-forward-circle" size={20} color={alpha(color, 0.8)} /> : null}
+                        </View>
+                        <Text style={{ color: text, fontWeight: '900', fontSize: 34, letterSpacing: -0.8, marginTop: 14 }}>{value}</Text>
+                        {sub ? <View style={{ marginTop: 6, alignSelf: 'flex-start' }}>{sub}</View> : <View style={{ height: 26 }} />}
                     </View>
-                    <Text style={{ color: text, fontWeight: '900', fontSize: 30, marginTop: 12 }}>{value}</Text>
-                    {sub ? <View style={{ marginTop: 4 }}>{sub}</View> : <View style={{ height: 22 }} />}
-                </View>
+                </Pressable>
             ))}
         </View>
+    );
+}
+
+// the welcome at the top: the shop's gradient, a greeting, whether orders are coming in, and the four things an owner opens most
+function DeskHero({ name, who, taking, waiting, onGo }) {
+    const { primary, primaryDark, onPrimary } = useBrand();
+    const hour = new Date().getHours();
+    const hello = hour < 12 ? tr('Good morning') : hour < 17 ? tr('Good afternoon') : tr('Good evening');
+    const date = new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
+    const act = (label, icon, key) => (
+        <Pressable key={key} onPress={() => onGo(key)} style={({ hovered }) => ({ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, height: 44, borderRadius: 22, marginLeft: 10, backgroundColor: hovered ? 'rgba(255,255,255,0.32)' : 'rgba(255,255,255,0.2)', cursor: 'pointer', transitionProperty: 'background-color', transitionDuration: '140ms' })}>
+            <Ionicons name={icon} size={18} color={onPrimary} />
+            <Text style={{ color: onPrimary, fontWeight: '800', fontSize: 14, marginLeft: 8 }}>{label}</Text>
+        </Pressable>
+    );
+    return (
+        <LinearGradient colors={[primary, primaryDark || primary]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ marginHorizontal: 16, marginTop: 8, marginBottom: 12, borderRadius: 28, overflow: 'hidden', padding: 26 }}>
+            <View pointerEvents="none" style={{ position: 'absolute', right: -50, top: -70, width: 260, height: 260, borderRadius: 130, backgroundColor: 'rgba(255,255,255,0.1)' }} />
+            <View pointerEvents="none" style={{ position: 'absolute', right: 220, bottom: -90, width: 190, height: 190, borderRadius: 95, backgroundColor: 'rgba(255,255,255,0.07)' }} />
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={{ color: onPrimary, opacity: 0.85, fontSize: 13.5, fontWeight: '700' }}>{date}</Text>
+                    <Text style={{ color: onPrimary, fontSize: 30, fontWeight: '900', letterSpacing: -0.6, marginTop: 4 }} numberOfLines={1}>{hello}{who ? `, ${who}` : ''} 👋</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, height: 30, borderRadius: 15, backgroundColor: 'rgba(255,255,255,0.2)' }}>
+                            <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: taking ? '#4ADE80' : '#FCA5A5', marginRight: 8 }} />
+                            <Text style={{ color: onPrimary, fontWeight: '800', fontSize: 13 }}>{taking ? tr('{name} is taking orders', { name }) : tr('Orders are paused')}</Text>
+                        </View>
+                        {waiting > 0 ? (
+                            <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, height: 30, borderRadius: 15, backgroundColor: '#F59E0B', marginLeft: 10 }}>
+                                <Ionicons name="flash" size={14} color="#FFFFFF" />
+                                <Text style={{ color: '#FFFFFF', fontWeight: '900', fontSize: 13, marginLeft: 5 }}>{tr('{n} new order(s) waiting', { n: waiting })}</Text>
+                            </View>
+                        ) : null}
+                    </View>
+                </View>
+                {act(tr('Orders'), 'receipt-outline', 'orders')}
+                {act(tr('Add item'), 'add-circle-outline', 'item')}
+                {act(tr('Riders'), 'bicycle-outline', 'riders')}
+                {act(tr('Reports'), 'trending-up-outline', 'reports')}
+            </View>
+        </LinearGradient>
+    );
+}
+
+// the orders behind a number: the ones delivered today, or the live ones. Tap an order to open it.
+function OrdersPeek({ kind, onClose, onOpen }) {
+    const { text, muted, border, primary, ok, error } = useBrand();
+    const [rows, setRows] = useState(null);
+    const [err, setErr] = useState('');
+    useEffect(() => {
+        if (!kind) { setRows(null); return undefined; }
+        let on = true;
+        setRows(null); setErr('');
+        fetchOrders(flow.boardParams(kind === 'delivered' ? 'delivered' : 'active', 1, 50)).then((r) => {
+            if (!on) return;
+            let items = r.items || [];
+            if (kind === 'delivered') { const t0 = new Date(); t0.setHours(0, 0, 0, 0); items = items.filter((o) => new Date(o.deliveredAt || o.updatedAt || o.createdAt) >= t0); }
+            setRows(items);
+        }).catch((e) => { if (on) setErr(apiError(e)); });
+        return () => { on = false; };
+    }, [kind]);
+    return (
+        <Sheet visible={!!kind} onClose={onClose} title={kind === 'delivered' ? tr('Delivered today') : tr('Live orders')}>
+            {err ? <Text style={{ color: error, padding: 12 }}>{err}</Text> : null}
+            {!err && rows === null ? <ListShimmer count={4} /> : null}
+            {rows && !rows.length ? <Text style={{ color: muted, textAlign: 'center', padding: 28 }}>{kind === 'delivered' ? tr('Nothing delivered yet today.') : tr('No live orders right now.')}</Text> : null}
+            {(rows || []).map((o) => {
+                const tone = o.status === 'delivered' ? ok : primary;
+                return (
+                    <Pressable key={o.id} onPress={() => onOpen(o)} style={({ hovered }) => ({ flexDirection: 'row', alignItems: 'center', padding: 12, marginBottom: 8, borderRadius: 16, borderWidth: 1, borderColor: hovered ? tone : border, backgroundColor: hovered ? alpha(tone, 0.07) : 'transparent', cursor: 'pointer' })}>
+                        <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: alpha(tone, 0.15), alignItems: 'center', justifyContent: 'center' }}>
+                            <Ionicons name={o.orderType === 'delivery' ? 'bicycle' : o.orderType === 'pickup' ? 'walk' : 'restaurant'} size={20} color={tone} />
+                        </View>
+                        <View style={{ flex: 1, minWidth: 0, marginLeft: 12 }}>
+                            <Text style={{ color: text, fontWeight: '900', fontSize: 15 }} numberOfLines={1}>#{o.orderNo} · {o.customer?.name || tr('Customer')}</Text>
+                            <Text style={{ color: muted, fontSize: 12.5, marginTop: 2 }} numberOfLines={1}>{flow.itemsSummary(o)} · {flow.statusLabel(o.status)}</Text>
+                        </View>
+                        <View style={{ alignItems: 'flex-end', marginLeft: 10 }}>
+                            <Text style={{ color: text, fontWeight: '900', fontSize: 16 }}>{money(o.pricing?.total)}</Text>
+                            <Text style={{ color: muted, fontSize: 11.5, marginTop: 1 }}>{flow.clockTime(o.createdAt)}</Text>
+                        </View>
+                        <Ionicons name="chevron-forward" size={18} color={muted} style={{ marginLeft: 8 }} />
+                    </Pressable>
+                );
+            })}
+        </Sheet>
     );
 }
 
@@ -101,6 +197,9 @@ function HourBars({ byHour, nowHour }) {
 
 export default function OwnerHomeScreen() {
     const desk = useOwnerDesktop();
+    const [peek, setPeek] = useState(null);   // 'delivered' | 'live': the orders behind a big number
+    const shopName = useHomeStore((st) => st.full.restaurant?.name);
+    const meName = useAuthStore((st) => st.user?.name);
     const staffOk = usePlanHas('staffLogins');   // cooks and waiters are Growth and Pro
     const nav = useNavigation();
     const { muted, primary, onPrimary, error, ok, text, accent } = useBrand();
@@ -321,11 +420,12 @@ export default function OwnerHomeScreen() {
                     <Button label={tr('Start')} icon="play" busy={resuming} onPress={resume} style={{ marginTop: 10 }} />
                 </Card>
             ) : null}
+            {desk ? <DeskHero name={shopName || ''} who={String(meName || '').split(' ')[0]} taking={accepting !== false} waiting={(active.placed || 0) + bulkWait.length} onGo={(k) => (k === 'orders' ? toOrders('active') : k === 'item' ? nav.navigate('OwnerItem', {}) : k === 'riders' ? nav.navigate('OwnerRiders') : nav.navigate('OwnerBusiness', { range: '7' }))} /> : null}
             {desk ? <KpiRow items={[
                 [tr('Sales today'), money(d?.today.revenue), 'cash-outline', primary, change === null ? null : <Pill label={`${change >= 0 ? '▲' : '▼'} ${Math.abs(change)}% ${tr('vs yesterday')}`} color={change >= 0 ? ok : error} />],
-                [tr('Delivered'), String(d?.today.orders ?? '–'), 'checkmark-done-outline', ok, null],
+                [tr('Delivered'), String(d?.today.orders ?? '–'), 'checkmark-done-outline', ok, <Text style={{ color: muted, fontSize: 12.5, fontWeight: '700' }}>{tr('Tap to see them')}</Text>, () => setPeek('delivered')],
                 [tr('Average order'), money(d?.today.averageOrderValue), 'stats-chart-outline', warn, null],
-                [tr('Live orders'), String(PIPELINE.reduce((n, p) => n + countOf(p[0]), 0)), 'flash-outline', error, null],
+                [tr('Live orders'), String(PIPELINE.reduce((n, p) => n + countOf(p[0]), 0)), 'flash-outline', error, <Text style={{ color: muted, fontSize: 12.5, fontWeight: '700' }}>{tr('Tap to see them')}</Text>, () => setPeek('live')],
             ]} /> : null}
             <TwoCol desk={desk}>
             <Left desk={desk}>
@@ -336,8 +436,8 @@ export default function OwnerHomeScreen() {
                     // New orders blink with a glowing rim until they are accepted or rejected (the count drops to 0)
                     <GlowBorder key={key} active={!!blink[key]} radius={18} style={{ flex: 1, marginHorizontal: 3, marginBottom: 12 }}>
                         <Card onPress={() => toOrders(key)} style={{ flex: 1, marginHorizontal: 0, marginBottom: 0, paddingHorizontal: 2, alignItems: 'center', paddingVertical: 12 }}>
-                            <Ionicons name={icon} size={20} color={countOf(key) ? primary : muted} />
-                            <Text style={{ fontSize: 22, fontWeight: '900', color: countOf(key) ? primary : muted, marginTop: 2 }}>{countOf(key)}</Text>
+                            <Ionicons name={icon} size={desk ? 26 : 20} color={countOf(key) ? (desk ? PIPE_COLOR[key] : primary) : muted} />
+                            <Text style={{ fontSize: desk ? 32 : 22, fontWeight: '900', color: countOf(key) ? (desk ? PIPE_COLOR[key] : primary) : muted, marginTop: 2 }}>{countOf(key)}</Text>
                             <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75} style={{ fontSize: 11, color: muted, fontWeight: '700', maxWidth: '100%' }}>{tr(label)}</Text>
                             {bulkIn(key) > 0 ? (
                                 <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 3 }}>
@@ -373,6 +473,7 @@ export default function OwnerHomeScreen() {
             ) : null}
 
             {/* the day */}
+            {desk && easy ? null : (<>
             <SectionTitle title={tr('Today')} />
             <Card>
                 {desk ? null : <View style={{ flexDirection: 'row' }}>
@@ -389,7 +490,13 @@ export default function OwnerHomeScreen() {
                         <Pill label={tr('{v1} {v2}% vs yesterday so far', { v1: change >= 0 ? '▲' : '▼', v2: Math.abs(change) })} color={change >= 0 ? ok : error} />
                     )}
                 </View>
-                {d ? <View style={{ marginTop: 14 }}><HourBars byHour={d.byHour} nowHour={nowHour} /></View> : null}
+                {d && desk && !d.today.placed && !d.today.revenue ? (
+                    <View style={{ alignItems: 'center', paddingVertical: 26 }}>
+                        <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: alpha(primary, 0.12), alignItems: 'center', justifyContent: 'center' }}><Ionicons name="sunny-outline" size={26} color={primary} /></View>
+                        <Text style={{ color: text, fontWeight: '900', fontSize: 16, marginTop: 10 }}>{tr('No orders yet today')}</Text>
+                        <Text style={{ color: muted, fontSize: 13, marginTop: 3, textAlign: 'center' }}>{tr('Your sales chart fills in as orders come in.')}</Text>
+                    </View>
+                ) : d ? <View style={{ marginTop: 14 }}><HourBars byHour={d.byHour} nowHour={nowHour} /></View> : null}
                 {d ? (
                     <View style={{ flexDirection: 'row', marginTop: 14 }}>
                         <Stat label={tr('Orders placed')} value={String(d.today.placed)} />
@@ -399,6 +506,7 @@ export default function OwnerHomeScreen() {
                 ) : null}
                 </>) : null}
             </Card>
+            </>)}
 
             {/* the week in one line, and the way to the full report */}
             {d && !easy ? (
@@ -494,6 +602,7 @@ export default function OwnerHomeScreen() {
             ) : null}
             </Right>
             </TwoCol>
+            {desk ? <OrdersPeek kind={peek} onClose={() => setPeek(null)} onOpen={(o) => { setPeek(null); nav.navigate('OwnerOrder', { id: String(o.id) }); }} /> : null}
             </Frame>
         </OwnerScreen>
         {/* the door scanner: a round button that stays on screen, so a guest's booking QR is one tap away */}

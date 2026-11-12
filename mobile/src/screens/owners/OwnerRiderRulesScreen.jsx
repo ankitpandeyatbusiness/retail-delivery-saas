@@ -76,7 +76,7 @@ export default function OwnerRiderRulesScreen() {
 
     return (
         <FormPage title={tr('Delivery rules')} footer={<Button label={tr('Save rules')} icon="checkmark" busy={saving} onPress={save} />}>
-            <Group title={tr('Giving orders to riders')}>
+            <Group icon="swap-horizontal" title={tr('Giving orders to riders')}>
                 <Pressable onPress={() => nav.navigate('OwnerAutomations')} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 4, marginBottom: 14 }}>
                     <Ionicons name="flash" size={20} color={primary} />
                     <Text style={{ flex: 1, color: text, fontWeight: '800', marginHorizontal: 10 }}>{tr('Picking a rider by himself, and the time he has to answer, are in Automations')}</Text>
@@ -85,7 +85,7 @@ export default function OwnerRiderRulesScreen() {
                 <NumberBox label={tr('Orders one rider can carry at once')} integer value={v.maxActiveOrders} onChange={(x) => set('maxActiveOrders', x)} error={errors.maxActiveOrders} />
             </Group>
 
-            <Group title={tr('How do you pay your riders?')} hint={tr('Pick one. A single rider can have his own plan on his page.')}>
+            <Group icon="wallet" title={tr('How do you pay your riders?')} hint={tr('Pick one. A single rider can have his own plan on his page.')}>
                 <PayPlanForm value={v.pay} onChange={(x) => set('pay', x)} />
                 {errors.pay ? <Hint tone="error">{errors.pay}</Hint> : null}
                 {v.pay.type !== 'none' ? (
@@ -96,17 +96,17 @@ export default function OwnerRiderRulesScreen() {
                 ) : null}
             </Group>
 
-            <Group title={tr('Cash a rider holds')} hint={tr('Cash from cash-on-delivery orders. Over the limit, a rider gets no new orders until he gives cash to the shop.')}>
+            <Group icon="cash" title={tr('Cash a rider holds')} hint={tr('Cash from cash-on-delivery orders. Over the limit, a rider gets no new orders until he gives cash to the shop.')}>
                 <NumberBox label={tr('Most cash one rider may hold')} prefix="₹" value={v.cashLimit} onChange={(x) => set('cashLimit', x)} error={errors.cashLimit} hint={tr('0 = no limit')} last />
             </Group>
 
-            <Group title={tr('At the customer\'s door')}>
+            <Group icon="key" title={tr('At the customer\'s door')}>
                 <ToggleRow title={tr('Delivery PIN')} subtitle={tr('The customer tells the rider a PIN to confirm the delivery')} value={v.deliveryPin} onValueChange={(x) => set('deliveryPin', x)} last />
             </Group>
 
             {!liveMapOk ? <UpgradeNote feature="riderLiveMap" text={tr('Customers watch the rider live on a map')} /> : null}
             {liveMapOk ? (
-            <Group title={tr('Live tracking')}>
+            <Group icon="navigate" title={tr('Live tracking')}>
                 <ToggleRow title={tr('Customer sees the rider on a map')} value={v.liveTracking} onValueChange={(x) => set('liveTracking', x)} last={!v.liveTracking} />
                 {v.liveTracking ? (
                     <View style={{ marginTop: 14 }}>
@@ -116,17 +116,17 @@ export default function OwnerRiderRulesScreen() {
             </Group>
             ) : null}
 
-            <Group title={tr('Cash on delivery limit')} hint={tr('A new customer can pay cash only up to this amount on his first orders. Then cash is open to him.')}>
+            <Group icon="card" title={tr('Cash on delivery limit')} hint={tr('A new customer can pay cash only up to this amount on his first orders. Then cash is open to him.')}>
                 <NumberBox label={tr('Highest cash order for a new customer')} prefix="₹" value={v.codAmount} onChange={(x) => set('codAmount', x)} error={errors.codAmount} hint={tr('0 = no limit')} />
                 <NumberBox label={tr('Applies to his first')} suffix="orders" integer value={v.codFirst} onChange={(x) => set('codFirst', x)} error={errors.codFirst} last />
             </Group>
-            <Group title={tr('Pickup orders')} hint={tr('When a customer collects the order himself. You can stop cash for pickup, or allow cash only up to an amount. Then he pays online for bigger orders.')}>
+            <Group icon="walk" title={tr('Pickup orders')} hint={tr('When a customer collects the order himself. You can stop cash for pickup, or allow cash only up to an amount. Then he pays online for bigger orders.')}>
                 <ToggleRow title={tr('Allow cash for pickup orders')} subtitle={v.pickupCodOn !== false ? undefined : tr('Pickup orders must be paid online')} value={v.pickupCodOn !== false} onValueChange={(x) => set('pickupCodOn', x)} />
                 {v.pickupCodOn !== false ? <NumberBox label={tr('Highest cash pickup order')} prefix="₹" value={v.pickupCodMax} onChange={(x) => set('pickupCodMax', x ?? 0)} error={errors.pickupCodMax} hint={tr('0 = no limit')} /> : null}
                 <NumberBox label={tr('Pickup orders one customer can have waiting')} integer value={v.pickupOpenMax} onChange={(x) => set('pickupOpenMax', x ?? 0)} hint={tr('A new one can be placed after one is collected. 0 = no limit')} />
                 <ToggleRow title={tr('Customer can change the pickup time')} subtitle={tr('To a later time only. You are told when it happens')} value={v.pickupChange !== false} onValueChange={(x) => set('pickupChange', x)} last />
             </Group>
-            <Group title={tr('Orders at the same time')} hint={tr('What a customer can do while he already has an order or a table bill with you. These protect you from unpaid cash.')}>
+            <Group icon="layers" title={tr('Orders at the same time')} hint={tr('What a customer can do while he already has an order or a table bill with you. These protect you from unpaid cash.')}>
                 <ToggleRow title={tr('Table bill blocks delivery and pickup')} subtitle={tr('While he is dining and has not paid, he cannot order delivery or pickup')} value={v.mixDine !== false} onValueChange={(x) => set('mixDine', x)} />
                 <NumberBox label={tr('Delivery orders one customer can have on the way')} integer value={v.mixDelivery} onChange={(x) => set('mixDelivery', x ?? 0)} hint={tr('0 = no limit')} />
                 <ToggleRow title={tr('Limit all the cash he owes together')} subtitle={tr('Open table bill + cash delivery and pickup orders not yet paid')} value={v.mixCashOn !== false} onValueChange={(x) => set('mixCashOn', x)} last={v.mixCashOn === false} />
