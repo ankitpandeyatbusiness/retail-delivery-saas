@@ -20,6 +20,7 @@ import { acknowledge } from '../../utils/owners/soundbox';
 import { onShowOrderPopup } from '../../utils/owners/orderPopupBus';
 import { showToast } from '../customers/shop';
 import { tr } from '../../i18n';
+import { useOwnerDesktop } from '../../utils/common/layout';
 import { trNote } from '../../utils/common/noteText';
 import { DragDown, Grip } from '../common/DragDown';
 import { turnOffSlider } from '../common/AlertSliderHost';
@@ -28,6 +29,7 @@ const TYPE = { delivery: 'Delivery', pickup: 'Pickup', dine_in: 'Dine in' };
 
 export default function NewOrderPopup({ navRef }) {
     const { surface, text, muted, border, primary, warn, error } = useBrand();
+    const desk = useOwnerDesktop();   // a computer: a centred dialog over a dimmed page, not a bottom sheet
     const insets = useSafeAreaInsets();
     const role = useAuthStore((s) => s.user?.role);
     const customerView = useViewMode((s) => s.customerView);
@@ -112,12 +114,13 @@ export default function NewOrderPopup({ navRef }) {
         } finally { setBusy(false); }
     };
 
+    const wrapSheet = (fn) => (desk ? fn({}) : <DragDown onClose={() => drop(order.id)}>{fn}</DragDown>);   // only the phone's sheet is dragged down
     return (
-        <Modal visible transparent animationType="slide" onRequestClose={() => drop(order.id)} statusBarTranslucent>
-            <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'transparent' }}>
-                <DragDown onClose={() => drop(order.id)}>{(scroll) => (
-                <View style={[s.sheet, { backgroundColor: surface, borderColor: border, paddingBottom: Math.max(insets.bottom, 12) + 10 }]}>
-                    <Grip style={{ paddingBottom: 12 }}><View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: border }} /></Grip>
+        <Modal visible transparent animationType={desk ? 'fade' : 'slide'} onRequestClose={() => drop(order.id)} statusBarTranslucent>
+            <View style={desk ? { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24, backgroundColor: 'rgba(10,12,20,0.5)' } : { flex: 1, justifyContent: 'flex-end', backgroundColor: 'transparent' }}>
+                {wrapSheet((scroll) => (
+                <View style={[s.sheet, { backgroundColor: surface, borderColor: border, paddingBottom: Math.max(insets.bottom, 12) + 10 }, desk ? { width: '100%', maxWidth: 520, borderRadius: 28, borderWidth: 1, padding: 24, paddingBottom: 24, boxShadow: '0 30px 90px rgba(0,0,0,0.35)' } : null]}>
+                    {desk ? null : <Grip style={{ paddingBottom: 12 }}><View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: border }} /></Grip>}
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: alpha(order.cancelled ? error : (warn || primary), 0.16), alignItems: 'center', justifyContent: 'center' }}>
                             <Ionicons name={order.cancelled ? 'close-circle' : 'flash'} size={22} color={order.cancelled ? error : (warn || primary)} />
@@ -129,7 +132,7 @@ export default function NewOrderPopup({ navRef }) {
                         <Pressable onPress={() => drop(order.id)} hitSlop={12}><Ionicons name="close" size={24} color={muted} /></Pressable>
                     </View>
 
-                    <ScrollView {...scroll} style={{ maxHeight: 220, marginTop: 14 }} showsVerticalScrollIndicator={false}>
+                    <ScrollView {...scroll} style={desk ? { maxHeight: 300, marginTop: 16, padding: 14, borderRadius: 18, backgroundColor: alpha(muted, 0.08) } : { maxHeight: 220, marginTop: 14 }} showsVerticalScrollIndicator={false}>
                         {items.map((it, i) => (
                             <View key={i} style={{ flexDirection: 'row', paddingVertical: 4 }}>
                                 <Text style={{ color: primary, fontWeight: '900', width: 34 }}>{it.quantity}×</Text>
@@ -157,7 +160,7 @@ export default function NewOrderPopup({ navRef }) {
                         <Text style={{ color: muted, fontSize: 12.5, fontWeight: '700', marginLeft: 6 }}>{tr('Turn off this slider')}</Text>
                     </Pressable>
                 </View>
-                )}</DragDown>
+                ))}
             </View>
         </Modal>
     );

@@ -11,7 +11,9 @@
 // A Text that sets its own fontFamily (the icon fonts) is left alone. If anything fails the app keeps the system font.
 import React from 'react';
 import { StyleSheet } from 'react-native';
+import { Platform } from 'react-native';
 import * as Font from 'expo-font';
+import { isOwnerDeskNow } from '../../utils/common/layout';
 
 // each weight is its own file, so only these are bundled (not every weight of the family)
 const FAMILIES = {
@@ -44,6 +46,10 @@ export const familyFor = (fontStyle, look) => {
 
 let installed = false;
 
+// The owner panel on a computer is written with very heavy weights (900 and 800 on headings, names, buttons and small labels): fine on a phone,
+// but a wall of bold on a wide screen. There they are drawn a step or two lighter: 900 -> 700, 800 -> 600, 700 -> 600, 600 -> 500.
+const lighter = (w) => (w >= 900 ? 700 : w >= 800 ? 600 : w >= 700 ? 600 : w >= 600 ? 500 : w);
+
 const weightOf = (w) => {
     if (w === 'bold') return 700;
     if (w === 'normal' || w === undefined || w === null) return 400;
@@ -53,7 +59,9 @@ const weightOf = (w) => {
 
 // Loads the family and swaps the Text components. Resolves true when the app now draws with it.
 export async function applyTypography(fontStyle, look) {
-    const key = familyFor(fontStyle, look);
+    const own = familyFor(fontStyle, look);
+    const ownerOnly = !own && Platform.OS === 'web';   // the shop keeps the phone's own font, but the website's owner panel gets Inter, lighter
+    const key = own || (ownerOnly ? 'modern' : null);
     if (!key || installed) return false;
     try {
         const files = FAMILIES[key]();
@@ -76,7 +84,10 @@ export async function applyTypography(fontStyle, look) {
             // Inter, Lora and Nunito have only Latin letters: in Hindi, Marathi, Gujarati, Bengali or Bhojpuri the phone's own
             // font is used, which has these scripts in every weight (a Latin-only family would make bold text thin)
             if (flat.fontFamily || require('../../i18n').getLang() !== 'en') return <Comp style={style} {...rest} />;
-            return <Comp {...rest} style={[style, { fontFamily: pick(weightOf(flat.fontWeight)), fontWeight: 'normal' }]} />;
+            const owner = Platform.OS === 'web' && isOwnerDeskNow();   // the owner panel on a computer: lighter weights
+            if (ownerOnly && !owner) return <Comp style={style} {...rest} />;   // everyone else keeps the shop's own font, as before
+            const w = weightOf(flat.fontWeight);
+            return <Comp {...rest} style={[style, { fontFamily: pick(owner ? lighter(w) : w), fontWeight: 'normal' }]} />;
         };
         const FText = wrap(Base.Text);
         const FInput = wrap(Base.TextInput);

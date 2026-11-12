@@ -12,10 +12,12 @@ import { onNotification, onOrderUpdate } from '../../api/common/socket';
 import { fetchOrder } from '../../api/owners/shopApi';
 import { alertOn } from '../../store/common/useAlertPrefs';
 import { tr } from '../../i18n';
+import { useOwnerDesktop } from '../../utils/common/layout';
 import { turnOffSlider } from '../common/AlertSliderHost';
 
 export default function KitchenProblemPopup() {
     const { surface, text, muted, warn } = useBrand();
+    const desk = useOwnerDesktop();   // a computer: a centred dialog over a dimmed page
     const role = useAuthStore((s) => s.user?.role);
     const customerView = useViewMode((s) => s.customerView);
     const access = useOwnerStore((s) => s.access);
@@ -44,8 +46,8 @@ export default function KitchenProblemPopup() {
     const next = () => setQueue((q) => q.slice(1));
     return (
         <Modal visible transparent animationType="fade" onRequestClose={next} statusBarTranslucent>
-            <View style={{ flex: 1, backgroundColor: 'transparent', justifyContent: 'flex-end' }}>
-                <View style={{ backgroundColor: surface, borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 20, paddingBottom: 28, borderColor: alpha(warn, 0.5), borderWidth: 1.5 }}>
+            <View style={desk ? { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24, backgroundColor: 'rgba(10,12,20,0.5)' } : { flex: 1, backgroundColor: 'transparent', justifyContent: 'flex-end' }}>
+                <View style={[{ backgroundColor: surface, borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 20, paddingBottom: 28, borderColor: alpha(warn, 0.5), borderWidth: 1.5 }, desk ? { width: '100%', maxWidth: 520, borderRadius: 28, padding: 24, paddingBottom: 24, boxShadow: '0 30px 90px rgba(0,0,0,0.35)' } : null]}>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: alpha(warn, 0.16), alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
                             <Ionicons name="restaurant" size={24} color={warn} />

@@ -34,6 +34,9 @@ export function useStaffDesktop() {
 // the same question without a hook, for the stores: a browser at least this wide right now
 export const isDeskNow = () => Platform.OS === 'web' && typeof window !== 'undefined' && window.innerWidth >= DESKTOP_MIN_WIDTH;
 
+// the same question for the owner panel on a computer, without a hook (the text component asks it on every draw)
+export const isOwnerDeskNow = () => isDeskNow() && useAuthStore.getState().user?.role === 'admin' && !useViewMode.getState().customerView;
+
 // how many cards fit across a page on a computer, so a narrow window gets fewer, wider cards instead of squeezed ones (sidebar + page margins taken off)
 export function useGridCols(max = 3, min = 300, side = 272) {
     const { width } = useWindowDimensions();
