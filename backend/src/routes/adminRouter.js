@@ -137,11 +137,20 @@ admin.get('/options', (req, res) => {
     });
 });
 
+// The panel sends the shop's whole settings back, including what is not part of the customer-app settings form: the points (settings.loyalty, its own screen)
+// and the rider tracking start (settings.riders.trackFrom, the owner's). They are taken out before checking, as the save does, so the check never says "unknown field".
+const withoutOwnerParts = (settings) => {
+    if (!settings || typeof settings !== 'object' || Array.isArray(settings)) return settings;
+    const { loyalty, ...rest } = settings;
+    if (rest.riders && typeof rest.riders === 'object' && !Array.isArray(rest.riders)) { const { trackFrom, ...r } = rest.riders; rest.riders = r; }
+    return rest;
+};
+
 // Live preview: send a draft, get back what the app would receive. Nothing is saved.
 // (This is the config BEFORE auto-hide, so it can show a filter the real app hides for lack of data.)
 admin.post('/preview-config', (req, res) => {
     const body = req.body || {};
-    const { errors } = validateSettings(body.settings);
+    const { errors } = validateSettings(withoutOwnerParts(body.settings));
     const config = resolveConfig({
         ...pickFields(TENANT_FIELDS, body),
         name: body.name || 'Preview',
@@ -177,7 +186,7 @@ admin.post('/tenants', wrap(async (req, res) => {
     if (!SLUG_RE.test(slug)) throw httpError(400, 'slug must be 3-40 characters: lowercase letters, numbers and hyphens');
     if (RESERVED_SLUGS.includes(slug)) throw httpError(400, 'This slug is reserved');
 
-    const v = validateSettings(body.settings || {});
+    const v = validateSettings(withoutOwnerParts(body.settings || {}));
     if (!v.ok) return res.status(400).json({ error: 'Invalid settings', errors: v.errors });
 
     const fields = pickFields(TENANT_FIELDS, body);
