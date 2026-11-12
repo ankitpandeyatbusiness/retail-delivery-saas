@@ -6,6 +6,7 @@ import { onOfferClosed } from '../api/common/socket';
 import OfferPopup from '../components/riders/OfferPopup';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useBrand } from '../components/common/kit';
+import { useRiderDesktop } from '../utils/common/layout';
 import { useRiderStore } from '../store/riders/useRiderStore';
 import { FloatingTabBar, slideScenes, gate } from './tabKit';
 import { useMotion } from '../components/common/motion';
@@ -28,6 +29,7 @@ import { useHomeStore } from '../store/customers/useHomeStore';
 
 export default function RiderTabs() {
     const { background } = useBrand();
+    const deskRider = useRiderDesktop();   // on a computer the sidebar replaces the bottom bar
     const motion = useMotion();
     const offers = useRiderStore((s) => s.offers.length);   // a new order shows as a number on Home
     const missedNew = useRiderStore((s) => s.missedNew);    // red blinking dot on History: an offer ran out unanswered
@@ -49,7 +51,7 @@ export default function RiderTabs() {
                     // do not start a tab switch on top of a page that is still sliding (see tabKit)
                     tabPress: (e) => { if (gate.busy) { e.preventDefault(); gate.pending = route.name; } },
                 })}
-                tabBar={(props) => <FloatingTabBar {...props} defs={TABS} />}
+                tabBar={deskRider ? () => null : (props) => <FloatingTabBar {...props} defs={TABS} />}
                 screenOptions={{
                     headerShown: false,
                     sceneStyle: { backgroundColor: background },

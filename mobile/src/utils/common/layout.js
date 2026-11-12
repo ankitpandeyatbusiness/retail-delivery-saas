@@ -31,6 +31,13 @@ export function useStaffDesktop() {
     return desktop && (role === 'kitchen' || role === 'waiter');
 }
 
+// the desktop RIDER panel: a wide browser and a rider
+export function useRiderDesktop() {
+    const desktop = useIsDesktopWeb();
+    const role = useAuthStore((s) => s.user?.role);
+    return desktop && role === 'rider';
+}
+
 // the same question without a hook, for the stores: a browser at least this wide right now
 export const isDeskNow = () => Platform.OS === 'web' && typeof window !== 'undefined' && window.innerWidth >= DESKTOP_MIN_WIDTH;
 

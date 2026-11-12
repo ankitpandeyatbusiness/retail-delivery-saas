@@ -77,7 +77,7 @@ export default function StaffProfileScreen() {
         <View style={{ flex: 1, backgroundColor: background }}>
             <StaffHeader title={tr('Profile')} />
             <ScrollView contentContainerStyle={{ paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
-              <Frame desk={desk} max={desk ? 1100 : 760}>
+              <Frame desk={desk} max={760}>
                 {/* 1. who you are (a computer: the same banner as the owner's profile, with the picture, the name and a Change photo button) */}
                 {desk ? (
                     <Hero
@@ -96,42 +96,42 @@ export default function StaffProfileScreen() {
                     <View style={{ marginTop: 8 }}>{me?.role ? <JobBadge role={me.role} /> : null}</View>
                 </View>}
 
-                <Masonry desk={desk} gap={-16}>
+                <Masonry desk={false}>
                 {/* 2. your account */}
                 <Card>
                     <Row icon="camera-outline" title={tr('Your picture')} subtitle={me?.photo ? tr('Change or remove it') : tr('Add a picture of yourself')} onPress={changePhoto} />
-                    <Row icon="create-outline" title={tr('Your name')} subtitle={me?.name || tr('Add your name')} onPress={openName} />
-                    {me?.shopPhone ? <Row icon="call-outline" title={tr('Call the shop')} subtitle={me.shopPhone} onPress={() => Linking.openURL(`tel:${me.shopPhone}`).catch(() => { })} last /> : null}
+                    <Row icon="create-outline" title={tr('Your name')} subtitle={me?.name || tr('Add your name')} onPress={openName} last={desk} />
+                    {me?.shopPhone && !desk ? <Row icon="call-outline" title={tr('Call the shop')} subtitle={me.shopPhone} onPress={() => Linking.openURL(`tel:${me.shopPhone}`).catch(() => { })} last /> : null}
                 </Card>
 
                 {/* 3. working time (live or off duty, weekly hours) and the page for days off and leave */}
                 <Sep />
                 <DutyCard />
-                <Card>
+                {desk ? null : <Card>
                     <Row icon="calendar-outline" title={tr('Days off and leave')} subtitle={tr('Take a holiday or ask the owner for leave')} onPress={() => nav.navigate('StaffLeave')} last />
-                </Card>
+                </Card>}
 
                 {/* 4. alerts and sound */}
                 <Sep />
-                {me?.role ? <SoundSettings role={me.role} /> : null}
+                {me?.role && !desk ? <SoundSettings role={me.role} /> : null}
 
                 {/* 5. how the app looks and speaks */}
-                <Sep />
-                <SectionTitle title={tr('App')} />
-                <Card>
+                {desk ? null : <Sep />}
+                {desk ? null : <SectionTitle title={tr('App')} />}
+                {desk ? null : <Card>
                     <AppearanceSwitch />
-                    <Row icon="language-outline" title={tr('Language')} subtitle={LANGS.find((l) => l.code === lang)?.native} onPress={() => setLangOpen(true)} />
-                    <Row icon="phone-portrait-outline" title={tr("Where you're logged in")} subtitle={tr('Phones and browsers signed in as you')} onPress={() => nav.navigate('Sessions')} />
-                    <Row icon="information-circle-outline" title={tr('About Us')} subtitle={tr('About the platform, terms and privacy')} onPress={() => nav.navigate('AboutUs')} last />
-                </Card>
+                    {desk ? null : <Row icon="language-outline" title={tr('Language')} subtitle={LANGS.find((l) => l.code === lang)?.native} onPress={() => setLangOpen(true)} />}
+                    {desk ? null : <Row icon="phone-portrait-outline" title={tr("Where you're logged in")} subtitle={tr('Phones and browsers signed in as you')} onPress={() => nav.navigate('Sessions')} />}
+                    {desk ? null : <Row icon="information-circle-outline" title={tr('About Us')} subtitle={tr('About the platform, terms and privacy')} onPress={() => nav.navigate('AboutUs')} last />}
+                </Card>}
 
                 {/* 6. log out: always the last thing */}
-                <Sep />
-                <View style={{ marginTop: 18 }}>
+                {desk ? null : <Sep />}
+                {desk ? null : <View style={{ marginTop: 18 }}>
                     <Card>
                         <Row icon="log-out-outline" title={tr('Log out')} color={error} onPress={signOut} last />
                     </Card>
-                </View>
+                </View>}
                 </Masonry>
               </Frame>
             </ScrollView>

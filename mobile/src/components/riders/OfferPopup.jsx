@@ -12,6 +12,7 @@ import { acceptOrder, rejectOrder } from '../../api/riders/riderApi';
 import { useRiderStore } from '../../store/riders/useRiderStore';
 import { T, rupee, rupeeAmount, errText } from '../../utils/riders/riderText';
 import { tr } from '../../i18n';
+import { useRiderDesktop } from '../../utils/common/layout';
 import { DragDown, Grip } from '../common/DragDown';
 import { BigButton, SmallLink, Banner } from './riderBits';
 
@@ -22,6 +23,7 @@ const secondsLeft = (o) => {
 
 export default function OfferPopup() {
     const insets = useSafeAreaInsets();
+    const desk = useRiderDesktop();   // a computer: a centred dialog over a dimmed page, not a bottom sheet
     const nav = useNavigation();
     const { primary, background, text, muted } = useBrand();
     const offers = useRiderStore((s) => s.offers);
@@ -69,12 +71,13 @@ export default function OfferPopup() {
         useRiderStore.getState().load();
     };
 
+    const wrapSheet = (fn) => (desk ? fn({}) : <DragDown onClose={() => setId(null)}>{fn}</DragDown>);   // only the phone's sheet is dragged down
     return (
-        <Modal visible transparent animationType="slide" onRequestClose={() => setId(null)} statusBarTranslucent>
-            <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' }}>
-                <DragDown onClose={() => setId(null)}>{(scroll) => (
-                <View style={{ backgroundColor: background, borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '92%', paddingBottom: insets.bottom + 12 }}>
-                    <Grip style={{ paddingTop: 10 }}><View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: muted, opacity: 0.4 }} /></Grip>
+        <Modal visible transparent animationType={desk ? 'fade' : 'slide'} onRequestClose={() => setId(null)} statusBarTranslucent>
+            <View style={desk ? { flex: 1, backgroundColor: 'rgba(10,12,20,0.5)', justifyContent: 'center', alignItems: 'center', padding: 24 } : { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' }}>
+                {wrapSheet((scroll) => (
+                <View style={desk ? { backgroundColor: background, width: '100%', maxWidth: 520, borderRadius: 28, maxHeight: '90%', paddingBottom: 12, overflow: 'hidden', boxShadow: '0 30px 90px rgba(0,0,0,0.35)' } : { backgroundColor: background, borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '92%', paddingBottom: insets.bottom + 12 }}>
+                    {desk ? <View style={{ height: 10 }} /> : <Grip style={{ paddingTop: 10 }}><View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: muted, opacity: 0.4 }} /></Grip>}
                     <ScrollView {...scroll} contentContainerStyle={{ padding: 16 }}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                             <Text style={{ color: primary, fontWeight: '900', fontSize: 17 }}>{T.newOrder} · {o.ref || '#' + o.orderNo}</Text>
@@ -106,7 +109,7 @@ export default function OfferPopup() {
                         <SmallLink label={T.noThanks} onPress={reject} />
                     </ScrollView>
                 </View>
-                )}</DragDown>
+                ))}
             </View>
         </Modal>
     );

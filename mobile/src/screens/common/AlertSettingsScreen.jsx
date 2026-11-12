@@ -17,7 +17,7 @@ import { useAuthStore } from '../../store/common/useAuthStore';
 import { sayExample } from '../../utils/owners/soundbox';
 import { ListShimmer } from '../../components/owners/shimmer';
 import { UpgradeNote } from '../../components/owners/PlanLock';
-import { useIsDesktopWeb, useOwnerDesktop, useStaffDesktop } from '../../utils/common/layout';
+import { useIsDesktopWeb, useOwnerDesktop, useStaffDesktop, useRiderDesktop } from '../../utils/common/layout';
 import { Hero, HeroBtn } from '../../components/owners/RiderDesk';
 import { DeskPage, DeskHeader, DeskBtn, DESK_T } from '../../components/common/DeskPage';
 import { tr } from '../../i18n';
@@ -38,7 +38,8 @@ export default function AlertSettingsScreen() {
     const nav = useNavigation();
     const ownDesk = useOwnerDesktop();
     const staffDesk = useStaffDesktop();   // the cook and the waiter on a computer get the owner's look too
-    const ownerDesk = ownDesk || staffDesk;
+    const riderDesk = useRiderDesktop();
+    const ownerDesk = ownDesk || staffDesk || riderDesk;
     const desk = useIsDesktopWeb();   // a browser at least 1024 px wide: the alerts as a grid of cards (false in the phone app)
     const { groups, loaded, load, change, reset } = useAlertPrefs();
     const language = useSoundboxStore((s) => s.language);
@@ -69,9 +70,11 @@ export default function AlertSettingsScreen() {
         const rows = [];
         for (let i = 0; i < groups.length; i += 2) rows.push(groups.slice(i, i + 2));
         return (
+            <View style={{ flex: 1, backgroundColor: background }}>
+            {ownerDesk ? <PageHeader title={tr('Alerts')} /> : null}
             <DeskPage maxWidth={ownerDesk ? 1180 : 1060}>
                 {ownerDesk ? (
-                    <View style={{ marginHorizontal: -16 }}><Hero icon="notifications" title={tr('Alerts')} subtitle={intro} right={<><HeroBtn icon="arrow-back" label={tr('Back')} onPress={() => (nav.canGoBack() ? nav.goBack() : nav.navigate('MainTabs'))} /><HeroBtn solid={changed} icon="sparkles" label={changed ? tr('Use recommended settings') : tr('You are on the recommended settings')} onPress={changed ? recommended : undefined} /></>} /></View>
+                    <View style={{ marginHorizontal: -16 }}><Hero icon="notifications" title={tr('Alerts')} subtitle={intro} right={<HeroBtn solid={changed} icon="sparkles" label={changed ? tr('Use recommended settings') : tr('You are on the recommended settings')} onPress={changed ? recommended : undefined} />} /></View>
                 ) : (
                 <>
                 <DeskHeader
@@ -131,6 +134,7 @@ export default function AlertSettingsScreen() {
                     ))}
                 </View>
             </DeskPage>
+            </View>
         );
     }
 

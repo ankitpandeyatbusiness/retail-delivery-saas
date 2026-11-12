@@ -21,7 +21,7 @@ import { onNotification, onNotificationRead } from '../../api/common/socket';
 import { tr } from '../../i18n';
 import { notificationTarget } from '../../utils/common/notificationTarget';
 import { useClosedStyle } from '../../components/customers/shop';
-import { useIsDesktopWeb, useStaffDesktop } from '../../utils/common/layout';
+import { useIsDesktopWeb, useStaffDesktop, useRiderDesktop } from '../../utils/common/layout';
 import { Hero, HeroBtn } from '../../components/owners/RiderDesk';
 
 const ICON = {
@@ -47,7 +47,9 @@ export default function NotificationsScreen() {
     const closedStyle = useClosedStyle();   // the shop is closed: a customer's screen turns grey
     const nav = useNavigation();
     const { primary, text, muted, surface, border, background, error } = useBrand();
-    const staffDesk = useStaffDesktop();   // the cook and the waiter on a computer: the same page as the owner's Messages (banner and rounded cards)
+    const staffDeskOnly = useStaffDesktop();
+    const riderDesk = useRiderDesktop();
+    const staffDesk = staffDeskOnly || riderDesk;   // the cook, the waiter and the rider on a computer: the same page as the owner's Messages (banner and rounded cards)
     const desk = useIsDesktopWeb();   // a browser at least 1024 px wide: a centred panel with tabs and day groups (false in the phone app)
     const [tab, setTab] = useState('all');   // desktop: all | unread
     const setUnread = useNotificationStore((s) => s.set);

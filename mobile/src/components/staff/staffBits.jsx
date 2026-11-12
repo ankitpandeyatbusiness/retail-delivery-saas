@@ -34,7 +34,8 @@ export function StaffHeader({ title, subtitle, right }) {
                 <Text style={{ color: text, fontSize: 22, fontWeight: '900' }} numberOfLines={1}>{title}</Text>
                 {subtitle ? <Text style={{ color: muted, fontSize: 13, fontWeight: '600', marginTop: 2 }} numberOfLines={1}>{subtitle}</Text> : null}
             </View>
-            {right}
+            {/* on the website the badge (alignSelf flex-start) sat at the top, beside the switch: it is centred with it there; the phone keeps its layout */}
+            {right ? (Platform.OS === 'web' ? <View style={{ justifyContent: 'center' }}>{right}</View> : right) : null}
             <View style={{ marginLeft: 8 }}><DutyToggle /></View>
             <BellButton />
         </View>

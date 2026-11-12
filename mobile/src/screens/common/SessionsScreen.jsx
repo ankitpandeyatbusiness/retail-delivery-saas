@@ -11,7 +11,7 @@ import { showToast } from '../../components/customers/shop';
 import { fetchSessions, endSession, endOtherSessions } from '../../api/common/sessionApi';
 import { tr } from '../../i18n';
 import DeskGrid from '../../components/common/DeskGrid';
-import { useOwnerDesktop, useStaffDesktop } from '../../utils/common/layout';
+import { useOwnerDesktop, useStaffDesktop, useRiderDesktop } from '../../utils/common/layout';
 import { Hero, HeroBtn } from '../../components/owners/RiderDesk';
 
 const when = (iso) => {
@@ -29,7 +29,8 @@ export default function SessionsScreen() {
     const { background, text, muted, border, primary } = useBrand();
     const ownDesk = useOwnerDesktop();
     const staffDesk = useStaffDesktop();   // the cook and the waiter on a computer get the owner's look too
-    const ownerDesk = ownDesk || staffDesk;
+    const riderDesk = useRiderDesktop();
+    const ownerDesk = ownDesk || staffDesk || riderDesk;
     const [items, setItems] = useState(null);
     const [busy, setBusy] = useState(null);   // a session id, or 'all'
     const [failed, setFailed] = useState(false);

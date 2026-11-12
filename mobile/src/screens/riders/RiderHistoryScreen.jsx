@@ -13,11 +13,14 @@ import { useRiderStore } from '../../store/riders/useRiderStore';
 import { showToast } from '../../components/customers/shop';
 import { T, rupee, rupeeAmount, errText } from '../../utils/riders/riderText';
 import { tr } from '../../i18n';
+import { useRiderDesktop } from '../../utils/common/layout';
+import { Hero, GlassStat } from '../../components/owners/RiderDesk';
 
 const when = (d) => new Date(d).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', hour12: true });
 
 export default function RiderHistoryScreen() {
     const insets = useSafeAreaInsets();
+    const desk = useRiderDesktop();   // a computer: a banner with the numbers, the list in a centred column
     const { background, text, muted, surface, border, ok, error, primary, warn } = useBrand();
     const [items, setItems] = useState(null);
     const [page, setPage] = useState(1);
@@ -81,12 +84,22 @@ export default function RiderHistoryScreen() {
 
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
-            <Text style={{ color: text, fontSize: 24, fontWeight: '900', paddingHorizontal: 16, paddingTop: insets.top + 14, paddingBottom: 12 }}>{T.history}</Text>
+            {desk ? (
+                <View style={{ width: '100%', maxWidth: 900, alignSelf: 'center', paddingTop: 8 }}>
+                    <Hero icon="time" title={T.history} subtitle={tr('Your deliveries and what they earned')}>
+                        <View style={{ flexDirection: 'row', marginTop: 18 }}>
+                            <GlassStat label={tr('Deliveries')} value={String(doneList.length)} icon="bicycle-outline" />
+                            <GlassStat label={tr('Earned')} value={rupee(earned)} icon="wallet-outline" />
+                            {missed.length ? <GlassStat label={tr('Missed orders')} value={String(missed.length)} icon="alert-circle-outline" /> : null}
+                        </View>
+                    </Hero>
+                </View>
+            ) : <Text style={{ color: text, fontSize: 24, fontWeight: '900', paddingHorizontal: 16, paddingTop: insets.top + 14, paddingBottom: 12 }}>{T.history}</Text>}
             {items === null ? <ListShimmer count={3} /> : (
                 <FlatList
                     data={items}
                     keyExtractor={(o) => String(o.id)}
-                    contentContainerStyle={{ paddingBottom: 24, flexGrow: 1 }}
+                    contentContainerStyle={{ paddingBottom: 24, flexGrow: 1, ...(desk ? { width: '100%', maxWidth: 900, alignSelf: 'center' } : null) }}
                     showsVerticalScrollIndicator={false}
                     refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(1); setRefreshing(false); }} />}
                     ListEmptyComponent={(
@@ -99,7 +112,7 @@ export default function RiderHistoryScreen() {
                     )}
                     ListHeaderComponent={(
                         <View>
-                            {items.length ? summary : null}
+                            {items.length && !desk ? summary : null}
                             {missed.length ? (
                                 <View style={{ marginBottom: 6 }}>
                                     <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, marginBottom: 8 }}>

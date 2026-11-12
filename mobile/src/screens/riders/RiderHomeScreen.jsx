@@ -1,7 +1,7 @@
 // The rider's Home: one page. Start or end duty, the new order waiting for him (if any), and the deliveries he is carrying.
 // Nothing else. A rider glances at this between stops, so it shows only what needs a decision.
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, ScrollView, Pressable, RefreshControl, AppState } from 'react-native';
+import { View, Text, ScrollView, Pressable, RefreshControl, AppState, Platform } from 'react-native';
 import { ListShimmer } from '../../components/owners/shimmer';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -26,6 +26,8 @@ import { playSfx } from '../../utils/common/sfx';
 import { acceptOrder, rejectOrder } from '../../api/riders/riderApi';
 import { T, rupee, rupeeAmount, errText } from '../../utils/riders/riderText';
 import { tr } from '../../i18n';
+import { useRiderDesktop } from '../../utils/common/layout';
+import { Hero, GlassStat } from '../../components/owners/RiderDesk';
 
 const POLL_MS = 6000;
 const when = (d) => new Date(d).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', hour12: true });
@@ -121,7 +123,8 @@ function ActiveCard({ o, onPress }) {
 export default function RiderHomeScreen() {
     const insets = useSafeAreaInsets();
     const nav = useNavigation();
-    const { background, text, muted, ok, error: bad, border, surface } = useBrand();
+    const desk = useRiderDesktop();   // a computer: a banner with the numbers, what needs him now on the left, duty and recent activity on the right
+    const { background, text, muted, ok, error: bad, border, surface, primary } = useBrand();
     const { me, offers, active, summary, ready, error, load, setDuty } = useRiderStore();
     const [refreshing, setRefreshing] = useState(false);
     const [busyId, setBusyId] = useState(null);
@@ -177,7 +180,8 @@ export default function RiderHomeScreen() {
             await setDuty(v, extra);
             if (v) {   // the first time he starts duty: how to stop the phone from killing the app
                 const seen = await AsyncStorage.getItem('rider_keep_running_seen').catch(() => '1');
-                if (!seen) { setGuide(true); AsyncStorage.setItem('rider_keep_running_seen', '1').catch(() => { }); }
+                if (!seen && Platform.OS !== 'web') { setGuide(true);   // the website has no app to keep running: no guide there
+                AsyncStorage.setItem('rider_keep_running_seen', '1').catch(() => { }); }
             }
         } catch (e) { showToast(errText(e)); }
         setDutyBusy(false);
@@ -214,10 +218,28 @@ export default function RiderHomeScreen() {
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
             <ScrollView
-                contentContainerStyle={{ paddingTop: insets.top + 12, paddingBottom: 24, flexGrow: 1 }}
+                contentContainerStyle={{ paddingTop: desk ? 8 : insets.top + 12, paddingBottom: 24, flexGrow: 1 }}
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(); setRefreshing(false); }} />}
             >
-                <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, marginBottom: 16 }}>
+              <View style={desk ? { width: '100%', maxWidth: 1180, alignSelf: 'center' } : undefined}>
+                {desk ? (
+                    <Hero lead={<View style={{ marginRight: 16 }}><Avatar uri={me?.photo} size={64} /></View>} title={T.hello(me?.name?.split(' ')[0])} subtitle={me?.shop || ''}
+                        right={(
+                            <View style={{ flexDirection: 'row', alignItems: 'center', height: 46, paddingHorizontal: 8, borderRadius: 23, backgroundColor: surface, borderWidth: 1, borderColor: border }}>
+                                <LiveToggle on={onDuty} busy={dutyBusy} onPress={() => changeDuty(!onDuty)} />
+                                <BellButton />
+                            </View>
+                        )}>
+                        {summary ? (
+                            <View style={{ flexDirection: 'row', marginTop: 18 }}>
+                                <GlassStat label={T.deliveriesToday} value={String(summary.deliveries?.today || 0)} icon="checkmark-done-outline" />
+                                {payTracked ? <GlassStat label={T.earnedToday} value={rupee(earnedToday)} icon="cash-outline" /> : null}
+                                {cashHeld > 0 ? <GlassStat label={tr('Cash held')} value={rupee(cashHeld)} icon="wallet-outline" /> : null}
+                            </View>
+                        ) : null}
+                    </Hero>
+                ) : null}
+                {desk ? null : <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, marginBottom: 16 }}>
                     <Avatar uri={me?.photo} />
                     <View style={{ flex: 1, marginLeft: 12 }}>
                         <Text style={{ color: text, fontSize: 20, fontWeight: '900' }}>{T.hello(me?.name?.split(' ')[0])}</Text>
@@ -225,7 +247,7 @@ export default function RiderHomeScreen() {
                     </View>
                     <LiveToggle on={onDuty} busy={dutyBusy} onPress={() => changeDuty(!onDuty)} />
                     <BellButton />
-                </View>
+                </View>}
 
                 {!ready && !error ? <ListShimmer count={3} /> : null}
                 {error ? (
@@ -236,7 +258,7 @@ export default function RiderHomeScreen() {
                     </View>
                 ) : null}
 
-                {ready ? (
+                {ready && !desk ? (
                     <>
                         {/* the ratings he got, only while he is free (not carrying an order) */}
                         {active.length === 0 ? <RatingNews news={news} onClose={closeNews} /> : null}
@@ -256,7 +278,7 @@ export default function RiderHomeScreen() {
                                     <Text style={{ color: text, fontSize: 18, fontWeight: '900' }}>{onDuty ? T.onDuty : T.offDuty}</Text>
                                     <Text style={{ color: muted, fontSize: 13, fontWeight: '600' }}>{onDuty ? T.onDutyHint(me?.shop) : T.offDutyHint}</Text>
                                 </View>
-                                                            </View>
+                            </View>
                         </View>
 
                         {summary ? (
@@ -299,6 +321,89 @@ export default function RiderHomeScreen() {
                         ) : null}
                     </>
                 ) : null}
+                {ready && desk ? (
+                    <View>
+                        {/* the duty strip: who he is right now, and the one button that changes it */}
+                        <View style={{ marginHorizontal: 16, marginBottom: 16, borderRadius: 24, paddingVertical: 20, paddingHorizontal: 22, flexDirection: 'row', alignItems: 'center', backgroundColor: onDuty ? alpha(ok, 0.12) : surface, borderWidth: 1, borderColor: onDuty ? alpha(ok, 0.45) : border }}>
+                            <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: onDuty ? alpha(ok, 0.2) : alpha(muted, 0.14), alignItems: 'center', justifyContent: 'center' }}>
+                                <View style={{ width: 18, height: 18, borderRadius: 9, backgroundColor: onDuty ? ok : muted, boxShadow: onDuty ? `0 0 0 6px ${alpha(ok, 0.25)}` : 'none' }} />
+                            </View>
+                            <View style={{ flex: 1, minWidth: 0, marginLeft: 16 }}>
+                                <Text style={{ color: text, fontSize: 21, fontWeight: '900' }}>{onDuty ? T.onDuty : T.offDuty}</Text>
+                                <Text style={{ color: muted, fontSize: 14, fontWeight: '600', marginTop: 3 }}>{onDuty ? T.onDutyHint(me?.shop) : T.offDutyHint}</Text>
+                            </View>
+                            <View style={{ width: 190 }}>
+                                <BigButton label={onDuty ? T.endDuty : T.startDuty} icon={onDuty ? 'power' : 'play'} kind={onDuty ? 'outline' : 'primary'} busy={dutyBusy} onPress={() => changeDuty(!onDuty)} />
+                            </View>
+                        </View>
+
+                        <View style={{ flexDirection: 'row', alignItems: 'stretch' }}>
+                            {/* what needs him now */}
+                            <View style={{ flex: 1, minWidth: 0, marginLeft: 16, marginRight: 8 }}>
+                                <View style={{ borderRadius: 24, borderWidth: 1, borderColor: border, backgroundColor: surface, paddingVertical: 18, boxShadow: '0 4px 20px rgba(0,0,0,0.05)' }}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, marginBottom: 14 }}>
+                                        <View style={{ width: 38, height: 38, borderRadius: 13, backgroundColor: alpha(primary, 0.14), alignItems: 'center', justifyContent: 'center' }}><Ionicons name="flash" size={19} color={primary} /></View>
+                                        <Text style={{ color: text, fontWeight: '900', fontSize: 17, marginLeft: 12, flex: 1 }}>{tr('Needs you now')}</Text>
+                                    </View>
+                                    {active.length === 0 ? <RatingNews news={news} onClose={closeNews} /> : null}
+                                    {liveOffers.map((o) => (
+                                        <OfferCard key={String(o.id)} o={o} busy={busyId === o.id} onAccept={() => accept(o)} onReject={() => reject(o)} onExpire={load} />
+                                    ))}
+                                    {active.map((o) => (
+                                        <ActiveCard key={String(o.id)} o={o} onPress={() => nav.navigate('RiderTrip', { orderId: String(o.id) })} />
+                                    ))}
+                                    {liveOffers.length === 0 && active.length === 0 ? (
+                                        <View style={{ alignItems: 'center', paddingVertical: 34, paddingHorizontal: 24 }}>
+                                            <View style={{ width: 92, height: 92, borderRadius: 46, backgroundColor: alpha(onDuty ? ok : muted, 0.12), alignItems: 'center', justifyContent: 'center' }}>
+                                                <Ionicons name={onDuty ? 'bicycle' : 'moon-outline'} size={44} color={onDuty ? ok : muted} />
+                                            </View>
+                                            <Text style={{ color: text, fontWeight: '900', fontSize: 18, marginTop: 16, textAlign: 'center' }}>{onDuty ? T.waiting : T.offDuty}</Text>
+                                            <Text style={{ color: muted, fontWeight: '600', marginTop: 6, textAlign: 'center', maxWidth: 320, lineHeight: 20 }}>{onDuty ? T.waitingHint : T.offDutyHint}</Text>
+                                        </View>
+                                    ) : null}
+                                </View>
+                            </View>
+
+                            {/* what he did lately */}
+                            <View style={{ flex: 1, minWidth: 0, marginRight: 16, marginLeft: 8 }}>
+                                <View style={{ borderRadius: 24, borderWidth: 1, borderColor: border, backgroundColor: surface, paddingVertical: 18, boxShadow: '0 4px 20px rgba(0,0,0,0.05)' }}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, marginBottom: 8 }}>
+                                        <View style={{ width: 38, height: 38, borderRadius: 13, backgroundColor: alpha(ok, 0.14), alignItems: 'center', justifyContent: 'center' }}><Ionicons name="time" size={19} color={ok} /></View>
+                                        <Text style={{ color: text, fontWeight: '900', fontSize: 17, marginLeft: 12, flex: 1 }}>{tr('Recent activity')}</Text>
+                                    </View>
+                                    {recent.length ? recent.map((o, i) => {
+                                        const done = o.status === 'delivered';
+                                        const tone = done ? ok : bad;
+                                        return (
+                                            <View key={String(o.id)} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 20, borderTopWidth: i ? 1 : 0, borderTopColor: alpha(border, 0.8) }}>
+                                                <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: alpha(tone, 0.13), alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                                                    <Ionicons name={done ? 'checkmark' : 'close'} size={20} color={tone} />
+                                                </View>
+                                                <View style={{ flex: 1, minWidth: 0 }}>
+                                                    <Text style={{ color: text, fontWeight: '900', fontSize: 15 }}>{tr('Order #{orderNo}', { orderNo: o.ref || o.orderNo })}</Text>
+                                                    <Text style={{ color: muted, fontWeight: '600', fontSize: 12.5, marginTop: 2 }}>{when(o.delivery?.deliveredAt || o.createdAt)}</Text>
+                                                </View>
+                                                <View style={{ alignItems: 'flex-end' }}>
+                                                    <View style={{ paddingHorizontal: 10, paddingVertical: 3, borderRadius: 11, backgroundColor: alpha(tone, 0.13) }}>
+                                                        <Text style={{ color: tone, fontWeight: '900', fontSize: 12 }}>{done ? tr('Delivered') : o.status === 'cancelled' ? tr('Cancelled') : tr('Not delivered')}</Text>
+                                                    </View>
+                                                    {done && o.earnPaise > 0 ? <Text style={{ color: text, fontWeight: '900', fontSize: 15, marginTop: 4 }}>{rupee(o.earnPaise)}</Text> : null}
+                                                </View>
+                                            </View>
+                                        );
+                                    }) : (
+                                        <View style={{ alignItems: 'center', paddingVertical: 34, paddingHorizontal: 24 }}>
+                                            <View style={{ width: 92, height: 92, borderRadius: 46, backgroundColor: alpha(muted, 0.12), alignItems: 'center', justifyContent: 'center' }}><Ionicons name="receipt-outline" size={42} color={muted} /></View>
+                                            <Text style={{ color: text, fontWeight: '900', fontSize: 18, marginTop: 16 }}>{tr('Nothing yet')}</Text>
+                                            <Text style={{ color: muted, fontWeight: '600', marginTop: 6, textAlign: 'center' }}>{tr('Your deliveries will show here.')}</Text>
+                                        </View>
+                                    )}
+                                </View>
+                            </View>
+                        </View>
+                    </View>
+                ) : null}
+              </View>
             </ScrollView>
             <KeepRunningSheet visible={guide} onClose={() => setGuide(false)} />
             <OffDutySheet visible={askOff} onClose={() => setAskOff(false)} onPick={(extra) => changeDuty(false, extra)} />

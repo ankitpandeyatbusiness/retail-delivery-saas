@@ -11,6 +11,9 @@ import { BigButton, Banner } from '../../components/riders/riderBits';
 import { fetchMoney } from '../../api/riders/riderApi';
 import { T, rupee, errText } from '../../utils/riders/riderText';
 import { tr } from '../../i18n';
+import { useRiderDesktop } from '../../utils/common/layout';
+import { Hero, GlassStat } from '../../components/owners/RiderDesk';
+import Limited from '../../components/common/ShowMore';
 
 const ago = (d) => new Date(d).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', hour12: true });
 
@@ -39,6 +42,7 @@ export default function RiderMoneyScreen() {
     }, []);
     useFocusEffect(useCallback(() => { load(); }, [load]));
 
+    const desk = useRiderDesktop();   // a computer: a banner with the numbers, the cash on the left and the earnings on the right
     const cash = m?.cash;
     const limit = cash?.limitPaise || 0;
     const over = limit > 0 && cash?.balancePaise >= limit;
@@ -48,10 +52,22 @@ export default function RiderMoneyScreen() {
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
             <ScrollView
-                contentContainerStyle={{ paddingTop: insets.top + 14, paddingBottom: 24, flexGrow: 1 }}
+                contentContainerStyle={{ paddingTop: desk ? 8 : insets.top + 14, paddingBottom: 24, flexGrow: 1 }}
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(); setRefreshing(false); }} />}
             >
-                <Text style={{ color: text, fontSize: 22, fontWeight: '900', paddingHorizontal: 16, paddingBottom: 10 }}>{T.money}</Text>
+              <View style={desk ? { width: '100%', maxWidth: 1100, alignSelf: 'center' } : undefined}>
+                {desk ? (
+                    <Hero icon="wallet" title={T.money} subtitle={tr('The cash you carry and what you earn')}>
+                        {m ? (
+                            <View style={{ flexDirection: 'row', marginTop: 18 }}>
+                                <GlassStat label={cash.balancePaise > 0 ? T.cashWithYou : T.cashNone} value={rupee(cash.balancePaise)} icon="cash-outline" />
+                                {pay && !pay.hidden && pay.earned ? <GlassStat label={T.today} value={rupee(pay.earned.todayPaise)} icon="today-outline" /> : null}
+                                {pay && !pay.hidden && pay.earned ? <GlassStat label={T.thisWeek} value={rupee(pay.earned.weekPaise)} icon="calendar-outline" /> : null}
+                                {pay && !pay.hidden && pay.earned ? <GlassStat label={T.thisMonth} value={rupee(pay.earned.monthPaise)} icon="stats-chart-outline" /> : null}
+                            </View>
+                        ) : null}
+                    </Hero>
+                ) : <Text style={{ color: text, fontSize: 22, fontWeight: '900', paddingHorizontal: 16, paddingBottom: 10 }}>{T.money}</Text>}
                 {!m && !failed ? <ListShimmer count={3} /> : null}
                 {failed && !m ? (
                     <View style={{ alignItems: 'center', padding: 30 }}>
@@ -65,6 +81,8 @@ export default function RiderMoneyScreen() {
                     <>
                         {over ? <Banner tone="bad" text={T.cashOverLimit} /> : near ? <Banner tone="warn" text={T.cashNearLimit(rupee(limit))} /> : null}
 
+                        <View style={desk ? { flexDirection: 'row', alignItems: 'flex-start' } : undefined}>
+                        <View style={desk ? { flex: 1, minWidth: 0 } : undefined}>
                         <Card tone={cash.balancePaise > 0 ? '#F59E0B' : undefined}>
                             <Text style={{ color: muted, fontSize: 12, fontWeight: '700' }}>{cash.balancePaise > 0 ? T.cashWithYou : T.cashNone}</Text>
                             <Text style={{ color: text, fontSize: 34, fontWeight: '900', marginTop: 2 }}>{rupee(cash.balancePaise)}</Text>
@@ -79,7 +97,7 @@ export default function RiderMoneyScreen() {
                             {cash.balancePaise > 0 ? <Text style={{ color: muted, fontSize: 13, fontWeight: '600', marginTop: 8 }}>{T.cashHint}</Text> : null}
                             {cash.items.length ? (
                                 <View style={{ marginTop: 12 }}>
-                                    {cash.items.map((r) => (
+                                    <Limited items={cash.items} render={(r) => (
                                         <Line
                                             key={r.id}
                                             title={r.type === 'collect' ? T.cashCollected(r.orderNo) : r.type === 'handover' ? T.cashHanded : T.cashAdjusted}
@@ -87,11 +105,13 @@ export default function RiderMoneyScreen() {
                                             amount={`${r.amountPaise > 0 ? '+' : '−'}${rupee(Math.abs(r.amountPaise))}`}
                                             color={r.amountPaise > 0 ? '#B45309' : ok}
                                         />
-                                    ))}
+                                    )} />
                                 </View>
                             ) : <Text style={{ color: muted, fontSize: 13, marginTop: 10 }}>{T.noCash}</Text>}
                         </Card>
 
+                        </View>
+                        <View style={desk ? { flex: 1, minWidth: 0 } : undefined}>
                         {pay && !pay.hidden ? (
                             <Card>
                                 <Text style={{ color: text, fontSize: 16, fontWeight: '900' }}>{T.earnings}</Text>
@@ -113,15 +133,18 @@ export default function RiderMoneyScreen() {
                                     <View style={{ marginTop: 12 }}>
                                         <Text style={{ color: muted, fontSize: 12, fontWeight: '700' }}>{T.payments}</Text>
                                         {pay.payments.filter((p) => !p.voided).length === 0 ? <Text style={{ color: muted, fontSize: 13, marginTop: 6 }}>{T.noPayments}</Text> : null}
-                                        {pay.payments.filter((p) => !p.voided).map((p) => (
+                                        <Limited items={pay.payments.filter((p) => !p.voided)} render={(p) => (
                                             <Line key={p.id} title={T.payKinds[p.kind] || p.kind} sub={ago(p.paidAt) + (p.note ? ` · ${p.note}` : '')} amount={rupee(p.amountPaise)} color={ok} />
-                                        ))}
+                                        )} />
                                     </View>
                                 ) : null}
                             </Card>
                         ) : null}
+                        </View>
+                        </View>
                     </>
                 ) : null}
+              </View>
             </ScrollView>
         </View>
     );

@@ -4,7 +4,7 @@
 // its right edge that folds it to icons, the folded one slides open over the page when the pointer comes onto it, and a click on the button keeps it open.
 // Never drawn in the phone app or on a narrow window: DesktopFrame only mounts it when useStaffDesktop() is true.
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, Pressable } from 'react-native';
+import { View, Text, Pressable, ScrollView, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useBrand, alpha } from '../common/kit';
@@ -16,6 +16,11 @@ import { useAuthStore } from '../../store/common/useAuthStore';
 import { ShopLogo } from '../owners/ui';
 import { JobBadge } from './staffBits';
 import { tr } from '../../i18n';
+import { SideRow, SideGroupTitle } from '../common/SidebarExtras';
+import AppearanceSwitch from '../owners/AppearanceSwitch';
+import LanguageSheet from '../common/LanguageSheet';
+import { themedAlert } from '../common/dialog';
+import { useAuthStore as useAuth } from '../../store/common/useAuthStore';
 
 const WIDE = 272;
 const NARROW = 72;
@@ -26,9 +31,10 @@ const save = (v) => { try { if (typeof localStorage !== 'undefined') localStorag
 
 export default function StaffSidebar({ routeName }) {
     const nav = useNavigation();
-    const { surface, background, border, text, muted, primary, onPrimary, error } = useBrand();
+    const { surface, background, border, text, muted, primary, onPrimary, error, dark } = useBrand();
     const [folded, setFolded] = useState(read);
     const [peek, setPeek] = useState(false);   // folded, but the pointer is on the sidebar: it slides open over the page
+    const [langOpen, setLangOpen] = useState(false);
     const leaveTimer = useRef(null);
     const rootRef = useRef(null);
     const wide = !folded || peek;              // the panel is (or is sliding to) its full width
@@ -46,6 +52,20 @@ export default function StaffSidebar({ routeName }) {
         ['StaffWorkTab', 'My work', 'stats-chart-outline', 'stats-chart', 0],
         ['StaffProfileTab', 'Profile', 'person-outline', 'person', 0],
     ];
+    // what used to be only on the Profile page, one click away
+    const extras = [
+        { route: 'AlertSettings', icon: 'notifications-outline', title: tr('Alerts') },
+        { route: 'Soundbox', icon: 'volume-high-outline', title: tr('Soundbox') },
+        { route: 'StaffLeave', icon: 'calendar-outline', title: tr('Days off and leave') },
+        { route: 'Sessions', icon: 'phone-portrait-outline', title: tr("Where you're logged in") },
+        { route: 'AboutUs', icon: 'information-circle-outline', title: tr('About Us') },
+        { key: 'lang', icon: 'language-outline', title: tr('Language'), act: () => setLangOpen(true) },
+        ...(me?.shopPhone ? [{ key: 'call', icon: 'call-outline', title: tr('Call the shop'), act: () => Linking.openURL(`tel:${me.shopPhone}`).catch(() => { }) }] : []),
+    ];
+    const signOut = () => themedAlert(`${tr('Log out')}?`, tr('You will need your OTP to sign in again.'), [
+        { text: tr('Cancel'), style: 'cancel' },
+        { text: tr('Log out'), style: 'destructive', onPress: () => { useStaffStore.getState().reset(); require('../../store/staff/useKitchenStore').useKitchenStore.getState().reset(); require('../../store/staff/useWaiterStore').useWaiterStore.getState().reset(); useAuth.getState().logout().catch(() => { }); } },
+    ], { icon: 'log-out-outline' });
     const toggle = () => setFolded((f) => { save(!f); return !f; });
     const go = (name) => nav.navigate('MainTabs', { screen: name });
     const keepOpen = () => { if (leaveTimer.current) { clearTimeout(leaveTimer.current); leaveTimer.current = null; } };
@@ -108,6 +128,17 @@ export default function StaffSidebar({ routeName }) {
                     );
                 })}
             </View>
+            <View style={{ height: 1, backgroundColor: border, marginHorizontal: 20, marginVertical: 10, opacity: 0.7 }} />
+            <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: compact ? 10 : 12, paddingBottom: 8 }}>
+                {compact ? null : <SideGroupTitle>{tr('More')}</SideGroupTitle>}
+                {extras.map((e) => <SideRow key={e.key || e.route} icon={e.icon} title={e.title} color={e.color} compact={compact} active={!!e.route && routeName === e.route} onPress={e.act || (() => nav.navigate(e.route))} />)}
+                {compact
+                    ? <SideRow icon={dark ? 'sunny-outline' : 'moon-outline'} title={tr('Appearance')} compact onPress={() => useThemeStore.getState().setAppearance(dark ? 'light' : 'dark')} />
+                    : <AppearanceSwitch last />}
+            </ScrollView>
+            <View style={{ paddingHorizontal: compact ? 10 : 12, paddingBottom: 14 }}>
+                <SideRow icon="log-out-outline" title={tr('Log out')} color={error} compact={compact} onPress={signOut} />
+            </View>
         </>
     );
 
@@ -125,6 +156,7 @@ export default function StaffSidebar({ routeName }) {
                     {({ hovered }) => <View style={{ width: 3, height: hovered ? '70%' : '30%', borderRadius: 2, backgroundColor: primary, opacity: hovered ? 0.9 : 0, transitionProperty: 'height, opacity', transitionDuration: '180ms' }} />}
                 </Pressable>
             ) : null}
+            <LanguageSheet visible={langOpen} onClose={() => setLangOpen(false)} />
             {/* the fold button: a small round button on the right edge of the panel, half out of it; it rides the edge while the panel slides */}
             <Pressable onPress={pin} onHoverIn={hoverIn} accessibilityRole="button" accessibilityLabel={folded ? tr('Keep the sidebar open') : tr('Fold the sidebar')}
                 style={({ hovered }) => ({ position: 'absolute', left: NARROW - 16, top: 37, transform: [{ translateX: wide ? WIDE - NARROW : 0 }], willChange: 'transform', width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: !folded || hovered ? primary : surface, borderWidth: 1, borderColor: !folded || hovered ? primary : border, boxShadow: '0 4px 14px rgba(0,0,0,0.14)', cursor: 'pointer', zIndex: 30, transitionProperty: 'transform, background-color, border-color', transitionDuration: '240ms, 140ms, 140ms', transitionTimingFunction: GLIDE })}>

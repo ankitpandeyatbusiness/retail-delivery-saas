@@ -16,6 +16,9 @@ import { fetchDuty, saveDuty, addHoliday, removeHoliday, requestLeave, cancelLea
 import { errText } from '../../utils/riders/riderText';
 import Limited from '../../components/common/ShowMore';
 import { tr } from '../../i18n';
+import { useRiderDesktop } from '../../utils/common/layout';
+import { Hero, GlassStat } from '../../components/owners/RiderDesk';
+import Masonry, { Sep } from '../../components/common/Masonry';
 import { trNote } from '../../utils/common/noteText';
 
 const DAYS = [['mon', 'Monday'], ['tue', 'Tuesday'], ['wed', 'Wednesday'], ['thu', 'Thursday'], ['fri', 'Friday'], ['sat', 'Saturday'], ['sun', 'Sunday']];
@@ -78,6 +81,7 @@ function DaysSheet({ visible, onClose, title, hint, noteLabel, noteRequired, sub
 const STATUS = { pending: ['Waiting', 'warn'], approved: ['Approved', 'ok'], rejected: ['Not approved', 'error'] };
 
 export default function RiderDutyScreen() {
+    const desk = useRiderDesktop();   // a computer: a banner, the cards in two even columns
     const { background, text, muted, border, primary, ok, error, warn } = useBrand();
     const colors = { ok, error, warn };
     const [d, setD] = useState(null);
@@ -115,6 +119,17 @@ export default function RiderDutyScreen() {
         <View style={{ flex: 1, backgroundColor: background }}>
             <PageHeader title={tr('Duty and leave')} />
             <ScrollView contentContainerStyle={{ paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
+              <View style={desk ? { width: '100%', maxWidth: 1100, alignSelf: 'center' } : undefined}>
+                {desk ? (
+                    <Hero icon="calendar" title={tr('Duty and leave')} subtitle={leaveLine}>
+                        <View style={{ flexDirection: 'row', marginTop: 18 }}>
+                            <GlassStat label={tr('Duty timing')} value={mode === 'auto' ? tr('Automatic') : tr('Manual')} icon="time-outline" />
+                            <GlassStat label={tr('Leave this month')} value={String(d.month.leaveDays)} icon="calendar-outline" />
+                            <GlassStat label={tr('My holidays')} value={String((d.holidays || []).length)} icon="sunny-outline" />
+                        </View>
+                    </Hero>
+                ) : null}
+                <Masonry desk={desk} gap={-16}>
                 {d.today.onLeave || d.today.holiday ? (
                     <Card tone={warn}>
                         <Text style={{ color: warn, fontWeight: '900' }}>{d.today.onLeave ? tr('You are on leave today') : tr('Today is your holiday')}</Text>
@@ -122,6 +137,7 @@ export default function RiderDutyScreen() {
                     </Card>
                 ) : null}
 
+                <Sep />
                 <SectionTitle title={tr('Duty timing')} />
                 <Card>
                     <Chips options={[['auto', tr('Automatic')], ['manual', tr('Manual')]]} value={mode} onChange={(v) => { setMode(v); setDirty(true); }} style={{ marginTop: 0 }} />
@@ -156,6 +172,7 @@ export default function RiderDutyScreen() {
                     {dirty ? <Button label={tr('Save timing')} icon="checkmark" busy={saving} onPress={save} style={{ marginTop: 14 }} /> : null}
                 </Card>
 
+                <Sep />
                 <SectionTitle title={tr('Leave')} />
                 <Card>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -186,6 +203,7 @@ export default function RiderDutyScreen() {
                     }} />
                 </Card>
 
+                <Sep />
                 <SectionTitle title={tr('My holidays')} />
                 <Card>
                     <Text style={{ color: muted, fontSize: 12.5 }}>{tr('Days you will not work. No approval needed. Automatic duty skips them.')}</Text>
@@ -200,6 +218,8 @@ export default function RiderDutyScreen() {
                     )} />
                     <Button label={tr('Add a holiday')} icon="add" kind="ghost" onPress={() => setHolOpen(true)} style={{ marginTop: 12 }} />
                 </Card>
+                </Masonry>
+              </View>
             </ScrollView>
 
             <DaysSheet

@@ -9,6 +9,8 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useBrand, alpha } from '../common/kit';
 import { LineShimmer } from '../owners/shimmer';
 import { buzz } from '../../utils/common/sfx';
+import { useIsDesktopWeb } from '../../utils/common/layout';
+import { BigButton } from './riderBits';
 
 const H = 60;       // height of the bar
 const KNOB = 52;    // the handle
@@ -25,6 +27,7 @@ function Arrow({ i, t, x, maxSV, color }) {
 
 export default function SwipeButton({ label, icon = 'location', onConfirm, busy, disabled, style }) {
     const { primary, onPrimary, radius } = useBrand();
+    const desk = useIsDesktopWeb();   // a computer: a swipe makes no sense with a mouse, so it is an ordinary button there
     const [w, setW] = useState(0);
     const x = useSharedValue(0);
     const max = Math.max(1, w - KNOB - PAD * 2);
@@ -66,6 +69,8 @@ export default function SwipeButton({ label, icon = 'location', onConfirm, busy,
     }));
     const fill = useAnimatedStyle(() => ({ width: x.value + KNOB + PAD * 2 }));
     const text = useAnimatedStyle(() => ({ opacity: interpolate(x.value, [0, maxSV.value * 0.55], [1, 0], Extrapolation.CLAMP) }));
+
+    if (desk) return <View style={style}><BigButton label={label} icon={icon} onPress={onConfirm} busy={busy} disabled={disabled} /></View>;
 
     return (
         <GestureDetector gesture={pan}>

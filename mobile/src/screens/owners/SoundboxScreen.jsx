@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, Switch, ScrollView, Linking, TextInput, Platform } from 'react-native';
 import AppOnlyNotice from '../../components/common/AppOnlyNotice';
-import { useOwnerDesktop, useStaffDesktop } from '../../utils/common/layout';
+import { useOwnerDesktop, useStaffDesktop, useRiderDesktop } from '../../utils/common/layout';
 import { Hero } from '../../components/owners/RiderDesk';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand, alpha } from '../../components/common/kit';
@@ -54,7 +54,8 @@ export default function SoundboxScreen() {
     const { background, surface, border, text, muted, primary } = useBrand();
     const ownDesk = useOwnerDesktop();
     const staffDesk = useStaffDesktop();   // the cook and the waiter on a computer get the owner's look too
-    const desk = ownDesk || staffDesk;
+    const riderDesk = useRiderDesktop();
+    const desk = ownDesk || staffDesk || riderDesk;
     if (Platform.OS === 'web' && desk) {
         const TILES = [
             ['notifications', tr('New-order bell'), tr('A loud bell rings until you accept or open the order.')],

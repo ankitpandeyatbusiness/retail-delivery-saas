@@ -11,7 +11,7 @@ import LegalText, { useLegalInk } from '../../components/common/LegalText';
 import { fetchPublicLegal, fetchPoweredBy } from '../../api/common/legalApi';
 import { useAuthStore } from '../../store/common/useAuthStore';
 import { tr, tl } from '../../i18n';
-import { useOwnerDesktop, useStaffDesktop } from '../../utils/common/layout';
+import { useOwnerDesktop, useStaffDesktop, useRiderDesktop } from '../../utils/common/layout';
 import { Hero } from '../../components/owners/RiderDesk';
 
 // one document. params: { key }
@@ -91,7 +91,8 @@ export function AboutUsScreen() {
     const { background, surface, border } = useBrand();
     const ownDesk = useOwnerDesktop();
     const staffDesk = useStaffDesktop();   // the cook and the waiter on a computer get the owner's look too
-    const ownerDesk = ownDesk || staffDesk;
+    const riderDesk = useRiderDesktop();
+    const ownerDesk = ownDesk || staffDesk || riderDesk;
     const role = useAuthStore((s) => s.user?.role);
     const [info, setInfo] = useState({});
     useEffect(() => { fetchPoweredBy().then((x) => setInfo(x || {})).catch(() => { }); }, []);

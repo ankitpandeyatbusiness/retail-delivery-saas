@@ -8,11 +8,15 @@ import { ListShimmer } from '../../components/owners/shimmer';
 import { RiderBadge, BADGES } from '../../components/common/RiderBadge';
 import { fetchRiderPoints } from '../../api/riders/riderApi';
 import { tr } from '../../i18n';
+import { useRiderDesktop } from '../../utils/common/layout';
+import { Hero, GlassStat } from '../../components/owners/RiderDesk';
+import Masonry, { Sep } from '../../components/common/Masonry';
 
 const WHY = { delivered: 'Delivery', stars: 'Customer rating', fault: 'Complaint (your fault)', cancel_pickup: 'Cancelled after pickup' };
 const when = (at) => new Date(at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
 
 export default function RiderPointsScreen() {
+    const desk = useRiderDesktop();   // a computer: a banner with the numbers, the cards in two even columns
     const { background, text, muted, primary, ok, error, border } = useBrand();
     const [d, setD] = useState(null);
     const [busy, setBusy] = useState(false);
@@ -30,6 +34,17 @@ export default function RiderPointsScreen() {
         <View style={{ flex: 1, backgroundColor: background }}>
             <PageHeader title={tr('My points and badge')} />
             <ScrollView contentContainerStyle={{ paddingBottom: 32 }} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={busy} onRefresh={async () => { setBusy(true); await load(); setBusy(false); }} />}>
+              <View style={desk ? { width: '100%', maxWidth: 1100, alignSelf: 'center' } : undefined}>
+                {desk ? (
+                    <Hero icon="ribbon" title={tr('My points and badge')} subtitle={tr('Customers and your shop can see your badge.')}>
+                        <View style={{ flexDirection: 'row', marginTop: 18 }}>
+                            <GlassStat label={tr('Points')} value={String(d.points)} icon="star-outline" />
+                            <GlassStat label={tr('Rating')} value={d.rated > 0 ? `★ ${Number(d.rating).toFixed(1)}` : '-'} icon="happy-outline" />
+                            <GlassStat label={tr('Rated deliveries')} value={String(d.rated || 0)} icon="checkmark-done-outline" />
+                        </View>
+                    </Hero>
+                ) : null}
+                <Masonry desk={desk} gap={-16}>
                 <Card tone={BADGES[d.badge]?.color}>
                     <RiderBadge badge={d.badge} size="lg" />
                     <Text style={{ color: text, fontSize: 40, fontWeight: '900', marginTop: 8 }}>{d.points}</Text>
@@ -58,6 +73,7 @@ export default function RiderPointsScreen() {
                     ) : <Text style={{ color: ok, fontWeight: '900' }}>{tr('You have the top badge. Great work!')}</Text>}
                 </Card>
 
+                <Sep />
                 <SectionTitle title={tr('What gives points')} />
                 <Card>
                     {[
@@ -75,6 +91,7 @@ export default function RiderPointsScreen() {
                     <Text style={{ color: muted, fontSize: 12.5, marginTop: 6 }}>{tr('A slow trip never takes points away.')}</Text>
                 </Card>
 
+                <Sep />
                 {d.history.length ? <SectionTitle title={tr('Recent')} /> : null}
                 {d.history.length ? (
                     <Card>
@@ -89,6 +106,8 @@ export default function RiderPointsScreen() {
                         ))}
                     </Card>
                 ) : null}
+                </Masonry>
+              </View>
             </ScrollView>
         </View>
     );

@@ -1,7 +1,7 @@
 // The door scanner for booked tables, for the owner and for waiters. Scan a guest's QR (or type the 5 letter code),
 // see who it is and which table, then "Mark arrived". A bad ticket says why: too early, wrong day, already used, cancelled.
 import React, { useRef, useState } from 'react';
-import { View, Text, TextInput, Pressable, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TextInput, Pressable, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 import { useRoute } from '@react-navigation/native';
@@ -12,9 +12,14 @@ import { waiterScan, waiterArrive } from '../../api/staff/staffApi';
 import { openPhoneSettings } from '../../utils/customers/whereAmI';
 import { showToast } from '../../components/customers/shop';
 import { tr } from '../../i18n';
+import { useOwnerDesktop, useStaffDesktop } from '../../utils/common/layout';
+import { Hero } from '../../components/owners/RiderDesk';
 
 export default function BookingScanScreen() {
     const { who } = useRoute().params || {};
+    const ownDesk = useOwnerDesktop();
+    const staffDesk = useStaffDesktop();
+    const desk = ownDesk || staffDesk;   // the owner, the cook or the waiter on a computer: a banner, the camera on the left and the code on the right
     const call = who === 'waiter' ? { scan: waiterScan, arrive: waiterArrive } : { scan: ownerApi.scan, arrive: ownerApi.arrive };
     const { background, text, muted, primary, ok, error, surface, border } = useBrand();
     const [perm, ask] = useCameraPermissions();
@@ -61,6 +66,52 @@ export default function BookingScanScreen() {
     ) : null;
 
     if (!perm) return <View style={{ flex: 1, backgroundColor: background }} />;
+
+    if (desk) {
+        const camOn = perm.granted && !typing;
+        return (
+            <View style={{ flex: 1, backgroundColor: background }}>
+                <PageHeader title={tr('Scan booking')} />
+                <ScrollView contentContainerStyle={{ paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
+                    <View style={{ width: '100%', maxWidth: 1000, alignSelf: 'center' }}>
+                        <Hero icon="qr-code" title={tr('Scan booking')} subtitle={tr("Scan the guest's booking QR, or type the 5 letter code")} />
+                        {res ? <View style={{ maxWidth: 560, width: '100%', alignSelf: 'center' }}>{card}</View> : (
+                            <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+                                <View style={{ flex: 1.2, minWidth: 0, margin: 16 }}>
+                                    <View style={{ height: 380, borderRadius: 24, overflow: 'hidden', backgroundColor: '#000', alignItems: 'center', justifyContent: 'center' }}>
+                                        {camOn ? (
+                                            <>
+                                                <CameraView style={StyleSheet.absoluteFill} facing="back" barcodeScannerSettings={{ barcodeTypes: ['qr'] }} onBarcodeScanned={({ data }) => look(data)} />
+                                                <View pointerEvents="none" style={{ alignItems: 'center' }}>
+                                                    <View style={{ width: 220, height: 220, borderRadius: 24, borderWidth: 3, borderColor: '#fff' }} />
+                                                    <Text style={{ color: '#fff', fontWeight: '800', marginTop: 14 }}>{tr("Point at the guest's booking QR")}</Text>
+                                                </View>
+                                            </>
+                                        ) : (
+                                            <View style={{ alignItems: 'center', padding: 24 }}>
+                                                <Ionicons name="qr-code-outline" size={56} color="#FFFFFF" />
+                                                <Text style={{ color: '#FFFFFF', fontWeight: '900', fontSize: 17, marginTop: 10 }}>{!perm.granted ? tr('Camera needed') : tr('Camera is off')}</Text>
+                                                <Text style={{ color: 'rgba(255,255,255,0.7)', textAlign: 'center', marginTop: 6, marginBottom: 16, maxWidth: 320 }}>{!perm.granted ? tr("Allow the camera to scan the guest's QR, or type the code.") : tr('Type the code, or use the camera.')}</Text>
+                                                {!perm.granted ? <Button label={perm.canAskAgain ? tr('Allow camera') : tr('Open settings')} onPress={perm.canAskAgain ? ask : openPhoneSettings} /> : <Button label={tr('Use the camera')} icon="camera-outline" onPress={() => setTyping(false)} />}
+                                            </View>
+                                        )}
+                                    </View>
+                                </View>
+                                <View style={{ flex: 1, minWidth: 0, margin: 16, marginLeft: 0, padding: 22, borderRadius: 24, borderWidth: 1, borderColor: border, backgroundColor: surface }}>
+                                    <Text style={{ color: text, fontWeight: '900', fontSize: 17 }}>{tr('Type the code instead')}</Text>
+                                    <Text style={{ color: muted, fontWeight: '700', marginTop: 12, marginBottom: 6 }}>{tr('Booking code (5 letters)')}</Text>
+                                    <TextInput value={typed} onChangeText={(x) => setTyped(x.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 5))} autoCapitalize="characters" autoCorrect={false} maxLength={5} placeholder="ABCDE"
+                                        placeholderTextColor={muted} style={{ borderWidth: 1, borderColor: border, borderRadius: 14, padding: 14, fontSize: 24, fontWeight: '900', letterSpacing: 6, color: text, textAlign: 'center' }} />
+                                    <Button label={tr('Check code')} icon="search" busy={busy} disabled={typed.length !== 5} onPress={() => look(typed)} style={{ marginTop: 14 }} />
+                                    {perm.granted && !typing ? null : perm.granted ? <Button label={tr('Use the camera')} icon="camera-outline" kind="ghost" onPress={() => setTyping(false)} style={{ marginTop: 8 }} /> : null}
+                                </View>
+                            </View>
+                        )}
+                    </View>
+                </ScrollView>
+            </View>
+        );
+    }
 
     if (res) return <View style={{ flex: 1, backgroundColor: background }}><PageHeader title={tr('Scan booking')} />{card}</View>;
 

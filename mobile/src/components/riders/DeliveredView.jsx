@@ -9,6 +9,7 @@ import { useBrand, alpha } from '../common/kit';
 import { BigButton } from './riderBits';
 import { T, rupee, rupeeAmount } from '../../utils/riders/riderText';
 import { tr } from '../../i18n';
+import { useRiderDesktop } from '../../utils/common/layout';
 
 const mins = (a, b) => {
     const x = new Date(a).getTime();
@@ -33,6 +34,7 @@ function Stat({ icon, value, label, delay }) {
 export default function DeliveredView({ o, onDone }) {
     const { background, text, muted, ok, surface, border, warn } = useBrand();
     const insets = useSafeAreaInsets();
+    const desk = useRiderDesktop();   // a computer: one centred card with the button inside it, not a full-screen page
     const pop = useSharedValue(0);
     const ring = useSharedValue(0);
     useEffect(() => {
@@ -50,7 +52,8 @@ export default function DeliveredView({ o, onDone }) {
 
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
-            <ScrollView contentContainerStyle={{ paddingTop: insets.top + 36, paddingHorizontal: 20, paddingBottom: 24, alignItems: 'center' }} showsVerticalScrollIndicator={false}>
+            <ScrollView contentContainerStyle={desk ? { flexGrow: 1, justifyContent: 'center', alignItems: 'center', padding: 24 } : { paddingTop: insets.top + 36, paddingHorizontal: 20, paddingBottom: 24, alignItems: 'center' }} showsVerticalScrollIndicator={false}>
+              <View style={desk ? { width: '100%', maxWidth: 620, alignItems: 'center', padding: 36, borderRadius: 30, borderWidth: 1, borderColor: border, backgroundColor: surface, boxShadow: '0 24px 70px rgba(0,0,0,0.12)' } : { alignSelf: 'stretch', alignItems: 'center' }}>
                 <View style={{ width: 132, height: 132, alignItems: 'center', justifyContent: 'center' }}>
                     <Reanimated.View style={[{ position: 'absolute', width: 120, height: 120, borderRadius: 60, backgroundColor: ok }, halo]} />
                     <Reanimated.View style={[{ width: 112, height: 112, borderRadius: 56, backgroundColor: ok, alignItems: 'center', justifyContent: 'center', elevation: 6 }, badge]}>
@@ -103,10 +106,12 @@ export default function DeliveredView({ o, onDone }) {
                         <Text style={{ flex: 1, marginLeft: 12, color: text, fontWeight: '800' }}>{tr('Paid online. You have no cash to give.')}</Text>
                     </View>
                 ) : null}
+                {desk ? <View style={{ alignSelf: 'stretch', marginTop: 28 }}><BigButton label={T.backHome} onPress={onDone} /></View> : null}
+              </View>
             </ScrollView>
-            <View style={{ paddingHorizontal: 20, paddingTop: 10, paddingBottom: Math.max(insets.bottom, 16), borderTopWidth: 1, borderTopColor: border, backgroundColor: background }}>
+            {desk ? null : <View style={{ paddingHorizontal: 20, paddingTop: 10, paddingBottom: Math.max(insets.bottom, 16), borderTopWidth: 1, borderTopColor: border, backgroundColor: background }}>
                 <BigButton label={T.backHome} onPress={onDone} />
-            </View>
+            </View>}
         </View>
     );
 }

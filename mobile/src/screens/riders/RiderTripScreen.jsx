@@ -31,6 +31,7 @@ import { startRiderTracking } from '../../utils/riders/locationTask';
 import LocationStatus from '../../components/riders/LocationStatus';
 import { T, rupee, rupeeAmount, addressLine, errText } from '../../utils/riders/riderText';
 import { tr } from '../../i18n';
+import { useRiderDesktop } from '../../utils/common/layout';
 import { trNote } from '../../utils/common/noteText';
 import KeyboardScroll from '../../components/common/KeyboardScroll';
 
@@ -60,6 +61,7 @@ async function currentSpot() {
 }
 
 export default function RiderTripScreen() {
+    const desk = useRiderDesktop();   // a computer: the map on the left, the steps and the big button on the right
     const nav = useNavigation();
     const insets = useSafeAreaInsets();
     const { orderId } = useRoute().params || {};
@@ -299,11 +301,40 @@ export default function RiderTripScreen() {
     }
 
     const ready = (o.status === 'preparing' || o.status === 'ready') && o.foodReady !== false;   // the food must be ready: the cook (or the owner) marks it
+    const dock = (
+        <>
+                {step === 0 ? (
+                    <>
+                        <BigButton label={T.collected} icon="bag-check" onPress={collect} busy={busy === 'collect'} disabled={!ready} />
+                        {!ready ? <Text style={{ color: muted, textAlign: 'center', fontWeight: '700', marginTop: 8 }}>{T.waitForShop}</Text> : null}
+                    </>
+                ) : step === 1 ? (
+                    <>
+                        <SwipeButton label={tr('Arrived')} icon="location" onConfirm={arrived} busy={busy === 'arrived'} />
+                        {o?.undo && new Date(o.undo.until).getTime() > Date.now() ? (
+                            <Pressable onPress={undoCollect} disabled={busy === 'undo'} hitSlop={8} style={{ alignSelf: 'center', paddingTop: 12, opacity: busy === 'undo' ? 0.5 : 1 }}>
+                                <Text style={{ color: primary, fontWeight: '800' }}>{tr('Collected by mistake? Undo')}</Text>
+                            </Pressable>
+                        ) : null}
+                    </>
+                ) : (
+                    <BigButton
+                        label={cash ? T.deliverCash(rupeeAmount(o.payment.collectAmount)) : T.deliver}
+                        icon="checkmark-circle"
+                        onPress={startDeliver}
+                        busy={busy === 'deliver' || busy === 'photo'}
+                    />
+                )}
+        </>
+    );
+
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
             <PageHeader title={tr('Order #{orderNo}', { orderNo: o.ref || o.orderNo })} />
             <Steps labels={STEP_LABELS} step={step} />
-            <KeyboardScroll contentContainerStyle={{ paddingTop: 8, paddingBottom: dockH + 16 }} keyboardShouldPersistTaps="handled" scrollEnabled={!mapTouch}>
+            <KeyboardScroll contentContainerStyle={{ paddingTop: 8, paddingBottom: desk ? 40 : dockH + 16 }} keyboardShouldPersistTaps="handled" scrollEnabled={!mapTouch}>
+              <View style={desk ? { width: '100%', maxWidth: 1100, alignSelf: 'center', flexDirection: 'row', alignItems: 'flex-start' } : undefined}>
+              <View style={desk ? { flex: 1.25, minWidth: 0 } : undefined}>
                 {offline ? <Banner tone="warn" icon="cloud-offline" text={T.offline} /> : null}
                 {step > 0 ? (
                     <Banner
@@ -316,7 +347,7 @@ export default function RiderTripScreen() {
                 {!finished ? (
                     <View style={{ marginHorizontal: 16, marginBottom: 10 }}>
                         <TripClock onTheWay={step >= 1} allowedSec={d.plannedSec || plan?.allowedSec} due={due} eta={eta} style={{ marginBottom: 10 }} />
-                        <RiderMap destination={spot} route={onTheWay && liveRoute ? liveRoute : plan} live={onTheWay} etaMin={etaMin} label={pinLabel} height={260} onGesture={setMapTouch}
+                        <RiderMap destination={spot} route={onTheWay && liveRoute ? liveRoute : plan} live={onTheWay} etaMin={etaMin} label={pinLabel} height={desk ? 380 : 260} onGesture={setMapTouch}
                             startLabel={onTheWay ? tr('Your location') : shopName} endLabel={o.customer?.name || tr('Customer')} />
                         {/* always there from the moment he accepts: the journey in Google Maps, with its own turn-by-turn voice */}
                         <View style={{ marginTop: 10 }}>
@@ -326,6 +357,8 @@ export default function RiderTripScreen() {
                     </View>
                 ) : null}
 
+              </View>
+              <View style={desk ? { flex: 1, minWidth: 0 } : undefined}>
                 {step === 0 ? (
                     <Card>
                         <Text style={{ color: text, fontWeight: '900', fontSize: 18 }}>{T.collectTitle}</Text>
@@ -371,33 +404,17 @@ export default function RiderTripScreen() {
                     ))}
                 </View>
                 {step === 0 ? <View style={{ marginHorizontal: 16 }}><SmallLink label={T.cannotDo} onPress={giveBack} /></View> : null}
+                {desk ? <View style={{ marginHorizontal: 16, marginTop: 16 }}>{dock}</View> : null}
+              </View>
+              </View>
             </KeyboardScroll>
 
             {/* the one big button */}
+            {desk ? null : (
             <View onLayout={(e) => setDockH(Math.ceil(e.nativeEvent.layout.height))} style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: 16, paddingBottom: Math.max(insets.bottom, 16), backgroundColor: background, borderTopWidth: 1, borderTopColor: border }}>
-                {step === 0 ? (
-                    <>
-                        <BigButton label={T.collected} icon="bag-check" onPress={collect} busy={busy === 'collect'} disabled={!ready} />
-                        {!ready ? <Text style={{ color: muted, textAlign: 'center', fontWeight: '700', marginTop: 8 }}>{T.waitForShop}</Text> : null}
-                    </>
-                ) : step === 1 ? (
-                    <>
-                        <SwipeButton label={tr('Arrived')} icon="location" onConfirm={arrived} busy={busy === 'arrived'} />
-                        {o?.undo && new Date(o.undo.until).getTime() > Date.now() ? (
-                            <Pressable onPress={undoCollect} disabled={busy === 'undo'} hitSlop={8} style={{ alignSelf: 'center', paddingTop: 12, opacity: busy === 'undo' ? 0.5 : 1 }}>
-                                <Text style={{ color: primary, fontWeight: '800' }}>{tr('Collected by mistake? Undo')}</Text>
-                            </Pressable>
-                        ) : null}
-                    </>
-                ) : (
-                    <BigButton
-                        label={cash ? T.deliverCash(rupeeAmount(o.payment.collectAmount)) : T.deliver}
-                        icon="checkmark-circle"
-                        onPress={startDeliver}
-                        busy={busy === 'deliver' || busy === 'photo'}
-                    />
-                )}
+                {dock}
             </View>
+            )}
 
             {/* the customer's PIN */}
             <Sheet visible={sheet === 'pin'} onClose={() => setSheet(null)} title={T.pinTitle}>

@@ -4,9 +4,10 @@
 import React from 'react';
 import { View } from 'react-native';
 import { useBrand } from '../common/kit';
-import { useCustomerDesktop, useOwnerDesktop, useStaffDesktop, DESKTOP_PAGE_MAX } from '../../utils/common/layout';
+import { useCustomerDesktop, useOwnerDesktop, useStaffDesktop, useRiderDesktop, DESKTOP_PAGE_MAX } from '../../utils/common/layout';
 import OwnerSidebar from '../owners/OwnerSidebar';
 import StaffSidebar from '../staff/StaffSidebar';
+import RiderSidebar from '../riders/RiderSidebar';
 import GetAppBanner from './GetAppBanner';
 import DesktopTopBar from './DesktopTopBar';
 import DesktopCartBar from './DesktopCartBar';
@@ -20,7 +21,8 @@ export default function DesktopFrame({ navRef, routeName, children }) {
     const brand = useBrand();
     const ownerDesk = useOwnerDesktop();   // the shop owner on a computer: a sidebar on the left, no top bar
     const staffDesk = useStaffDesktop();   // a cook or a waiter on a computer: their own sidebar
-    const sideDesk = ownerDesk || staffDesk;
+    const riderDesk = useRiderDesktop();   // a rider on a computer: his own sidebar
+    const sideDesk = ownerDesk || staffDesk || riderDesk;
     const bare = !desktop || routeName === 'Login';   // the login screen has its own full-width desktop layout
     return (
         <View style={{ flex: 1, backgroundColor: desktop ? brand.background : undefined }}>
@@ -30,6 +32,7 @@ export default function DesktopFrame({ navRef, routeName, children }) {
             <View style={{ flex: 1, flexDirection: sideDesk ? 'row' : 'column' }}>
                 {ownerDesk && routeName !== 'Login' ? <OwnerSidebar routeName={routeName} /> : null}
                 {staffDesk && routeName !== 'Login' ? <StaffSidebar routeName={routeName} /> : null}
+                {riderDesk && routeName !== 'Login' ? <RiderSidebar routeName={routeName} /> : null}
                 <View style={{ flex: 1, flexDirection: 'row', width: '100%', maxWidth: bare || sideDesk ? undefined : PAGE, alignSelf: sideDesk ? 'stretch' : 'center' }}>
                     <View style={{ flex: 1, overflow: bare ? undefined : 'hidden' }}>{children}</View>
                 </View>
