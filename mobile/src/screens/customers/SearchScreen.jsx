@@ -23,6 +23,7 @@ import { SkelDish } from '../../components/customers/skeletons';
 import { tr } from '../../i18n';
 import { useBottomSpace } from '../../store/customers/useLiveTripStore';
 import { useIsDesktopWeb } from '../../utils/common/layout';
+import { useShopTheme } from '../../hooks/common/useShopTheme';
 
 // Popular card: photo, name, price and the ADD / − 1 + pill, so dishes can be added straight from here.
 function Poster({ item, w }) {
@@ -95,7 +96,8 @@ export default function SearchScreen() {
     const pw = Math.floor((width - 32 - 12) / 2);
     // the desktop website: the dishes are cards in a grid, the shop's chosen card shape (Big, Grid or Compact), as on Home (false in the phone app)
     const desk = useIsDesktopWeb();
-    const cardStyle = useHomeStore((st) => st.config.cardStyle);
+    const homeCardStyle = useHomeStore((st) => st.config.cardStyle);
+    const cardStyle = useShopTheme().desk?.cardStyle || homeCardStyle;   // the desktop website's own card shape
     const deskVariant = cardStyle === 'big' ? 'deskBig' : cardStyle === 'compact' ? 'deskCompact' : 'desk';
     const deskCols = Math.max(1, Math.min(cardStyle === 'grid' ? 5 : 3, Math.floor((Math.min(width, 1180) - 32 + 16) / ((cardStyle === 'big' ? 300 : cardStyle === 'compact' ? 360 : 215) + 16))));
 

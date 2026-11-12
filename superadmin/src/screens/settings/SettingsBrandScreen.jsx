@@ -13,6 +13,7 @@ import { SettingsPage } from '../../components/settingsPage';
 import { Group, Choice, ColorField, Hint, Switch } from '../../components/settingsForm';
 import useSettingsEditor from '../../hooks/useSettingsEditor';
 import { choices, isHex, RECOMMENDED_LOOK } from '../../utils/settings';
+import DeskLookEditor from '../../components/DeskLookEditor';
 import { bestPalette, readableOnWhiteText, PALETTE_LABELS, comboColours, recommendedCombos, shadesOf } from '../../utils/palette';
 import { GRADIENT_COMBOS, COMBO_TABS, SWATCH_GROUPS, ACCENT_GROUPS, BG_GROUPS, TEXT_GROUPS, ALERT_GROUPS } from '../../utils/colorLibrary';
 
@@ -67,6 +68,7 @@ export default function SettingsBrandScreen() {
     const colors = ed.draft?.brand?.colors || {};
     const [reading, setReading] = useState(false);
     const [confirm, setConfirm] = useState(false);
+    const [scope, setScope] = useState('mobile');   // the mobile app's look, or the desktop website's
     const [tab, setTab] = useState('All');          // which kind of combinations are shown
     const [autoRest, setAutoRest] = useState(true);   // picking a main colour sets all the others to match
 
@@ -160,6 +162,15 @@ export default function SettingsBrandScreen() {
     return (
         <SettingsPage ed={ed} title="Brand and look" subtitle={name} preview saveBlocked={conflict ? 'Remove one colour source first' : ''}>
             {ed.ready ? (
+                <>
+                    <View style={{ flexDirection: 'row', marginBottom: spacing.md }}>
+                        {[['mobile', 'Mobile app'], ['desktop', 'Desktop website']].map(([k, label]) => (
+                            <Pressable key={k} onPress={() => setScope(k)} accessibilityRole="tab" accessibilityState={{ selected: scope === k }} style={{ flex: 1, height: 44, borderRadius: radius.md, borderWidth: 1, borderColor: scope === k ? t.text : t.border, backgroundColor: scope === k ? t.text : 'transparent', alignItems: 'center', justifyContent: 'center', marginRight: k === 'mobile' ? spacing.sm : 0 }}>
+                                <Text style={{ color: scope === k ? t.surface : t.text, fontSize: font.md, fontWeight: '800' }}>{label}</Text>
+                            </Pressable>
+                        ))}
+                    </View>
+                    {scope === 'desktop' ? <DeskLookEditor ed={ed} /> : (
                 <>
                     {conflict ? (
                         <View style={{ backgroundColor: t.dangerSoft, borderColor: t.danger, borderWidth: 1.5, borderRadius: radius.lg, padding: spacing.lg, marginBottom: spacing.md }}>
@@ -310,6 +321,8 @@ export default function SettingsBrandScreen() {
                         <Choice label="Button shape" options={choices('shape', ed.options.BUTTON_SHAPES)} value={ed.draft.brand.buttonShape} onChange={(v) => ed.set('brand', 'buttonShape', v)} last />
                         <Hint>Colours can also be picked from the logo: Shop → Branding.</Hint>
                     </Group>
+                </>
+                    )}
                 </>
             ) : null}
         </SettingsPage>

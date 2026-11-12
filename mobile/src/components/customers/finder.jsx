@@ -12,6 +12,7 @@ import { ask } from '../common/dialog';
 import { FadeIn } from '../common/motion';
 import { SkelCats } from './skeletons';
 import { useThemeStore } from '../../store/common/useThemeStore';
+import { useShopTheme } from '../../hooks/common/useShopTheme';
 import { tint, showToast, useClosedStyle } from './shop';
 import { useHomeStore } from '../../store/customers/useHomeStore';
 import { useFilterStore, countActive } from '../../store/customers/useFilterStore';
@@ -331,7 +332,7 @@ function DeskCats({ chips, sel, toggle, clear }) {
 export function Cats({ loading = false }) {
     const { primary, onPrimary, background } = useBrand();
     const desk = useIsDesktopWeb();   // the desktop website: the categories wrap over the width as pills, instead of one sideways row with a lot of empty space (false in the phone app)
-    const style = useThemeStore((st) => st.theme.categoryStyle) || 'circles';
+    const style = useShopTheme().categoryStyle || 'circles';
     const allChips = useHomeStore((st) => st.categories);
     const vegOnly = useFilterStore((st) => st.active.includes('veg_only'));
     const menu = useMenuStore((st) => st.categories);

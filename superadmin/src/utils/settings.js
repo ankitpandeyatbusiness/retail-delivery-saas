@@ -137,6 +137,7 @@ export function effectiveSettings({ tenant, resolved, options, defaults, presets
             categoryScroll: raw.brand?.categoryScroll === true,
             filterStyle: raw.brand?.filterStyle || D.brand?.filterStyle || 'dialog',
             locationStyle: raw.brand?.locationStyle || D.brand?.locationStyle || 'card',
+            desktop: raw.brand?.desktop && typeof raw.brand.desktop === 'object' ? raw.brand.desktop : {},   // the desktop website's own look (follows the mobile one unless follow is off)
         },
         tabs: raw.tabs || D.tabs || ['home', 'search', 'orders', 'profile'],
         home: {

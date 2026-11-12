@@ -7,6 +7,7 @@ import { GestureDetector, GestureHandlerRootView } from 'react-native-gesture-ha
 import { useSheetPan } from '../../components/common/DragDown';
 import { FadeIn } from '../../components/common/motion';
 import { useThemeStore } from '../../store/common/useThemeStore';
+import { useShopTheme } from '../../hooks/common/useShopTheme';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand } from '../../components/common/kit';
 import { tint, useClosedStyle } from '../../components/customers/shop';
@@ -277,7 +278,7 @@ export default function FilterDialog({ visible, onClose, items }) {
         t.start();
         return () => t.stop();
     }, [active]);
-    const style = useThemeStore((st) => st.theme.filterStyle) || 'dialog';   // dialog | sheet | rail
+    const style = useShopTheme().filterStyle || 'dialog';   // dialog | sheet | rail
     const sheetLike = style !== 'dialog' && !deskWeb;
 
     // every section once: its title, how many are on, and its options

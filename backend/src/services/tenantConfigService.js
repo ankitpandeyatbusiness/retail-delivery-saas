@@ -67,7 +67,7 @@ function validateSettings(input) {
     known(s, ['brand', 'tabs', 'home', 'features', 'menu', 'orders', 'hours', 'offers', 'labels', 'riders', 'notifications', 'app'], 'settings');
 
     // brand
-    section('brand', ['colors', 'fontStyle', 'buttonShape', 'look', 'lightLook', 'darkLook', 'motion', 'headerStyle', 'tabBarStyle', 'categoryStyle', 'categoryScroll', 'filterStyle', 'locationStyle'], (b, out, p) => {
+    section('brand', ['colors', 'fontStyle', 'buttonShape', 'look', 'lightLook', 'darkLook', 'motion', 'headerStyle', 'tabBarStyle', 'categoryStyle', 'categoryScroll', 'filterStyle', 'locationStyle', 'desktop'], (b, out, p) => {
         if (b.colors !== undefined) {
             if (!isObj(b.colors)) err(p('colors'), 'must be an object');
             else {
@@ -92,6 +92,34 @@ function validateSettings(input) {
         if (b.categoryScroll !== undefined && bool(p('categoryScroll'), b.categoryScroll)) out.categoryScroll = b.categoryScroll;   // desktop website only: one sideways-scrolling row
         if (b.filterStyle !== undefined && oneOf(p('filterStyle'), b.filterStyle, O.FILTER_STYLES)) out.filterStyle = b.filterStyle;
         if (b.locationStyle !== undefined && oneOf(p('locationStyle'), b.locationStyle, O.LOCATION_STYLES)) out.locationStyle = b.locationStyle;
+        // the DESKTOP website's own look. `follow` (default true: the website copies the mobile look); with follow off, these values are the website's
+        // (colours, the two themes, header, top bar, categories, filter popup, location bar and the dish card shape), each falling back to the mobile one when not set
+        if (b.desktop !== undefined) {
+            if (!isObj(b.desktop)) err(p('desktop'), 'must be an object');
+            else {
+                const d = b.desktop;
+                const o = {};
+                known(d, ['follow', 'colors', 'lightLook', 'darkLook', 'headerStyle', 'tabBarStyle', 'categoryStyle', 'categoryScroll', 'filterStyle', 'locationStyle', 'cardStyle'], p('desktop'));
+                if (d.follow !== undefined && bool(p('desktop.follow'), d.follow)) o.follow = d.follow;
+                if (d.categoryScroll !== undefined && bool(p('desktop.categoryScroll'), d.categoryScroll)) o.categoryScroll = d.categoryScroll;
+                const pick = (k, list) => { if (d[k] !== undefined && oneOf(p(`desktop.${k}`), d[k], list)) o[k] = d[k]; };
+                pick('lightLook', O.LIGHT_LOOKS); pick('darkLook', O.DARK_LOOKS); pick('headerStyle', O.HEADER_STYLES); pick('tabBarStyle', O.TAB_BAR_STYLES);
+                pick('categoryStyle', O.CATEGORY_STYLES); pick('filterStyle', O.FILTER_STYLES); pick('locationStyle', O.LOCATION_STYLES); pick('cardStyle', O.CARD_STYLES);
+                if (d.colors !== undefined) {
+                    if (!isObj(d.colors)) err(p('desktop.colors'), 'must be an object');
+                    else {
+                        o.colors = {};
+                        for (const [k, v] of Object.entries(d.colors)) {
+                            if (!O.COLOR_KEYS.includes(k)) err(p(`desktop.colors.${k}`), 'unknown color');
+                            else if (v === '' || v === null) continue;
+                            else if (!HEX.test(v)) err(p(`desktop.colors.${k}`), 'must look like #RRGGBB');
+                            else o.colors[k] = v;
+                        }
+                    }
+                }
+                out.desktop = o;
+            }
+        }
     });
 
     // tabs (ordered list)
@@ -657,6 +685,25 @@ function resolveConfig(tenant, now = new Date()) {
         filterStyle: clean.brand?.filterStyle || DEFAULTS.brand.filterStyle,
         locationStyle: clean.brand?.locationStyle || DEFAULTS.brand.locationStyle,
     };
+    // the desktop website's look: the same as the mobile one while it follows it (the default, so no shop changes by itself), else its own values
+    {
+        const d = clean.brand?.desktop || {};
+        const follow = d.follow !== false;
+        const own = (k) => (follow ? undefined : d[k]);
+        brand.desk = {
+            follow,
+            colors: !follow && d.colors && Object.keys(d.colors).length ? brandColors(null, d.colors) : brand.colors,
+            lightLook: own('lightLook') || brand.lightLook,
+            darkLook: own('darkLook') || brand.darkLook,
+            headerStyle: own('headerStyle') || brand.headerStyle,
+            tabBarStyle: own('tabBarStyle') || brand.tabBarStyle,
+            categoryStyle: own('categoryStyle') || brand.categoryStyle,
+            categoryScroll: follow ? brand.categoryScroll : (d.categoryScroll !== undefined ? d.categoryScroll === true : brand.categoryScroll),
+            filterStyle: own('filterStyle') || brand.filterStyle,
+            locationStyle: own('locationStyle') || brand.locationStyle,
+            cardStyle: own('cardStyle') || home.cardStyle,
+        };
+    }
 
     const features = merge(DEFAULTS.features, clean.features);
     if (features.vegToggle === undefined) features.vegToggle = home.foodMode === 'mixed';

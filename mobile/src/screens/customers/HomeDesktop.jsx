@@ -23,6 +23,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useFocusEffect } from '../../hooks/common/useLiveFocus';
 import { useBrand, onColor } from '../../components/common/kit';
 import { useThemeStore } from '../../store/common/useThemeStore';
+import { useShopTheme } from '../../hooks/common/useShopTheme';
 import { useAuthStore } from '../../store/common/useAuthStore';
 import { useHomeStore } from '../../store/customers/useHomeStore';
 import { useMenuStore, useCartStore, useFavStore } from '../../store/customers/shopStores';
@@ -111,7 +112,7 @@ function Pill({ icon, dot, text }) {
 
 function Header({ mode, hero }) {
     const { text, muted } = useBrand();
-    const theme = useThemeStore((s) => s.theme);
+    const theme = useShopTheme();   // the desktop website's look
     const full = useHomeStore((s) => s.full);
     const compact = theme.headerStyle === 'compact';
     const open = full.restaurant.isOpen;
@@ -222,7 +223,7 @@ function Hero({ list, onOrder }) {
 /* ---------------- visit us: the shop's address, drawn the way the shop chose (card | list | chip | banner) ---------------- */
 function VisitBar() {
     const { primary, primaryLight, primaryDark, onPrimary, text, muted, surface, border } = useBrand();
-    const variant = useThemeStore((st) => st.theme.locationStyle) || 'card';
+    const variant = useShopTheme().locationStyle || 'card';
     const spot = useStoreSpot();
     if (!spot.on || (!spot.address && !spot.pinned)) return null;
     const go = spot.pinned ? () => openDirections(spot) : undefined;
@@ -421,8 +422,9 @@ function CategoryGrid({ chips, width, onPick }) {
     const sel = useFilterStore((s) => s.categories);
     const toggle = useFilterStore((s) => s.toggleCategory);
     const clear = useFilterStore((s) => s.clearCategories);
-    const style = useThemeStore((st) => st.theme.categoryStyle) || 'circles';
-    const scroll = useThemeStore((st) => st.theme.categoryScroll) === true;
+    const look = useShopTheme();
+    const style = look.categoryStyle || 'circles';
+    const scroll = look.categoryScroll === true;
     const { primary, surface, border, text } = useBrand();
     const ref = useRef(null);
     const [m, setM] = useState({ x: 0, view: 0, total: 0 });   // how far it is scrolled, how wide the window is, how wide the row is
@@ -533,8 +535,9 @@ export default function HomeDesktop() {
     const vegOnly = f.active.includes('veg_only');
     const keep = (list) => (vegOnly ? list.filter((p) => p.isVeg) : list);
     const waiting = !loaded && !errorStatus;
-    const cardMin = config.cardStyle === 'big' ? 300 : config.cardStyle === 'compact' ? 360 : CARD_MIN;   // wider cards: fewer across
-    const cols = Math.max(1, Math.min(config.cardStyle === 'big' ? 3 : config.cardStyle === 'compact' ? 3 : 5, Math.floor((colW + GAP) / (cardMin + GAP))));
+    const cardStyle = useShopTheme().desk?.cardStyle || config.cardStyle;   // the desktop website's own card shape (the mobile one while it follows)
+    const cardMin = cardStyle === 'big' ? 300 : cardStyle === 'compact' ? 360 : CARD_MIN;   // wider cards: fewer across
+    const cols = Math.max(1, Math.min(cardStyle === 'big' ? 3 : cardStyle === 'compact' ? 3 : 5, Math.floor((colW + GAP) / (cardMin + GAP))));
     const toMenu = () => { try { menuRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' }); } catch (e) { /* stay */ } };
     const onOrder = (b) => { if (b.couponCode) nav.navigate('Offers'); else toMenu(); };
 
@@ -544,7 +547,7 @@ export default function HomeDesktop() {
         : bannerOn && waiting ? <View style={{ height: 250, borderRadius: 18, backgroundColor: brand.surface }} /> : null;
 
     // the dish card follows the shop's choice: Big (wide, large photo), Grid (the standard desktop card) or Compact (text left, small photo right)
-    const cardKind = config.cardStyle === 'big' ? 'deskBig' : config.cardStyle === 'compact' ? 'deskCompact' : 'desk';
+    const cardKind = cardStyle === 'big' ? 'deskBig' : cardStyle === 'compact' ? 'deskCompact' : 'desk';
     const card = (item) => <ItemCard key={item._id} item={item} variant={cardKind} />;
     const blocks = [];
     for (const b of config.blocks || []) {

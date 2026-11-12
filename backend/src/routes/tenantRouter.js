@@ -29,6 +29,7 @@ tenantRouter.get('/theme', tenantRecognizer, async (req, res) => {
         tabBarStyle: c.brand.tabBarStyle,
         categoryStyle: c.brand.categoryStyle,
         categoryScroll: c.brand.categoryScroll === true,
+        desk: c.brand.desk,   // the desktop website's look (equal to the mobile one while the shop's desktop look follows it)
         filterStyle: c.brand.filterStyle,
         locationStyle: c.brand.locationStyle,
         heroImages,

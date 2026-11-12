@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useThemeStore } from '../../store/common/useThemeStore';
+import { useShopTheme } from '../../hooks/common/useShopTheme';
 import { useAuthStore } from '../../store/common/useAuthStore';
 import { useIsDesktopWeb } from '../../utils/common/layout';
 
@@ -180,7 +181,7 @@ export function CardGlow({ radius = 18, from = 'br', strength: base = 0.2 }) {
 
 // Brand values every screen needs. Everything is derived from the shop's theme.
 export function useBrand() {
-    const shopTheme = useThemeStore((s) => s.theme);
+    const shopTheme = useShopTheme();   // the desktop website draws the shop's desktop look (equal to the mobile one unless the shop set its own); everywhere else the theme as it is
     const appearance = useThemeStore((s) => s.appearance);
     const scheme = useSystemScheme();
     const lookId = resolveLook(shopTheme, appearance, scheme);

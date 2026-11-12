@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useBrand } from '../common/kit';
 import { useAuthStore } from '../../store/common/useAuthStore';
 import { useThemeStore } from '../../store/common/useThemeStore';
+import { useShopTheme } from '../../hooks/common/useShopTheme';
 import { useViewMode } from '../../store/owners/useViewMode';
 import { useNotificationStore } from '../../store/common/useNotificationStore';
 import { useHomeStore } from '../../store/customers/useHomeStore';
@@ -215,6 +216,7 @@ export default function DesktopTopBar({ navRef, routeName }) {
     const brand = useBrand();
     const { width } = useWindowDimensions();
     const theme = useThemeStore((s) => s.theme);
+    const look = useShopTheme();   // the desktop website's own look (the same as the mobile one unless the shop set it apart)
     const user = useAuthStore((s) => s.user);
     const full = useHomeStore((s) => s.full);
     const config = useHomeStore((s) => s.config);
@@ -278,7 +280,7 @@ export default function DesktopTopBar({ navRef, routeName }) {
     const placeholder = searchW ? (wordings.find((t) => t.length * 7.6 <= room) || wordings[wordings.length - 1]) : wordings[0];
     const roomy = width >= 1400;   // room for the shop's name next to its logo
     const tight = width < 1280;    // a small window or a zoomed-in browser: the boxes may be narrower
-    const floating = theme.tabBarStyle === 'floating';   // the shop chose the floating bar: on the website it is a pill that floats above the page
+    const floating = look.tabBarStyle === 'floating';   // the shop chose the floating bar: on the website it is a pill that floats above the page
     const logo = theme.icon || theme.logo;
     const initial = String(user?.name || user?.phone || '?').trim().slice(0, 1).toUpperCase();
 
