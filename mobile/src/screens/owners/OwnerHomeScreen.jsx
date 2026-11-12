@@ -33,6 +33,7 @@ import OccupiedTables from '../../components/owners/OccupiedTables';
 import TableRequests from '../../components/owners/TableRequests';
 import { UnpaidHomeCard } from '../../components/owners/UnpaidBills';
 import { ListShimmer } from '../../components/owners/shimmer';
+import { useOwnerDesktop } from '../../utils/common/layout';
 import { tr } from '../../i18n';
 
 const PIPELINE = [
@@ -45,6 +46,31 @@ const PIPELINE = [
 // a bulk order's step, in the owner's words (the card on top)
 const BULK_OWNER = { requested: 'Needs your quote', quoted: 'Quote sent, waiting for the customer', confirmed: 'Advance paid', preparing: 'Being made', ready: 'Ready', out_for_delivery: 'On the way' };
 const HOUR_LABELS = { 0: '12 AM', 6: '6 AM', 12: '12 PM', 18: '6 PM', 23: '11 PM' };
+
+// On a computer (useOwnerDesktop) the page is a dashboard: a row of big numbers, then the pipeline and the day on the left, the rest on the right.
+// On the phone these four wrappers draw nothing of their own (just their children), so the phone page is exactly what it was.
+const Frame = ({ desk, children }) => (desk ? <View style={{ width: '100%', maxWidth: 1360, alignSelf: 'center', paddingHorizontal: 16, paddingTop: 4 }}>{children}</View> : <>{children}</>);
+const TwoCol = ({ desk, children }) => (desk ? <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>{children}</View> : <>{children}</>);
+const Left = ({ desk, children }) => (desk ? <View style={{ flex: 3, minWidth: 0 }}>{children}</View> : <>{children}</>);
+const Right = ({ desk, children }) => (desk ? <View style={{ flex: 2, minWidth: 0 }}>{children}</View> : <>{children}</>);
+
+function KpiRow({ items }) {
+    const { surface, border, text, muted } = useBrand();
+    return (
+        <View style={{ flexDirection: 'row', marginHorizontal: 8, marginTop: 8, marginBottom: 4 }}>
+            {items.map(([label, value, icon, color, sub]) => (
+                <View key={label} style={{ flex: 1, marginHorizontal: 8, padding: 18, borderRadius: 20, borderWidth: 1, borderColor: border, backgroundColor: surface }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: alpha(color, 0.14), alignItems: 'center', justifyContent: 'center' }}><Ionicons name={icon} size={20} color={color} /></View>
+                        <Text style={{ color: muted, fontWeight: '800', fontSize: 13, marginLeft: 10 }}>{label}</Text>
+                    </View>
+                    <Text style={{ color: text, fontWeight: '900', fontSize: 30, marginTop: 12 }}>{value}</Text>
+                    {sub ? <View style={{ marginTop: 4 }}>{sub}</View> : <View style={{ height: 22 }} />}
+                </View>
+            ))}
+        </View>
+    );
+}
 
 // today's sales, hour by hour. The current hour is the strong bar.
 function HourBars({ byHour, nowHour }) {
@@ -74,6 +100,7 @@ function HourBars({ byHour, nowHour }) {
 }
 
 export default function OwnerHomeScreen() {
+    const desk = useOwnerDesktop();
     const staffOk = usePlanHas('staffLogins');   // cooks and waiters are Growth and Pro
     const nav = useNavigation();
     const { muted, primary, onPrimary, error, ok, text, accent } = useBrand();
@@ -185,6 +212,7 @@ export default function OwnerHomeScreen() {
     return (
         <View style={{ flex: 1 }}>
         <OwnerScreen onRefresh={pull} refreshing={refreshing}>
+            <Frame desk={desk}>
             <PlanChip />
             {loadError && !d ? <Card tone={error}><Text style={{ color: error, fontWeight: '700' }}>{loadError}</Text></Card> : null}
 
@@ -293,6 +321,14 @@ export default function OwnerHomeScreen() {
                     <Button label={tr('Start')} icon="play" busy={resuming} onPress={resume} style={{ marginTop: 10 }} />
                 </Card>
             ) : null}
+            {desk ? <KpiRow items={[
+                [tr('Sales today'), money(d?.today.revenue), 'cash-outline', primary, change === null ? null : <Pill label={`${change >= 0 ? '▲' : '▼'} ${Math.abs(change)}% ${tr('vs yesterday')}`} color={change >= 0 ? ok : error} />],
+                [tr('Delivered'), String(d?.today.orders ?? '–'), 'checkmark-done-outline', ok, null],
+                [tr('Average order'), money(d?.today.averageOrderValue), 'stats-chart-outline', warn, null],
+                [tr('Live orders'), String(PIPELINE.reduce((n, p) => n + countOf(p[0]), 0)), 'flash-outline', error, null],
+            ]} /> : null}
+            <TwoCol desk={desk}>
+            <Left desk={desk}>
             {/* what is happening to the orders, right at the top */}
             <SectionTitle title={tr('Order pipeline')} action={tr('Open orders')} onAction={() => toOrders('active')} />
             <View style={{ flexDirection: 'row', paddingHorizontal: 13 }}>
@@ -339,11 +375,11 @@ export default function OwnerHomeScreen() {
             {/* the day */}
             <SectionTitle title={tr('Today')} />
             <Card>
-                <View style={{ flexDirection: 'row' }}>
+                {desk ? null : <View style={{ flexDirection: 'row' }}>
                     <Stat label={tr('Sales')} value={money(d?.today.revenue)} color={primary} />
                     <Stat label={tr('Delivered')} value={String(d?.today.orders ?? '–')} />
                     <Stat label={tr('Average order')} value={money(d?.today.averageOrderValue)} />
-                </View>
+                </View>}
                 {/* Easy mode keeps the three numbers; the comparison, the hour chart and the extra counts are one switch away */}
                 {!easy ? (<>
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10 }}>
@@ -378,6 +414,8 @@ export default function OwnerHomeScreen() {
                 </Card>
             ) : null}
 
+            </Left>
+            <Right desk={desk}>
             <SectionTitle title={tr('Delivery')} />
             <Card>
                 <Row
@@ -454,6 +492,9 @@ export default function OwnerHomeScreen() {
                     </Card>
                 </>
             ) : null}
+            </Right>
+            </TwoCol>
+            </Frame>
         </OwnerScreen>
         {/* the door scanner: a round button that stays on screen, so a guest's booking QR is one tap away */}
         {bookingOn ? (

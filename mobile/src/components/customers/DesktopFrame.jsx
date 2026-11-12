@@ -24,9 +24,9 @@ export default function DesktopFrame({ navRef, routeName, children }) {
             {/* the website only: nothing is drawn in the phone app */}
             <GetAppBanner />
             {bare ? null : <DesktopTopBar navRef={navRef} routeName={routeName} />}
-            <View style={{ flex: 1, flexDirection: 'row' }}>
+            <View style={{ flex: 1, flexDirection: ownerDesk ? 'row' : 'column' }}>
                 {ownerDesk && routeName !== 'Login' ? <OwnerSidebar routeName={routeName} /> : null}
-                <View style={{ flex: 1, flexDirection: 'row', width: '100%', maxWidth: bare || ownerDesk ? undefined : PAGE, alignSelf: 'center' }}>
+                <View style={{ flex: 1, flexDirection: 'row', width: '100%', maxWidth: bare || ownerDesk ? undefined : PAGE, alignSelf: ownerDesk ? 'stretch' : 'center' }}>
                     <View style={{ flex: 1, overflow: bare ? undefined : 'hidden' }}>{children}</View>
                 </View>
             </View>
