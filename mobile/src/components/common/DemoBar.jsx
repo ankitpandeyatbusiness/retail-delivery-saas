@@ -7,8 +7,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/common/useAuthStore';
 import { useBrand, alpha } from './kit';
 import { Sheet } from '../owners/ui';
-import { fetchDemoPanels, switchDemoPanel } from '../../utils/common/demoSwitch';
-import { themedAlert } from './dialog';
+import { fetchDemoPanels, switchDemoPanel, resetDemo } from '../../utils/common/demoSwitch';
+import { themedAlert, ask } from './dialog';
 import { tr } from '../../i18n';
 
 const ICON = { customer: 'bag-handle-outline', owner: 'storefront-outline', cook: 'restaurant-outline', waiter: 'cafe-outline', rider: 'bicycle-outline' };
@@ -34,6 +34,16 @@ export default function DemoBar() {
         try { await switchDemoPanel(p.key); } catch (e) {
             setBusy('');
             themedAlert(tr('Demo'), e.response?.data?.error || tr('Could not open that panel. Please try again.'));
+        }
+    };
+
+    const reset = async () => {
+        const yes = await ask({ title: tr('Reset the demo?'), message: tr('Everything you tried goes back to the start. You stay signed in.'), confirmText: tr('Reset'), cancelText: tr('Cancel') }).catch(() => false);
+        if (!yes || busy) return;
+        setBusy('reset');
+        try { await resetDemo(); } catch (e) {
+            setBusy('');
+            themedAlert(tr('Demo'), e.response?.data?.error || tr('Could not reset the demo. Please try again.'));
         }
     };
 
@@ -67,6 +77,10 @@ export default function DemoBar() {
                         </Pressable>
                     );
                 })}
+                <Pressable onPress={reset} disabled={!!busy} style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 12, marginTop: 4, borderRadius: 16, borderWidth: 1, borderColor: border }, pressed && { opacity: 0.7 }]}>
+                    {busy === 'reset' ? <ActivityIndicator color={primary} /> : <Ionicons name="refresh" size={16} color={muted} />}
+                    <Text style={{ color: muted, fontSize: 14, fontWeight: '700' }}>{tr('Reset the demo')}</Text>
+                </Pressable>
             </Sheet>
         </>
     );

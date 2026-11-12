@@ -21,3 +21,9 @@ export async function switchDemoPanel(panel) {
     await reloadApp();
     return getSlug();
 }
+
+// put the demo shop back to the start (the server allows it once a minute), then restart the app so every screen starts clean
+export async function resetDemo() {
+    await api.post('/demo/reset');
+    await reloadApp();
+}

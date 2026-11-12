@@ -139,7 +139,8 @@ function buildSettings() {
 /* ---------------------------------------------------------------- helpers */
 const CONTENT_MODELS = () => [Category, Product, Banner, Coupon, Collection, Order, Review, Favourite, Address, ShopService, TableBookingConfig, BulkSettings, LoyaltyAccount,
     require('../models/ServiceInquiry'), require('../models/TableBooking'), require('../models/BulkOrder'), require('../models/Complaint'), require('../models/Notification'),
-    require('../models/Cart'), require('../models/ChatMessage')];
+    require('../models/Cart'), require('../models/ChatMessage'), require('../models/TableSession'), require('../models/BookingTableLock'), require('../models/BookingUserLock'),
+    require('../models/PlaceLock'), require('../models/ShopAutomation'), require('../models/HandledMark')];
 
 async function wipeContent(tenantId) {
     const f = { tenantId };

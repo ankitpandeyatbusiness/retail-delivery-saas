@@ -26,6 +26,7 @@ function isAllowed(method, url) {
 const OUTSIDE = /\/(pay|pay-bill|topup|top-up|checkout|razorpay|uploads?|devices?|push|webpush|sms-setup|payments)(\/|\?|$)/i;
 function isAllowedInDemoShop(method, url) {
     if (['GET', 'HEAD', 'OPTIONS'].includes(method)) return true;
+    if (method === 'POST' && /^\/api\/me\/uploads\/(sign|confirm)(\?|$)/.test(url)) return true;   // a complaint photo: small, kept only until the demo resets
     if (method === 'DELETE' && /^\/api\/me(\?|$)/.test(url)) return false;
     return !OUTSIDE.test(url);
 }

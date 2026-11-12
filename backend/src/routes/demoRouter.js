@@ -26,14 +26,14 @@ const dto = (u) => ({ id: u._id, phone: u.phone, name: u.name || null, role: u.r
 
 router.get('/panels', wrap(async (req, res) => {
     const me = await User.findById(req.auth.userId).select('role').lean();
-    const dt = await demoTenant.ensureTenant();
+    const dt = await require('../services/demoReset').ensureReady();
     res.json({ current: me ? me.role : 'customer', panels: await demoTenant.panelsFor(dt) });
 }));
 
 router.post('/switch', wrap(async (req, res) => {
     const panel = demoTenant.PANELS.find((p) => p.key === String(req.body?.panel || ''));
     if (!panel) throw httpError(400, 'Choose a panel');
-    const dt = await demoTenant.ensureTenant();
+    const dt = await require('../services/demoReset').ensureReady();
     const sess = await Session.findById(req.auth.sessionId).select('demoHomeTenantId').lean();
     const homeId = (sess && sess.demoHomeTenantId) || req.tenant._id;
 
@@ -59,6 +59,11 @@ router.post('/switch', wrap(async (req, res) => {
     }
     const { accessToken, refreshToken } = await authController.issueSession(user, target, req, req.ip, { demo: true, demoHomeTenantId: homeId });
     res.json({ success: true, demo: true, slug: target.slug, name: target.name, user: dto(user), accessToken, refreshToken });
+}));
+
+// put the demo shop back to the start (at most once a minute). Real shops are never touched.
+router.post('/reset', wrap(async (req, res) => {
+    try { res.json(await require('../services/demoReset').reset()); } catch (e) { throw e.status ? httpError(e.status, e.message) : e; }
 }));
 
 router.use(apiErrors);

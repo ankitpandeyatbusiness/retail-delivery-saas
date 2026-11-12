@@ -72,6 +72,8 @@ connectDB()
             registerShutdown(server);
             realtime.init(server);   // live updates (Socket.IO)
             startComplaintRemindersScheduler();
+            require('../services/demoEngine').start();          // the demo shop plays the cook and the rider by itself (demo shops only)
+            require('../services/demoReset').startNightly();    // and puts itself back to the start every night
             startCleanupUploadsScheduler();
             startBackupScheduler();
             startNightlyReconcileScheduler();

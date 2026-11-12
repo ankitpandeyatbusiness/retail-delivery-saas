@@ -16,11 +16,16 @@ router.use(tenantRecognizer);
 router.use(authenticate);
 
 const DAILY_SIGNS = 20;
+const DEMO_DAILY_SIGNS = 6;
+const DEMO_MAX_BYTES = 1500 * 1024;   // a demo photo is small; it is deleted when the demo resets (services/demoReset.js)
 
 router.post('/sign', wrap(async (req, res) => {
     const actorId = String(req.auth.userId);
     try {
-        await takeSignSlot('rl_upload_c', `upload:c:${req.tenant._id}:${actorId}`, DAILY_SIGNS);
+        if (req.sessionFlags && req.sessionFlags.demo) {
+            if (Number(req.body && req.body.bytes) > DEMO_MAX_BYTES) { const err = new Error('In the demo a photo must be under 1.5 MB'); err.status = 400; throw err; }
+            await takeSignSlot('rl_upload_demo', `upload:demo:${req.tenant._id}:${actorId}`, DEMO_DAILY_SIGNS);
+        } else await takeSignSlot('rl_upload_c', `upload:c:${req.tenant._id}:${actorId}`, DAILY_SIGNS);
     } catch (e) {
         if (e.retryAfter) res.set('Retry-After', String(e.retryAfter));
         throw e;

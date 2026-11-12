@@ -71,8 +71,8 @@ describe('demo panel switcher', () => {
         }
         const dt = await Tenant.findOne({ slug: demoTenant.SLUG });
         assert.equal(dt.isDemo, true);
-        assert.equal(await Staff.countDocuments({ tenantId: dt._id }), 2);
-        assert.equal(await Rider.countDocuments({ tenantId: dt._id }), 1);
+        assert.ok(await Staff.countDocuments({ tenantId: dt._id }) >= 2);
+        assert.ok(await Rider.countDocuments({ tenantId: dt._id }) >= 1);
         assert.equal(await User.countDocuments({ tenantId: shop._id }), 2);   // the real owner and the demo customer, nothing added by the panels
     });
 
@@ -84,7 +84,7 @@ describe('demo panel switcher', () => {
         const orders = await request(app).get('/api/shop/orders').set(oh);
         assert.equal(orders.status, 200);
         assert.ok(!JSON.stringify(orders.body).includes(String(shop._id)));
-        assert.equal(await Order.countDocuments({ tenantId: (await Tenant.findOne({ slug: demoTenant.SLUG }))._id }), 0);
+        assert.ok(await Order.countDocuments({ tenantId: (await Tenant.findOne({ slug: demoTenant.SLUG }))._id }) >= 20);   // the demo shop has its OWN pretend history
     });
 
     test('Customer returns to the shop where the demo started, from any panel', async () => {
@@ -119,7 +119,7 @@ describe('demo panel switcher', () => {
 
     test('a panel that the demo shop has switched off is refused, and many visitors do not sign each other out', async () => {
         const { h } = await start();
-        const dt = await demoTenant.ensureTenant();
+        const dt = await require('../src/services/demoReset').ensureReady();   // the shop is built first, then one switch is turned off
         await Tenant.updateOne({ _id: dt._id }, { $set: { 'settings.orders.staff.kitchenOn': false } });
         require('../src/middlewares/tenantRecognizer').invalidateTenant(dt.slug);
         const list = await request(app).get('/api/demo/panels').set(h);
