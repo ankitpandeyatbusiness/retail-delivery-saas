@@ -11,7 +11,7 @@ export function SideGroupTitle({ children }) {
     return <Text style={{ color: muted, fontSize: 11, fontWeight: '900', letterSpacing: 1.2, marginTop: 4, marginBottom: 6, paddingHorizontal: 8 }}>{String(children).toUpperCase()}</Text>;
 }
 
-export function SideRow({ icon, title, color, active, compact, onPress }) {
+export function SideRow({ icon, title, note, color, active, compact, onPress }) {
     const { primary, onPrimary, text, muted } = useBrand();
     const tint = color || primary;
     return (
@@ -21,7 +21,12 @@ export function SideRow({ icon, title, color, active, compact, onPress }) {
             <View style={{ width: 30, height: 30, borderRadius: 10, backgroundColor: active ? primary : alpha(tint, 0.12), alignItems: 'center', justifyContent: 'center' }}>
                 <Ionicons name={icon} size={16} color={active ? onPrimary : tint} />
             </View>
-            {compact ? null : <Text numberOfLines={1} style={{ flex: 1, marginLeft: 11, color: active ? primary : color || text, fontSize: 14, fontWeight: active ? '900' : '700' }}>{title}</Text>}
+            {compact ? null : (
+                <View style={{ flex: 1, minWidth: 0, marginLeft: 11 }}>
+                    <Text numberOfLines={1} style={{ color: active ? primary : color || text, fontSize: 14, fontWeight: active ? '900' : '700' }}>{title}</Text>
+                    {note ? <Text numberOfLines={1} style={{ color: muted, fontSize: 11.5, marginTop: 1 }}>{note}</Text> : null}
+                </View>
+            )}
         </Pressable>
     );
 }

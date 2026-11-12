@@ -10,8 +10,10 @@ import { showToast } from '../customers/shop';
 import { useBrandStore } from '../../store/owners/useBrandStore';
 import { switchBranch } from '../../utils/common/switchBranch';
 import { tr } from '../../i18n';
+import { SideRow, SideGroupTitle } from '../common/SidebarExtras';
 
-export default function BranchSwitcher({ onGo }) {
+// slim: the owner's desktop sidebar (slim rows with an icon tile, the branch on screen lit up); the phone's drawer keeps the bordered card
+export default function BranchSwitcher({ onGo, slim, routeName }) {
     const nav = useNavigation();
     const { text, muted, border, surface, primary } = useBrand();
     const me = useBrandStore((s) => s.me);
@@ -28,6 +30,23 @@ export default function BranchSwitcher({ onGo }) {
         if (!yes) return;
         try { await switchBranch(b.slug); } catch (e) { showToast(tr('Could not switch. Please try again.')); }
     };
+
+    if (slim) {
+        const links = [
+            ['OwnerAllBranches', 'git-network-outline', tr('All branches')],
+            ['OwnerPushMenu', 'send-outline', tr('Send dishes to branches')],
+            ['OwnerBranchInbox', 'notifications-outline', tr('Notifications of all branches')],
+            ['OwnerBranchAlerts', 'options-outline', tr('Alerts by branch')],
+        ];
+        return (
+            <View style={{ paddingHorizontal: 12, marginTop: 8, marginBottom: 4 }}>
+                <SideGroupTitle>{me.brand.name}</SideGroupTitle>
+                {me.branches.map((b) => <SideRow key={b.slug} icon="storefront-outline" title={b.name} note={b.city || undefined} active={b.slug === me.current} onPress={() => go(b)} />)}
+                <View style={{ height: 8 }} />
+                {links.map(([route, icon, title]) => <SideRow key={route} icon={icon} title={title} active={routeName === route} onPress={() => { if (onGo) onGo(); nav.navigate(route); }} />)}
+            </View>
+        );
+    }
 
     return (
         <View style={{ marginHorizontal: 12, marginTop: 12, padding: 12, borderRadius: 16, backgroundColor: surface, borderWidth: 1, borderColor: border }}>

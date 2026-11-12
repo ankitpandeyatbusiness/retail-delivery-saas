@@ -119,7 +119,7 @@ export default function OwnerSidebar({ routeName }) {
                 </View>
             ) : (
                 <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 16 }}>
-                    <BranchSwitcher />
+                    <BranchSwitcher slim routeName={routeName} />
                     <ShopMenu side activeRoute={routeName} />
                 </ScrollView>
             )}

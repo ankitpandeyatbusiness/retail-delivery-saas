@@ -239,6 +239,7 @@
  "Only a pickup order has a pickup time": "खाली पिकअप ऑर्डर के पिकअप समय होला",
  "Only an order that is ready and waiting can be marked as not collected": "खाली तइयार आ इंतजार वाला ऑर्डरे \"ना लिहल\" मार्क हो सकेला",
  "Only delivery orders need a rider": "खाली डिलीवरी ऑर्डर के राइडर चाही",
+ "Only jpeg, png or webp images are allowed": "खाली jpeg, png भा webp तस्वीर मान्य बा",
  "Only the guest who started this bill can download it": "खाली ओहे मेहमान एकरा डाउनलोड कर सकेला जे ई बिल सुरू कइलस",
  "Only the shop owner can open his profile": "आपन प्रोफ़ाइल खाली दुकान मालिक खोल सकेला",
  "Only the shop owner can send a test alert to his own phone": "आपन फोन पर टेस्ट अलर्ट खाली दुकान मालिक भेज सकेला",

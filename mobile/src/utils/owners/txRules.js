@@ -57,7 +57,7 @@ export const KIND = {
     refund_cash: { icon: 'cash', label: 'Refund you gave' },
     dispute_lost: { icon: 'warning', label: 'Chargeback lost' },
     sms_topup: { icon: 'chatbubble-ellipses', label: 'SMS top-up' },
-    rent: { icon: 'receipt', label: 'Your monthly bill' },
+    rent: { icon: 'receipt', label: 'Your plan, extra shops and wallet' },   // the same words the server sends for this kind (backend/src/services/shopMoney.js)
 };
 export const KIND_CHIPS = [['', 'All types'], ...Object.entries(KIND).map(([k, v]) => [k, v.label])];
 export const HOW_CHIPS = [['', 'Any way'], ['online', 'Online'], ['cash', 'Cash'], ['upi', 'UPI to you']];

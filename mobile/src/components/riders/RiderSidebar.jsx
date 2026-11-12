@@ -135,7 +135,7 @@ export default function RiderSidebar({ routeName }) {
                 {extras.map((e) => <SideRow key={e.key || e.route} icon={e.icon} title={e.title} color={e.color} compact={compact} active={!!e.route && routeName === e.route} onPress={e.act || (() => nav.navigate(e.route))} />)}
                 {compact
                     ? <SideRow icon={dark ? 'sunny-outline' : 'moon-outline'} title={tr('Appearance')} compact onPress={() => useThemeStore.getState().setAppearance(dark ? 'light' : 'dark')} />
-                    : <AppearanceSwitch last />}
+                    : <AppearanceSwitch last slim />}
             </ScrollView>
             <View style={{ paddingHorizontal: compact ? 10 : 12, paddingBottom: 14 }}>
                 <SideRow icon="log-out-outline" title={tr('Log out')} color={error} compact={compact} onPress={signOut} />

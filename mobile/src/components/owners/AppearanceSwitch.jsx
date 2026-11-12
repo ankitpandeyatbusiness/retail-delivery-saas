@@ -12,7 +12,8 @@ import { tr } from '../../i18n';
 
 const MODES = [['system', 'phone-portrait-outline', 'System'], ['light', 'sunny-outline', 'Light'], ['dark', 'moon-outline', 'Dark']];
 
-export default function AppearanceSwitch({ last }) {
+// slim: the size of the slim rows of the desktop sidebars (small icon tile, smaller words), instead of the roomy phone row
+export default function AppearanceSwitch({ last, slim }) {
     const { primary, onPrimary, text, muted, border, background } = useBrand();
     const saved = useThemeStore((st) => st.appearance);
     const setAppearance = useThemeStore((st) => st.setAppearance);
@@ -33,15 +34,15 @@ export default function AppearanceSwitch({ last }) {
     const segW = w ? (w - 6) / MODES.length : 0;
 
     return (
-        <View style={[styles.row, !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: border }]}>
+        <View style={[styles.row, slim && { paddingVertical: 6, paddingHorizontal: 8 }, !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: border }]}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <View style={[styles.ic, { backgroundColor: alpha(primary, 0.14) }]}><Ionicons name="contrast-outline" size={18} color={primary} /></View>
+                <View style={[styles.ic, slim && { width: 30, height: 30, borderRadius: 10, marginRight: 11 }, { backgroundColor: alpha(primary, 0.14) }]}><Ionicons name="contrast-outline" size={slim ? 16 : 18} color={primary} /></View>
                 <View style={{ flex: 1 }}>
-                    <Text style={{ color: text, fontSize: 15, fontWeight: '800' }}>{tr('Appearance')}</Text>
+                    <Text style={{ color: text, fontSize: slim ? 14 : 15, fontWeight: slim ? '700' : '800' }}>{tr('Appearance')}</Text>
                     <Text style={{ color: muted, fontSize: 12, marginTop: 1 }}>{mode === 'system' ? tr('Follows your phone\'s dark mode') : mode === 'dark' ? tr('Always dark') : tr('Always light')}</Text>
                 </View>
             </View>
-            <View onLayout={(e) => setW(e.nativeEvent.layout.width)} style={[styles.seg, { backgroundColor: background, borderColor: border }]}>
+            <View onLayout={(e) => setW(e.nativeEvent.layout.width)} style={[styles.seg, slim && { height: 34, marginTop: 8 }, { backgroundColor: background, borderColor: border }]}>
                 {segW && WEB ? <View style={[styles.pill, { width: segW, backgroundColor: primary, transform: [{ translateX: idx * segW }], transitionProperty: 'transform', transitionDuration: '300ms', transitionTimingFunction: 'cubic-bezier(0.4, 0, 0.2, 1)' }]} /> : null}
                 {segW && !WEB ? <Animated.View style={[styles.pill, { width: segW, backgroundColor: primary, transform: [{ translateX: Animated.multiply(slide, segW) }] }]} /> : null}
                 {MODES.map(([id, icon, label]) => {

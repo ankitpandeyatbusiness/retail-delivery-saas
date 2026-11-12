@@ -19,9 +19,19 @@ const when = (iso) => {
     const d = new Date(iso);
     return Number.isNaN(d.getTime()) ? '' : d.toLocaleString(undefined, { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' });
 };
+const deviceName = (label) => {
+    const v = String(label || '');
+    if (v === 'Android app') return tr('Android app');
+    if (v === 'iPhone app') return tr('iPhone app');
+    if (v === 'Unknown device') return tr('Unknown device');
+    if (v === 'Browser') return tr('Browser');
+    const m = /^(.+) on (.+)$/.exec(v);
+    return m ? tr('{browser} on {system}', { browser: m[1] === 'Browser' ? tr('Browser') : m[1], system: m[2] }) : v;
+};
 const placeOf = (s) => {
     const p = [s.city, s.region].filter(Boolean).join(', ') || s.country;
     if (p) return s.country && p !== s.country && s.city ? `${p}, ${s.country}` : p;
+    if (s.place === 'Local network') return tr('Local network');
     return s.place ? tr(s.place) : tr('Location not known');
 };
 
@@ -42,7 +52,7 @@ export default function SessionsScreen() {
 
     const others = (items || []).filter((s) => !s.current);
 
-    const endOne = (s) => themedAlert(tr('Log out this device?'), tr('{device} will be signed out at once.', { device: s.device }), [
+    const endOne = (s) => themedAlert(tr('Log out this device?'), tr('{device} will be signed out at once.', { device: deviceName(s.device) }), [
         { text: tr('Cancel'), style: 'cancel' },
         {
             text: tr('Log out'), style: 'destructive',
@@ -90,7 +100,7 @@ export default function SessionsScreen() {
                             <Ionicons name={s.platform === 'web' ? 'globe-outline' : 'phone-portrait-outline'} size={26} color={text} style={{ marginRight: 12, marginTop: 2 }} />
                             <View style={{ flex: 1 }}>
                                 <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
-                                    <Text style={{ color: text, fontWeight: '800', fontSize: 15, marginRight: 8 }}>{s.device}</Text>
+                                    <Text style={{ color: text, fontWeight: '800', fontSize: 15, marginRight: 8 }}>{deviceName(s.device)}</Text>
                                     {s.current ? <Pill label={tr('This device')} /> : null}
                                 </View>
                                 <Text style={{ color: muted, marginTop: 3 }}>{placeOf(s)}</Text>

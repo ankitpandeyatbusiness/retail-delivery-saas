@@ -302,11 +302,11 @@ export default function OwnerHomeScreen() {
     // the small things that need him
     const attention = [];
     if (d) {
-        if (d.stock.outCount) attention.push({ key: 'out', icon: 'ban', color: error, title: `${d.stock.outCount} item${d.stock.outCount === 1 ? '' : 's'} out of stock`, sub: d.stock.out.slice(0, 3).map((p) => p.name).join(', ') + (d.stock.outCount > 3 ? ' and more' : ''), go: () => nav.navigate('MenuTab') });
-        if (d.stock.lowCount) attention.push({ key: 'low', icon: 'trending-down', color: warn, title: `${d.stock.lowCount} item${d.stock.lowCount === 1 ? '' : 's'} running low`, sub: d.stock.low.slice(0, 3).map((p) => `${p.name} (${p.qty})`).join(', '), go: () => nav.navigate('MenuTab') });
-        if (d.sms.zero) attention.push({ key: 'sms0', icon: 'mail-unread', color: error, title: 'SMS balance is finished', sub: 'Order alerts by SMS have stopped. Top up.', go: () => nav.navigate('OwnerMoney') });
-        else if (d.sms.low) attention.push({ key: 'sms', icon: 'mail-unread', color: warn, title: 'SMS balance is low', sub: `${money(d.sms.balancePaise / 100)} left`, go: () => nav.navigate('OwnerMoney') });
-        if (riders?.cashOwedPaise > 0) attention.push({ key: 'cash', icon: 'cash', color: warn, title: `${money(riders.cashOwedPaise / 100)} cash with riders`, sub: 'Collect it from them', go: () => nav.navigate('OwnerRiders') });
+        if (d.stock.outCount) attention.push({ key: 'out', icon: 'ban', color: error, title: tr(d.stock.outCount === 1 ? '{n} item out of stock' : '{n} items out of stock', { n: d.stock.outCount }), sub: d.stock.out.slice(0, 3).map((p) => p.name).join(', ') + (d.stock.outCount > 3 ? ` ${tr('and more')}` : ''), go: () => nav.navigate('MenuTab') });
+        if (d.stock.lowCount) attention.push({ key: 'low', icon: 'trending-down', color: warn, title: tr(d.stock.lowCount === 1 ? '{n} item running low' : '{n} items running low', { n: d.stock.lowCount }), sub: d.stock.low.slice(0, 3).map((p) => `${p.name} (${p.qty})`).join(', '), go: () => nav.navigate('MenuTab') });
+        if (d.sms.zero) attention.push({ key: 'sms0', icon: 'mail-unread', color: error, title: tr('SMS balance is finished'), sub: tr('Order alerts by SMS have stopped. Top up.'), go: () => nav.navigate('OwnerMoney') });
+        else if (d.sms.low) attention.push({ key: 'sms', icon: 'mail-unread', color: warn, title: tr('SMS balance is low'), sub: tr('{amount} left', { amount: money(d.sms.balancePaise / 100) }), go: () => nav.navigate('OwnerMoney') });
+        if (riders?.cashOwedPaise > 0) attention.push({ key: 'cash', icon: 'cash', color: warn, title: tr('{amount} cash with riders', { amount: money(riders.cashOwedPaise / 100) }), sub: tr('Collect it from them'), go: () => nav.navigate('OwnerRiders') });
     }
 
     return (

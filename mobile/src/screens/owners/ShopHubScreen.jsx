@@ -340,7 +340,7 @@ export function ShopMenu({ onGo, side, activeRoute }) {
                         return rows.length ? (
                             <View key={group}>
                                 <Text style={{ color: muted, fontSize: 11, fontWeight: '900', letterSpacing: 1.2, marginTop: 16, marginBottom: 6, paddingHorizontal: 8 }}>{tr(group).toUpperCase()}</Text>
-                                {rows.map((e) => (e.custom ? <AppearanceSwitch key={e.title} /> : sideRow(e)))}
+                                {rows.map((e) => (e.custom ? <AppearanceSwitch key={e.title} slim /> : sideRow(e)))}
                             </View>
                         ) : null;
                     })}

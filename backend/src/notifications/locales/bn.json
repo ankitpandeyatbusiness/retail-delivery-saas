@@ -355,6 +355,7 @@
  "Only an order that is ready and waiting can be marked as not collected": "শুধু তৈরি ও অপেক্ষায় থাকা অর্ডারই \"নেওয়া হয়নি\" চিহ্নিত করা যায়",
  "Only customers switch branches here": "এখানে শুধু গ্রাহকরা শাখা বদলান",
  "Only delivery orders need a rider": "শুধু ডেলিভারি অর্ডারে রাইডার লাগে",
+ "Only jpeg, png or webp images are allowed": "শুধু jpeg, png বা webp ছবি চলবে",
  "Only the guest who started this bill can download it": "যিনি এই বিল শুরু করেছেন শুধু সেই অতিথিই এটি ডাউনলোড করতে পারবেন",
  "Only the shop owner can choose or pay for a plan": "প্ল্যান বেছে নেওয়া বা তার টাকা দেওয়ার অধিকার শুধু দোকানের মালিকের",
  "Only the shop owner can open his profile": "প্রোফাইল শুধু দোকান মালিক খুলতে পারেন",
