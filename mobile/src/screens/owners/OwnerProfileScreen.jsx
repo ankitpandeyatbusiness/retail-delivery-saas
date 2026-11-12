@@ -18,9 +18,12 @@ import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { showToast } from '../../components/customers/shop';
 import { themedAlert } from '../../components/common/dialog';
 import { tr } from '../../i18n';
+import { useOwnerDesktop } from '../../utils/common/layout';
+import { HeroBtn } from '../../components/owners/RiderDesk';
 
 export default function OwnerProfileScreen() {
     const nav = useNavigation();
+    const desk = useOwnerDesktop();
     const { primary, onPrimary, text, muted, border, surface } = useBrand();
     const [p, setP] = useState(null);
     const [form, setForm] = useState({ name: '', email: '' });
@@ -79,9 +82,17 @@ export default function OwnerProfileScreen() {
         { text: tr('Cancel'), style: 'cancel' },
     ], { icon: 'camera-outline' });
 
+    const avatarBig = (
+        <Pressable onPress={photoMenu} accessibilityLabel={tr('Change profile photo')} style={{ marginRight: 18 }}>
+            <View style={{ width: 84, height: 84, borderRadius: 42, backgroundColor: 'rgba(255,255,255,0.25)', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderWidth: 3, borderColor: 'rgba(255,255,255,0.8)' }}>
+                {p.avatarUrl ? <Image source={{ uri: p.avatarUrl }} style={{ width: 84, height: 84 }} contentFit="cover" /> : <Text style={{ color: onPrimary, fontSize: 34, fontWeight: '900' }}>{initial}</Text>}
+                {photoBusy ? <View style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 }}><LineShimmer width={84} height={84} /></View> : null}
+            </View>
+        </Pressable>
+    );
     return (
-        <FormPage title={tr('My profile')} footer={<Button label={tr('Save')} icon="checkmark" busy={saving} disabled={!dirty} onPress={save} />}>
-            <View style={{ alignItems: 'center', paddingVertical: 18 }}>
+        <FormPage title={tr('My profile')} hero={{ lead: avatarBig, title: p.name || tr('My profile'), subtitle: `+91 ${p.phone}${p.email ? `  ·  ${p.email}` : ''}`, right: <HeroBtn solid icon="camera" label={tr('Change photo')} onPress={photoMenu} /> }} footer={<Button label={tr('Save')} icon="checkmark" busy={saving} disabled={!dirty} onPress={save} />}>
+            {desk ? null : <View style={{ alignItems: 'center', paddingVertical: 18 }}>
                 <Pressable onPress={photoMenu} accessibilityLabel={tr('Change profile photo')}>
                     <View style={{ width: 104, height: 104, borderRadius: 52, backgroundColor: alpha(primary, 0.16), alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderWidth: 2, borderColor: border }}>
                         {p.avatarUrl ? <Image source={{ uri: p.avatarUrl }} style={{ width: 104, height: 104 }} contentFit="cover" /> : <Text style={{ color: primary, fontSize: 40, fontWeight: '900' }}>{initial}</Text>}
@@ -92,7 +103,7 @@ export default function OwnerProfileScreen() {
                     </View>
                 </Pressable>
                 <Text style={{ color: muted, fontSize: 12, marginTop: 10 }}>{tr('Tap the picture to change it')}</Text>
-            </View>
+            </View>}
 
             <Group title={tr('About you')}>
                 <TextBox label={tr('Your name')} value={form.name} onChangeText={(x) => setForm({ ...form, name: x })} error={errors.name} maxLength={80} placeholder={tr('e.g. Anita Rao')} />

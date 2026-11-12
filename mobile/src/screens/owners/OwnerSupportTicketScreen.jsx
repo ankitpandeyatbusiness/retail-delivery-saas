@@ -19,6 +19,7 @@ import { dayTime } from '../../utils/owners/orderFlow';
 import { showToast } from '../../components/customers/shop';
 import { ask } from '../../components/common/dialog';
 import { tr } from '../../i18n';
+import { useOwnerDesktop } from '../../utils/common/layout';
 import KeyboardScroll from '../../components/common/KeyboardScroll';
 import ChatBackdrop from '../../components/common/ChatBackdrop';
 import useKeyboardLift from '../../hooks/common/useKeyboardLift';
@@ -69,6 +70,7 @@ function Rate({ onRate }) {
 export default function OwnerSupportTicketScreen({ route }) {
     const { id } = route.params;
     const insets = useSafeAreaInsets();
+    const desk = useOwnerDesktop();   // a computer: the conversation sits in a centred column
     const { background, surface, border, text, muted, primary, onPrimary, error } = useBrand();
     const [t, setT] = useState(null);
     const [err, setErr] = useState('');
@@ -123,7 +125,7 @@ export default function OwnerSupportTicketScreen({ route }) {
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
             <PageHeader title={tr('Request #{number}', { number: t.number })} right={!resolved ? <Pressable onPress={solved} hitSlop={10}><Text style={{ color: primary, fontWeight: '800' }}>{tr('Mark solved')}</Text></Pressable> : null} />
-            <Animated.View style={[{ flex: 1 }, lift]}>
+            <Animated.View style={[{ flex: 1 }, desk ? { width: '100%', maxWidth: 860, alignSelf: 'center' } : null, lift]}>
                 <ChatBackdrop>
                 <KeyboardScroll ref={scroll} contentContainerStyle={{ paddingTop: 6, paddingBottom: 16 }} keyboardShouldPersistTaps="handled">
                     <View style={{ paddingHorizontal: 16, paddingBottom: 12 }}>

@@ -5,7 +5,7 @@ import { View, Text, FlatList, Pressable, Linking } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useFocusEffect } from '../../hooks/common/useLiveFocus';
 import { Ionicons } from '@expo/vector-icons';
-import { useBrand } from '../../components/common/kit';
+import { useBrand, alpha } from '../../components/common/kit';
 import { PageHeader, Card, Chips, Pill, Button, Empty } from '../../components/owners/ui';
 import { ListShimmer, LineShimmer } from '../../components/owners/shimmer';
 import { fetchSupport, fetchSupportInfo, apiError } from '../../api/owners/shopApi';
@@ -16,6 +16,7 @@ import { ago } from '../../utils/owners/riderRules';
 import { showToast } from '../../components/customers/shop';
 import { tr } from '../../i18n';
 import { useOwnerDesktop } from '../../utils/common/layout';
+import { Hero, HeroBtn } from '../../components/owners/RiderDesk';
 
 function ContactCard({ info }) {
     const { text, muted, primary } = useBrand();
@@ -73,8 +74,27 @@ export default function OwnerSupportScreen() {
             <FlatList
                 data={items || []}
                 keyExtractor={(t) => String(t.id)}
-                contentContainerStyle={{ paddingBottom: 32 }}
-                ListHeaderComponent={(
+                key={desk ? 'g2' : 'g1'}
+                numColumns={desk ? 2 : 1}
+                contentContainerStyle={{ paddingBottom: 32, ...(desk ? { width: '100%', maxWidth: 1240, alignSelf: 'center', paddingHorizontal: 8 } : null) }}
+                ListHeaderComponent={desk ? (
+                    <View>
+                        <Hero icon="headset" title={tr('Help and support')} subtitle={info ? ([info.hours, info.replyPromise].filter(Boolean).join(' · ') || tr('Send us a request and we will reply.')) : tr('We are here to help')}
+                            right={<>
+                                {info && info.phone ? <HeroBtn label={tr('Call')} icon="call" onPress={() => callPhone(info.phone.replace(/[^d+]/g, ''))} /> : null}
+                                {info && info.whatsapp ? <HeroBtn label={tr('WhatsApp')} icon="logo-whatsapp" onPress={() => whatsApp(info.whatsapp)} /> : null}
+                                {info && info.email ? <HeroBtn label={tr('Email')} icon="mail" onPress={() => Linking.openURL(`mailto:${info.email}`).catch(() => showToast(tr('No email app found')))} /> : null}
+                                <HeroBtn solid label={tr('Ask for help')} icon="create" onPress={() => nav.navigate('OwnerSupportNew')} />
+                            </>} />
+                        <View style={{ flexDirection: 'row', paddingHorizontal: 16, marginBottom: 6 }}>
+                            {[['open', tr('Open')], ['resolved', tr('Solved')]].map(([id, label]) => (
+                                <Pressable key={id} onPress={() => pick(id)} style={({ hovered }) => ({ paddingHorizontal: 20, height: 40, borderRadius: 20, marginRight: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: status === id ? primary : hovered ? alpha(primary, 0.12) : alpha(muted, 0.12), cursor: 'pointer', transitionProperty: 'background-color', transitionDuration: '140ms' })}>
+                                    <Text style={{ color: status === id ? '#FFFFFF' : text, fontWeight: '800', fontSize: 14 }}>{label}</Text>
+                                </Pressable>
+                            ))}
+                        </View>
+                    </View>
+                ) : (
                     <View>
                         <ContactCard info={info} />
                         <View style={{ paddingHorizontal: 16, marginBottom: 6 }}><Button label={tr('Ask for help')} icon="create" onPress={() => nav.navigate('OwnerSupportNew')} /></View>

@@ -37,7 +37,7 @@ export default function OwnerSupportNewScreen() {
     };
 
     return (
-        <FormPage title={tr('Ask for help')} footer={<Button label={tr('Send request')} icon="send" busy={sending} onPress={send} />}>
+        <FormPage title={tr('Ask for help')} hero={{ icon: 'create', subtitle: tr('The more you tell us, the faster we can fix it. We already know your shop, phone and app version.') }} footer={<Button label={tr('Send request')} icon="send" busy={sending} onPress={send} />}>
             <Group title={tr('What is it about')}>
                 <ChoiceBox options={SUPPORT_TOPICS} value={category} onChange={setCategory} last />
             </Group>

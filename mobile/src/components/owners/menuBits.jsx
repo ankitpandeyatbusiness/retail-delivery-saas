@@ -183,7 +183,7 @@ export function FormPage({ title, children, footer, right, scrollRef, fixed, bar
                 <View ref={boxRef} collapsable={false} style={{ flex: 1, paddingBottom: lift }}>
                 {fixed ? <View style={{ flex: 1, paddingTop: 6 }}>{children}</View> : (
                 <KeyboardScroll ref={scrollRef} contentContainerStyle={{ paddingTop: bare ? 0 : 6, paddingBottom: 40 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-                    {deskOwner && hero && !embedded ? <View style={{ width: '100%', maxWidth: 1180, alignSelf: 'center', paddingHorizontal: 8 }}><Hero icon={hero.icon} title={title} subtitle={hero.subtitle} right={hero.right} /></View> : null}
+                    {deskOwner && hero && !embedded ? <View style={{ width: '100%', maxWidth: 1180, alignSelf: 'center', paddingHorizontal: 8 }}><Hero icon={hero.icon} lead={hero.lead} title={hero.title || title} subtitle={hero.subtitle} right={hero.right} /></View> : null}
                     {desk ? (() => {
                         const kids = React.Children.toArray(children).filter(Boolean);
                         const mid = Math.ceil(kids.length / 2);
