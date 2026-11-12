@@ -4,7 +4,7 @@ import { SvgXml } from 'react-native-svg';
 import { useTheme, spacing, font } from '../../theme';
 import { Screen } from '../../components/layout';
 import { Card, Button, ListRow, SectionTitle } from '../../components/ui';
-import { SearchBar, ToggleRow } from '../../components/inputs';
+import { SearchBar, ToggleRow, Field } from '../../components/inputs';
 import { Choice, Hint } from '../../components/settingsForm';
 import { ErrorBox, toast } from '../../components/feedback';
 import { fetchQrInfo, fetchDemoPreview, downloadQr } from '../../api/qrApi';
@@ -88,12 +88,12 @@ export default function QrCodesScreen() {
                         <ListRow section="shops" icon="food" title={shop.name} subtitle="Tap to choose another shop" onPress={() => setShop(null)} last />
                         <View style={{ marginTop: spacing.md }}>
                             <ToggleRow title="Shop logo in the middle" subtitle="Optional. Tables only. The picture covers a fifth of the code at most." value={logo} onValueChange={setLogo} />
-                            <Choice label="Which table" hint="One PDF sheet with every table (the number under each code), or one table as a single file." options={[{ value: '', label: 'All tables (PDF sheet)' }, { value: '1', label: 'Table 1' }, { value: '2', label: 'Table 2' }, { value: '3', label: 'Table 3' }]} value={one} onChange={setOne} />
+                            <Field label="Table number" hint="Leave empty for one PDF sheet with every table (the number under each code). Type a number for a single table file." value={one} onChangeText={(v) => setOne(v.replace(/D/g, '').slice(0, 3))} keyboardType="number-pad" placeholder="All tables" />
                             {one ? <SizeChoices v={table} set={setTable} /> : null}
                         </View>
                         <Button title={one ? `Download table ${one}` : 'Download the table sheet'} icon="copy" loading={busy === 'table'} style={{ marginTop: spacing.md }}
                             onPress={() => run('table', () => downloadQr(`/admin/qr/tables/${shop.id}`, { table: one || 'all', logo: logo ? '1' : '0', ...(one ? paramsOf(table) : { format: 'pdf' }) }, `${shop.name}-tables`))} />
-                        <Hint>The shop needs dine in switched on. For a table other than 1 to 3, open the table in the shop's own Tables page.</Hint>
+                        <Hint>The shop needs dine in switched on.</Hint>
                     </>
                 )}
             </Card>
