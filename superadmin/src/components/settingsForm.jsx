@@ -5,6 +5,7 @@ import { Card, SectionTitle, Chip, Badge } from './ui';
 import { ToggleRow } from './inputs';
 import Icon from './Icon';
 import { isHex } from '../utils/settings';
+import { SWATCH_GROUPS } from '../utils/colorLibrary';
 
 /* A titled card holding one group of related settings. */
 export function Group({ title, hint, section = 'settings', children, flush }) {
@@ -139,8 +140,12 @@ export function TextField({ label, hint, value, onChange, placeholder, maxLength
 const SWATCHES = ['#E23744', '#FF6B3D', '#FF9F1C', '#F2B705', '#16A34A', '#0E9F8E', '#2F80ED', '#4F46E5', '#8B3DEB', '#D6336C', '#1C1C1C', '#FFFFFF'];
 
 /* a colour: swatch + #RRGGBB box + quick picks */
-export function ColorField({ label, hint, value, onChange, last }) {
+export function ColorField({ label, hint, value, onChange, last, groups, suggest }) {
     const t = useTheme();
+    const [open, setOpen] = useState(false);   // "More colours": every group, not just the quick row
+    const G = groups || SWATCH_GROUPS;
+    // the quick row: colours suggested for this shop (shades of its main colour), or two from each group
+    const quick = suggest && suggest.length ? suggest : G.flatMap((g) => g.colors.slice(0, 2)).slice(0, 16);
     const [text, setText] = useState(value || '');
     useEffect(() => { setText(value || ''); }, [value]);
     const ok = !text || isHex(text);
@@ -170,11 +175,25 @@ export function ColorField({ label, hint, value, onChange, last }) {
                     }}
                 />
             </View>
+            {suggest && suggest.length ? <Text style={{ color: t.muted, fontSize: font.xs, marginTop: spacing.sm }}>Shades of this shop's main colour</Text> : null}
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: spacing.sm }}>
-                {SWATCHES.map((c) => (
+                {quick.map((c) => (
                     <Pressable key={c} onPress={() => { setText(c); onChange(c); }} style={[s.swatch, { backgroundColor: c, borderColor: value === c ? t.text : t.border }]} />
                 ))}
             </ScrollView>
+            <Pressable onPress={() => setOpen((o) => !o)} hitSlop={8} style={{ marginTop: spacing.xs, alignSelf: 'flex-start' }}>
+                <Text style={{ color: t.accent || t.text, fontSize: font.sm, fontWeight: '800' }}>{open ? 'Fewer colours' : 'More colours'}</Text>
+            </Pressable>
+            {open ? G.map((g) => (
+                <View key={g.name} style={{ marginTop: spacing.sm }}>
+                    <Text style={{ color: t.muted, fontSize: font.xs, fontWeight: '700', marginBottom: 6 }}>{g.name}</Text>
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                        {g.colors.map((c) => (
+                            <Pressable key={c} onPress={() => { setText(c); onChange(c); }} style={[s.swatch, { backgroundColor: c, borderColor: value === c ? t.text : t.border, marginBottom: spacing.sm }]} />
+                        ))}
+                    </View>
+                </View>
+            )) : null}
         </View>
     );
 }

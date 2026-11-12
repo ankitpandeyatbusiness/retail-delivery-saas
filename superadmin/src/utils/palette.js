@@ -77,6 +77,69 @@ export const readableOnWhiteText = (main) => {
     return contrastWhite(h, s, l) >= 4.5;
 };
 
+// ---- gradient combinations: light -> main -> dark (+ an accent) ----
+const clamp = (x, a, b) => Math.min(Math.max(x, a), b);
+const lightnessOf = (hex) => toHsl(hex)[2];
+
+// darken a colour (a little at a time) until white text on it reads easily; a colour that already does is left alone
+const fitStop = (hex, min) => {
+    if (!HEX.test(hex || '')) return hex;
+    let [h, s, l] = toHsl(hex);
+    let guard = 0;
+    while (contrastWhite(h, s, l) < min && l > 0.08 && guard < 80) { l -= 0.012; guard += 1; }
+    return toHex(h, s, l);
+};
+
+// one combination, made readable: the main colour easy under white text (4.5), the light end readable for big white headings (about 2.6 to 3), the dark end darker than the main one
+export function fitCombo({ light, primary, dark, accent }) {
+    const p = fitStop(primary, 4.5);
+    let lt = fitStop(light, 2.6);
+    let dk = fitStop(dark, 4.5);
+    // the light end must really be lighter than the main colour (or the run would be flat): if fitting darkened it too far, lift it just above the main colour, keeping its own hue
+    if (lightnessOf(lt) < lightnessOf(p) + 0.03) { const [lh, ls] = toHsl(HEX.test(light || '') ? light : p); lt = toHex(lh, ls, Math.min(lightnessOf(p) + 0.06, 0.68)); }
+    if (lightnessOf(dk) > lightnessOf(p)) { const [h, s, l] = toHsl(p); dk = toHex(h, s, Math.max(l - 0.1, 0.08)); }
+    return { light: lt, primary: p, dark: dk, accent };
+}
+
+// every colour the app uses, from a combination: the three shades and the accent from the combination, and text, page and alert worked out from its main colour
+export function comboColours(combo) {
+    const c = fitCombo(combo);
+    const best = bestPalette(c.primary);
+    return { primary: c.primary, primaryLight: c.light, primaryDark: c.dark, accent: c.accent || best.accent, error: best.error, text: best.text, background: best.background };
+}
+
+// shades of the main colour, dark to light, to pick the light and dark colours from
+export function shadesOf(main) {
+    const base = HEX.test(main || '') ? main : '#E23744';
+    const [h, s0] = toHsl(base);
+    const s = Math.min(Math.max(s0, 0.3), 0.9);
+    return [0.16, 0.22, 0.28, 0.34, 0.4, 0.46, 0.52, 0.58, 0.64, 0.7].map((l) => toHex(h, s, l));
+}
+
+// six combinations worked out from ONE main colour, to pick from: the plain shades, then the same colour with a warmer, cooler, duo, bolder or softer run
+const RECOMMENDED = [
+    ['Classic', 0, 0, 1, 0.07, 0.07],
+    ['Warm glow', -22, 8, 1.05, 0.14, 0.16],
+    ['Cool shift', 24, -8, 1.05, 0.14, 0.16],
+    ['Duo', 38, -26, 1.1, 0.16, 0.22],
+    ['Bold', 0, 0, 1.2, 0.1, 0.24],
+    ['Soft', -8, 6, 0.8, 0.12, 0.12],
+];
+export function recommendedCombos(main) {
+    const b = bestPalette(main);
+    const [h, s, l] = toHsl(b.primary);
+    return RECOMMENDED.map(([name, dhLight, dhDark, sat, up, down]) => ({
+        name,
+        group: 'For you',
+        ...fitCombo({
+            light: toHex((h + dhLight + 360) % 360, clamp(s * sat, 0.2, 0.95), clamp(l + up, 0.1, 0.66)),
+            primary: b.primary,
+            dark: toHex((h + dhDark + 360) % 360, clamp(s * sat, 0.2, 0.95), clamp(l - down, 0.08, 0.5)),
+            accent: b.accent,
+        }),
+    }));
+}
+
 export const PALETTE_LABELS = [
     ['primary', 'Main'], ['primaryLight', 'Light'], ['primaryDark', 'Dark'], ['accent', 'Accent'],
     ['error', 'Alert'], ['text', 'Text'], ['background', 'Page'],

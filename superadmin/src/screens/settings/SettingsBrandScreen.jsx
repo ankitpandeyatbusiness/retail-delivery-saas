@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, Pressable } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRoute } from '@react-navigation/native';
 import { useTheme, spacing, radius, font } from '../../theme';
 import { Button } from '../../components/ui';
@@ -12,7 +13,8 @@ import { SettingsPage } from '../../components/settingsPage';
 import { Group, Choice, ColorField, Hint, Switch } from '../../components/settingsForm';
 import useSettingsEditor from '../../hooks/useSettingsEditor';
 import { choices, isHex, RECOMMENDED_LOOK } from '../../utils/settings';
-import { bestPalette, readableOnWhiteText, PALETTE_LABELS } from '../../utils/palette';
+import { bestPalette, readableOnWhiteText, PALETTE_LABELS, comboColours, recommendedCombos, shadesOf } from '../../utils/palette';
+import { GRADIENT_COMBOS, COMBO_TABS, SWATCH_GROUPS, ACCENT_GROUPS, BG_GROUPS, TEXT_GROUPS, ALERT_GROUPS } from '../../utils/colorLibrary';
 
 const SHADES = ['primary', 'primaryLight', 'primaryDark'];   // the three colours a logo can supply
 // only real #RRGGBB colours are kept: an empty or half-typed one must never be sent (the server would say it "must look like #RRGGBB")
@@ -33,6 +35,21 @@ function Swatches({ label, colours }) {
     );
 }
 
+// one ready-made colour combination: its gradient (the run the app's headers and big buttons use), four dots (light, main, dark, accent) and its name
+function ComboTile({ combo, on, onPress }) {
+    const t = useTheme();
+    return (
+        <Pressable onPress={onPress} accessibilityRole="button" style={{ width: '48%', marginBottom: spacing.md, borderRadius: radius.md, borderWidth: on ? 2 : 1, borderColor: on ? t.text : t.border, backgroundColor: t.surface, padding: 6 }}>
+            <LinearGradient colors={[combo.light, combo.primary, combo.dark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ height: 54, borderRadius: radius.sm, justifyContent: 'flex-end', padding: 6 }}>
+                <View style={{ flexDirection: 'row' }}>
+                    {[combo.light, combo.primary, combo.dark, combo.accent].map((c, i) => <View key={i} style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: c, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.85)', marginRight: 4 }} />)}
+                </View>
+            </LinearGradient>
+            <Text numberOfLines={1} style={{ color: t.text, fontSize: font.sm, fontWeight: '800', marginTop: 6, marginLeft: 2 }}>{combo.name}</Text>
+        </Pressable>
+    );
+}
+
 const COLOR_LABELS = {
     primary: ['Main colour', 'Buttons, header and highlights'],
     primaryLight: ['Light shade', 'Soft backgrounds'],
@@ -50,6 +67,8 @@ export default function SettingsBrandScreen() {
     const colors = ed.draft?.brand?.colors || {};
     const [reading, setReading] = useState(false);
     const [confirm, setConfirm] = useState(false);
+    const [tab, setTab] = useState('All');          // which kind of combinations are shown
+    const [autoRest, setAutoRest] = useState(true);   // picking a main colour sets all the others to match
 
     // Two sources of colour: the LOGO's (saved on the shop) and the colours typed in here (the panel's own).
     // Only one may exist. A colour counts as "own" when it differs from the logo's, or is saved as the panel's.
@@ -85,10 +104,36 @@ export default function SettingsBrandScreen() {
             toast("The logo's colours were removed. Your own colours stay.");
         } catch (e) { toast(errMsg(e), 'error'); throw e; }
     };
+    // a ready-made combination: its three shades, accent, and the text, page and alert colours worked out to match. The logo's own colours (if the shop has them) are
+    // replaced: only one colour source may exist.
+    const applyCombo = async (combo) => {
+        try {
+            if (Object.keys(logo).length) {
+                await updateShop(shopId, { colors: { primary: '', primaryLight: '', primaryDark: '' } });
+                await useShopStore.getState().load(shopId, { quiet: true });
+            }
+            ed.set('brand', 'colors', { ...onlyHex(colors), ...comboColours(combo) });
+            toast(`${combo.name} colours are in. Tap Save to keep them.`);
+        } catch (e) { toast(errMsg(e), 'error'); }
+    };
     const setColor = (k, v) => {
         const next = onlyHex(colors);
         if (v) next[k] = v; else delete next[k];
+        // the main colour decides the rest: with "set the rest automatically" on, a new main colour brings its best matching colours
+        if (k === 'primary' && v && autoRest && isHex(v) && Object.keys(logo).length === 0) Object.assign(next, bestPalette(v));
         ed.set('brand', 'colors', next);
+    };
+    const comboFor = (c) => (isHex(colors.primary) && colors.primaryLight === c.light && colors.primaryDark === c.dark && colors.primary === c.primary);
+    const tabbed = tab === 'All' ? GRADIENT_COMBOS : GRADIENT_COMBOS.filter((c) => c.group === tab);
+    const suggestions = recommendedCombos(mainNow);
+    // the quick row and the "more colours" groups of each colour box
+    const fieldProps = (k) => {
+        if (k === 'primaryLight' || k === 'primaryDark') return { suggest: shadesOf(colors.primary || mainNow), groups: SWATCH_GROUPS };
+        if (k === 'background') return { groups: BG_GROUPS };
+        if (k === 'text') return { groups: TEXT_GROUPS };
+        if (k === 'error') return { groups: ALERT_GROUPS };
+        if (k === 'accent') return { groups: ACCENT_GROUPS };
+        return { groups: SWATCH_GROUPS };
     };
 
     // one tap: read the logo, make its three colours this shop's colours, and drop the logo's separate copy so only one source is left.
@@ -170,6 +215,35 @@ export default function SettingsBrandScreen() {
                             <Button small kind="soft" title="Reset to best colours" onPress={resetBest} />
                         </View>
                     ) : null}
+                    {!conflict ? (
+                        <View style={{ backgroundColor: t.surface, borderColor: t.border, borderWidth: 1, borderRadius: radius.lg, padding: spacing.lg, marginTop: spacing.md }}>
+                            <Text style={{ color: t.text, fontSize: font.md, fontWeight: '900' }}>Recommended for this shop</Text>
+                            <Text style={{ color: t.muted, fontSize: font.sm, marginTop: 2, marginBottom: spacing.md, lineHeight: 19 }}>
+                                Six looks worked out from the main colour: the plain shades, then warmer, cooler, a two-colour run, bolder and softer. Tap one and every colour is set.
+                            </Text>
+                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
+                                {suggestions.map((c) => <ComboTile key={c.name} combo={c} on={comboFor(c)} onPress={() => applyCombo(c)} />)}
+                            </View>
+                        </View>
+                    ) : null}
+                    {!conflict ? (
+                        <View style={{ backgroundColor: t.surface, borderColor: t.border, borderWidth: 1, borderRadius: radius.lg, padding: spacing.lg, marginTop: spacing.md }}>
+                            <Text style={{ color: t.text, fontSize: font.md, fontWeight: '900' }}>Colour combinations</Text>
+                            <Text style={{ color: t.muted, fontSize: font.sm, marginTop: 2, marginBottom: spacing.sm, lineHeight: 19 }}>
+                                Ready-made colour runs for the app's headers and buttons. Pick one: the main colour, light and dark colours and the accent are set, and the text, page and alert colours are worked out to match. Each stays easy to read.
+                            </Text>
+                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: spacing.sm }}>
+                                {COMBO_TABS.map((x) => (
+                                    <Pressable key={x} onPress={() => setTab(x)} style={{ paddingHorizontal: 12, height: 32, borderRadius: 16, borderWidth: 1, borderColor: tab === x ? t.text : t.border, backgroundColor: tab === x ? t.text : 'transparent', alignItems: 'center', justifyContent: 'center', marginRight: 6, marginBottom: 6 }}>
+                                        <Text style={{ color: tab === x ? t.surface : t.text, fontSize: font.xs, fontWeight: '800' }}>{x}</Text>
+                                    </Pressable>
+                                ))}
+                            </View>
+                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
+                                {tabbed.map((c) => <ComboTile key={c.name} combo={c} on={comboFor(c)} onPress={() => applyCombo(c)} />)}
+                            </View>
+                        </View>
+                    ) : null}
                     {logoUrl || iconUrl ? (
                         <View style={{ backgroundColor: t.surface, borderColor: t.border, borderWidth: 1, borderRadius: radius.lg, padding: spacing.lg, marginTop: spacing.md, marginBottom: spacing.md }}>
                             <Text style={{ color: t.text, fontSize: font.md, fontWeight: '900' }}>Take the colours from a picture</Text>
@@ -183,6 +257,15 @@ export default function SettingsBrandScreen() {
                         </View>
                     ) : null}
                     <Group title="Colours" section="settings" hint="The customer app uses these everywhere. Colours from the logo and colours you pick here cannot both be used: clearing a colour here goes back to the logo's.">
+                        <Pressable onPress={() => setAutoRest((v) => !v)} accessibilityRole="switch" accessibilityState={{ checked: autoRest }} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.lg }}>
+                            <View style={{ width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: t.text, backgroundColor: autoRest ? t.text : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
+                                {autoRest ? <Icon name="check" size={14} color={t.surface} /> : null}
+                            </View>
+                            <View style={{ flex: 1, marginLeft: spacing.md }}>
+                                <Text style={{ color: t.text, fontSize: font.md, fontWeight: '800' }}>Set the other colours automatically</Text>
+                                <Text style={{ color: t.muted, fontSize: font.xs, marginTop: 1 }}>Pick the main colour and the light, dark, accent, text, page and alert colours follow. You can still change each one after.</Text>
+                            </View>
+                        </Pressable>
                         {(ed.options.COLOR_KEYS || []).map((k, i, a) => (
                             <ColorField
                                 key={k}
@@ -191,6 +274,7 @@ export default function SettingsBrandScreen() {
                                 value={colors[k]}
                                 onChange={(v) => setColor(k, v)}
                                 last={i === a.length - 1}
+                                {...fieldProps(k)}
                             />
                         ))}
                     </Group>
